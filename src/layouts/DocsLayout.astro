@@ -49,26 +49,44 @@ const { title, description = '', section = '', breadcrumbs = [] } = Astro.props;
         <img src={`${import.meta.env.BASE_URL}/logo-white.svg`} alt="Pocket Network" class="logo-dark" height="28" />
         <span class="docs-badge">Docs</span>
       </a>
-      <div class="search-input-wrapper">
+
+      <!-- Desktop search -->
+      <div class="search-input-wrapper" id="search-wrapper">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="search" class="search-input" placeholder="Search docs…" aria-label="Search documentation" />
         <span class="search-kbd">⌘K</span>
       </div>
+
       <nav class="header-nav">
-        <a href="https://github.com/pokt-network" target="_blank" rel="noopener">GitHub</a>
-        <a href="http://discord.gg/pocket-network" target="_blank" rel="noopener">Discord</a>
+        <a class="header-external-link" href="https://github.com/pokt-network" target="_blank" rel="noopener">GitHub</a>
+        <a class="header-external-link" href="http://discord.gg/pocket-network" target="_blank" rel="noopener">Discord</a>
         <div class="theme-toggle" id="theme-toggle">
-          <button id="theme-light-btn" aria-pressed="false">☀ Light</button>
-          <button id="theme-dark-btn" aria-pressed="false">☽ Dark</button>
+          <button id="theme-light-btn" aria-pressed="false">☀<span class="theme-label"> Light</span></button>
+          <button id="theme-dark-btn" aria-pressed="false">☽<span class="theme-label"> Dark</span></button>
         </div>
       </nav>
-      <button class="mobile-menu-btn" aria-label="Open navigation" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
-          <path d="M3 12h18M3 6h18M3 18h18"/>
-        </svg>
+
+      <!-- Mobile: search icon -->
+      <button class="search-toggle-btn" id="search-toggle" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+
+      <!-- Hamburger (mobile) -->
+      <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open navigation" aria-expanded="false">
+        <svg class="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
     </div>
+
+    <!-- Mobile search bar (drops down when search icon tapped) -->
+    <div class="mobile-search-bar" id="mobile-search-bar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" class="search-input" placeholder="Search docs…" aria-label="Search documentation" id="mobile-search-input" />
+    </div>
   </header>
+
+  <!-- Sidebar backdrop (mobile) -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
   <!-- ═══ PAGE LAYOUT ═══ -->
   <div class="page-layout">
@@ -77,6 +95,11 @@ const { title, description = '', section = '', breadcrumbs = [] } = Astro.props;
       <nav aria-label="Documentation navigation">
         <slot name="sidebar" />
       </nav>
+      <!-- Mobile only: GitHub + Discord at bottom of drawer -->
+      <div class="sidebar-mobile-footer">
+        <a href="https://github.com/pokt-network" target="_blank" rel="noopener" class="sidebar-link">GitHub ↗</a>
+        <a href="http://discord.gg/pocket-network" target="_blank" rel="noopener" class="sidebar-link">Discord ↗</a>
+      </div>
     </aside>
 
     <!-- Main content -->
@@ -152,6 +175,46 @@ const { title, description = '', section = '', breadcrumbs = [] } = Astro.props;
     })();
   </script>
 
+  <!-- Mobile nav + search toggle -->
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', function () {
+      var menuBtn    = document.getElementById('mobile-menu-btn');
+      var sidebar    = document.getElementById('sidebar');
+      var backdrop   = document.getElementById('sidebar-backdrop');
+      var searchBtn  = document.getElementById('search-toggle');
+      var searchBar  = document.getElementById('mobile-search-bar');
+      var searchInput = document.getElementById('mobile-search-input');
+
+      function openMenu() {
+        sidebar.classList.add('open');
+        backdrop.classList.add('open');
+        menuBtn.classList.add('open');
+        menuBtn.setAttribute('aria-expanded', 'true');
+        // Close search bar if open
+        searchBar.classList.remove('open');
+      }
+      function closeMenu() {
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('open');
+        menuBtn.classList.remove('open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+      }
+      function toggleSearch() {
+        var isOpen = searchBar.classList.toggle('open');
+        if (isOpen) {
+          closeMenu();
+          setTimeout(function () { searchInput && searchInput.focus(); }, 50);
+        }
+      }
+
+      if (menuBtn) menuBtn.addEventListener('click', function () {
+        sidebar.classList.contains('open') ? closeMenu() : openMenu();
+      });
+      if (backdrop) backdrop.addEventListener('click', closeMenu);
+      if (searchBtn) searchBtn.addEventListener('click', toggleSearch);
+    });
+  </script>
+
   <!-- FIX 5: TOC scroll-spy — highlights active heading link as user scrolls -->
   <script is:inline>
     document.addEventListener('DOMContentLoaded', function () {
@@ -224,12 +287,63 @@ const { title, description = '', section = '', breadcrumbs = [] } = Astro.props;
     margin: 0 var(--space-4);
   }
 
+  /* Mobile-only elements hidden by default */
   .mobile-menu-btn {
     display: none;
     background: none;
     border: none;
     color: var(--text-primary);
     cursor: pointer;
+    padding: var(--space-1);
+  }
+  .mobile-menu-btn .icon-close { display: none; }
+  .mobile-menu-btn.open .icon-menu { display: none; }
+  .mobile-menu-btn.open .icon-close { display: block; }
+
+  .search-toggle-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: var(--space-1);
+  }
+
+  .mobile-search-bar {
+    display: none;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-primary);
+  }
+  .mobile-search-bar.open { display: flex; }
+  .mobile-search-bar input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: var(--text-base);
+    font-family: inherit;
+  }
+  .mobile-search-bar svg { flex-shrink: 0; color: var(--text-tertiary); }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 39;
+  }
+  .sidebar-backdrop.open { display: block; }
+
+  .sidebar-mobile-footer {
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid var(--border-secondary);
+    padding: var(--space-3) 0;
+    margin-top: var(--space-4);
   }
 
   .page-layout {
@@ -283,20 +397,34 @@ const { title, description = '', section = '', breadcrumbs = [] } = Astro.props;
   }
 
   @media (max-width: 1024px) {
-    .page-layout { grid-template-columns: 1fr; }
+    .page-layout { grid-template-columns: 1fr; max-width: 100%; }
+    .header-inner { padding: 0 var(--space-3); gap: var(--space-2); }
+    .header-inner .search-input-wrapper { display: none; }
+    .header-external-link { display: none; }
+    .theme-label { display: none; }
+    .search-toggle-btn { display: flex; align-items: center; margin-left: auto; }
+    .mobile-menu-btn { display: flex; align-items: center; }
     .sidebar {
       position: fixed;
       left: -100%;
       top: var(--header-height);
-      width: var(--sidebar-width);
+      bottom: 0;
+      width: 85%;
+      max-width: 320px;
       z-index: 40;
-      transition: left var(--transition-slow);
+      overflow-y: auto;
+      transition: left 0.25s ease;
       border-right: 1px solid var(--border-primary);
       box-shadow: var(--shadow-lg);
+      background: var(--bg-sidebar);
     }
     .sidebar.open { left: 0; }
-    .mobile-menu-btn { display: block; }
-    .header-inner .search-input-wrapper { display: none; }
-    .main-content { padding: var(--space-6) var(--space-4); }
+    .sidebar-mobile-footer { display: flex; }
+    .main-content { padding: var(--space-5) var(--space-4); }
+  }
+
+  @media (max-width: 640px) {
+    .main-content { padding: var(--space-4) var(--space-3); }
+    .header-inner { padding: 0 var(--space-2); }
   }
 </style>
