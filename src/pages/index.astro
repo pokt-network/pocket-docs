@@ -16,6 +16,7 @@ const b = import.meta.env.BASE_URL.replace(/\/$/, '');
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pocket Network Docs</title>
   <meta name="description" content="Official documentation for Pocket Network — decentralized infrastructure for accessing any open data, anywhere." />
+  <link rel="icon" type="image/png" href={`${import.meta.env.BASE_URL}/pokt-icon.png`} />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -32,8 +33,9 @@ const b = import.meta.env.BASE_URL.replace(/\/$/, '');
   <header class="site-header">
     <div class="header-inner">
       <a href={import.meta.env.BASE_URL} class="header-logo">
-        <div class="logo-mark">P</div>
-        Pocket <span class="docs-badge">Docs</span>
+        <img src={`${import.meta.env.BASE_URL}/logo-black.svg`} alt="Pocket Network" class="logo-light" height="28" />
+        <img src={`${import.meta.env.BASE_URL}/logo-white.svg`} alt="Pocket Network" class="logo-dark" height="28" />
+        <span class="docs-badge">Docs</span>
       </a>
       <div class="search-input-wrapper">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
