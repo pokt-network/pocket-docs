@@ -31,11 +31,18 @@ const SECTIONS = [
   { key: 'deprecated', label: 'Deprecated' },
 ];
 
-// Compute the href for a content entry
-function entryHref(id: string): string {
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+// Path without base (used for active-link comparison against currentPath)
+function entryPath(id: string): string {
   if (id === 'index') return '/';
-  if (id.endsWith('/index')) return '/' + id.slice(0, -'/index'.length);
-  return '/' + id;
+  if (id.endsWith('/index')) return '/' + id.slice(0, -'/index'.length) + '/';
+  return '/' + id + '/';
+}
+
+// Full href with base prefix (used in <a href>)
+function entryHref(id: string): string {
+  return base + entryPath(id);
 }
 
 // Group entries by top-level section key
@@ -58,13 +65,13 @@ function sortEntries(list: typeof entries) {
   });
 }
 
-// Normalize path for active comparison
+// Normalize path for active comparison (currentPath has no base prefix)
 const normalizedCurrent = currentPath.replace(/\/$/, '') || '/';
 ---
 
 <!-- Home link -->
 <div class="sidebar-section-label">Home</div>
-<a href="/" class={`sidebar-link${normalizedCurrent === '/' ? ' active' : ''}`}>Documentation</a>
+<a href={entryHref('index')} class={`sidebar-link${normalizedCurrent === '/' ? ' active' : ''}`}>Documentation</a>
 
 <!-- Section groups -->
 {SECTIONS.map(({ key, label }) => {
@@ -75,11 +82,11 @@ const normalizedCurrent = currentPath.replace(/\/$/, '') || '/';
     <div>
       <div class="sidebar-section-label">{label}</div>
       {sorted.map((entry) => {
-        const href = entryHref(entry.id);
-        const normHref = href.replace(/\/$/, '') || '/';
-        const isActive = normalizedCurrent === normHref;
+        const path = entryPath(entry.id);
+        const normPath = path.replace(/\/$/, '') || '/';
+        const isActive = normalizedCurrent === normPath;
         return (
-          <a href={href} class={`sidebar-link${isActive ? ' active' : ''}`}>
+          <a href={entryHref(entry.id)} class={`sidebar-link${isActive ? ' active' : ''}`}>
             {entry.data.title}
             {entry.data.status === 'new' && <span class="nav-badge">New</span>}
           </a>

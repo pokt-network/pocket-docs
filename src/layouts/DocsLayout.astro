@@ -43,7 +43,7 @@ const { title, description = '', section = '', breadcrumbs = [] } = Astro.props;
   <!-- ═══ HEADER ═══ -->
   <header class="site-header">
     <div class="header-inner">
-      <a href="/" class="header-logo">
+      <a href={import.meta.env.BASE_URL} class="header-logo">
         <div class="logo-mark">P</div>
         Pocket <span class="docs-badge">Docs</span>
       </a>

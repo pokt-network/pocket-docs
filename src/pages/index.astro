@@ -6,6 +6,7 @@
  */
 import '../styles/global.css';
 import SidebarNav from '../components/SidebarNav.astro';
+const b = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <!DOCTYPE html>
@@ -30,7 +31,7 @@ import SidebarNav from '../components/SidebarNav.astro';
   <!-- Header (matches DocsLayout) -->
   <header class="site-header">
     <div class="header-inner">
-      <a href="/" class="header-logo">
+      <a href={import.meta.env.BASE_URL} class="header-logo">
         <div class="logo-mark">P</div>
         Pocket <span class="docs-badge">Docs</span>
       </a>
@@ -66,7 +67,7 @@ import SidebarNav from '../components/SidebarNav.astro';
         <div class="hero-content">
           <h2>Pocket Network <span>Documentation</span></h2>
           <p>Fully permissionless, fully decentralized open data delivery. 5,000+ independent nodes. 60+ blockchains. No API key required.</p>
-          <a href="/get-started/what-is-pocket" style="display:inline-block;background:var(--brand-blue);color:#fff;padding:var(--space-3) var(--space-6);border-radius:var(--radius-full);font-weight:var(--weight-semibold);font-size:var(--text-sm);text-decoration:none;transition:background var(--transition-fast);">
+          <a href={`${b}/get-started/what-is-pocket`} style="display:inline-block;background:var(--brand-blue);color:#fff;padding:var(--space-3) var(--space-6);border-radius:var(--radius-full);font-weight:var(--weight-semibold);font-size:var(--text-sm);text-decoration:none;transition:background var(--transition-fast);">
             Get Started →
           </a>
         </div>
@@ -91,37 +92,37 @@ import SidebarNav from '../components/SidebarNav.astro';
       <!-- Persona cards -->
       <h2 style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--text-primary);margin-bottom:var(--space-6);">Find your path</h2>
       <div class="card-grid" style="margin-bottom: var(--space-12);">
-        <a href="/developers" class="card persona">
+        <a href={`${b}/developers`} class="card persona">
           <div class="card-icon" style="background:var(--brand-blue-light);color:var(--brand-blue);">🛠</div>
           <h4>Application Developers</h4>
           <p>Get an RPC endpoint and start querying blockchains in under 60 seconds.</p>
           <span class="card-link">Start building →</span>
         </a>
-        <a href="/node-operators" class="card persona">
+        <a href={`${b}/node-operators`} class="card persona">
           <div class="card-icon" style="background:rgba(72,229,194,0.15);color:var(--brand-mint);">⚙️</div>
           <h4>Node Operators</h4>
           <p>Run a Supplier, stake POKT, and earn rewards for serving data.</p>
           <span class="card-link">Run a node →</span>
         </a>
-        <a href="/gateways" class="card persona">
+        <a href={`${b}/gateways`} class="card persona">
           <div class="card-icon" style="background:rgba(255,197,71,0.15);color:var(--brand-gold);">🔀</div>
           <h4>Gateway Operators</h4>
           <p>Deploy PATH and run your own decentralized open data gateway.</p>
           <span class="card-link">Deploy a gateway →</span>
         </a>
-        <a href="/token" class="card persona">
+        <a href={`${b}/token`} class="card persona">
           <div class="card-icon" style="background:var(--brand-blue-light);color:var(--brand-blue);">🪙</div>
           <h4>Token Holders</h4>
           <p>Buy, stake, delegate, and manage POKT across chains and wallets.</p>
           <span class="card-link">Explore POKT →</span>
         </a>
-        <a href="/protocol" class="card persona">
+        <a href={`${b}/protocol`} class="card persona">
           <div class="card-icon" style="background:rgba(184,184,255,0.15);color:var(--brand-lavender);">🔬</div>
           <h4>Protocol Contributors</h4>
           <p>Dive into the Shannon protocol, contribute code, and understand tokenomics.</p>
           <span class="card-link">Read the protocol →</span>
         </a>
-        <a href="/governance" class="card persona">
+        <a href={`${b}/governance`} class="card persona">
           <div class="card-icon" style="background:rgba(255,90,95,0.1);color:var(--brand-coral);">🏛</div>
           <h4>Governance</h4>
           <p>Understand the DAO, vote on proposals, and shape Pocket's future.</p>
@@ -133,12 +134,12 @@ import SidebarNav from '../components/SidebarNav.astro';
       <h2 style="font-size:var(--text-xl);font-weight:var(--weight-semibold);color:var(--text-primary);margin-bottom:var(--space-4);">Quick links</h2>
       <div style="display:flex;flex-wrap:wrap;gap:var(--space-3);margin-bottom:var(--space-12);">
         {[
-          { label: 'What is Pocket?', href: '/get-started/what-is-pocket' },
-          { label: 'Available Networks', href: '/developers/supported-chains' },
-          { label: 'Install pocketd', href: '/get-started/pocketd-installation' },
-          { label: 'Shannon Upgrade', href: '/get-started/shannon-upgrade' },
-          { label: 'API Portal', href: '/foundation/api-portal' },
-          { label: 'Glossary', href: '/reference/glossary' },
+          { label: 'What is Pocket?', href: `${b}/get-started/what-is-pocket` },
+          { label: 'Available Networks', href: `${b}/developers/supported-chains` },
+          { label: 'Install pocketd', href: `${b}/get-started/pocketd-installation` },
+          { label: 'Shannon Upgrade', href: `${b}/get-started/shannon-upgrade` },
+          { label: 'API Portal', href: `${b}/foundation/api-portal` },
+          { label: 'Glossary', href: `${b}/reference/glossary` },
         ].map(({ label, href }) => (
           <a href={href} style="background:var(--bg-tertiary);border:1px solid var(--border-primary);color:var(--text-secondary);padding:var(--space-2) var(--space-4);border-radius:var(--radius-full);font-size:var(--text-sm);text-decoration:none;transition:all var(--transition-fast);">
             {label}

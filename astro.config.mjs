@@ -102,6 +102,7 @@ function rehypeCodeBlock() {
 
 export default defineConfig({
   site: 'https://docs.pocket.network',
+  base: '/pocket-docs',
   output: 'static',
   integrations: [
     mdx(),
