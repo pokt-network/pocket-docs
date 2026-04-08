@@ -1,0 +1,232 @@
+---
+title: "PATH Configuration"
+description: "Complete YAML configuration reference for PATH — global settings, full node connection, gateway config, per-service overrides."
+section: "path"
+persona: ["gateway-operator"]
+tabs: false
+status: "stable"
+sources: ["zip4/path/config/examples/config.shannon_example.yaml", "zip4/path/docusaurus/docs/develop/configs/"]
+lastUpdated: "2026-04-07"
+---
+
+PATH uses a single YAML configuration file with a hierarchical structure. Services inherit from global `gateway_config` settings and can override any setting at the per-service level.
+
+## Configuration Structure
+
+```yaml
+# 1. Global settings
+redis_config: ...
+router_config: ...
+logger_config: ...
+concurrency_config: ...
+
+# 2. Full node connection
+full_node_config: ...
+
+# 3. Gateway settings + services
+gateway_config:
+  gateway_mode: ...
+  gateway_address: ...
+  reputation_config: ...      # Global defaults
+  retry_config: ...           # Global defaults
+  services:                   # Per-service overrides
+    - id: eth
+      type: evm
+      reputation_config: ...  # Overrides global
+```
+
+## Required Settings
+
+These must be set for PATH to start:
+
+```yaml
+full_node_config:
+  rpc_url: https://sauron-rpc.infra.pocket.network
+  grpc_config:
+    host_port: sauron-grpc.infra.pocket.network:443
+    insecure: false
+
+gateway_config:
+  gateway_mode: "centralized"
+  gateway_address: "pokt1your_address"
+  gateway_private_key_hex: "your_64_char_hex_key"
+  owned_apps_private_keys_hex:
+    - "app_private_key_hex"
+```
+
+<Callout type="danger">
+  Never commit private keys to version control. Use environment variable substitution or a secrets manager in production.
+</Callout>
+
+## Global Settings
+
+### Router
+
+```yaml
+router_config:
+  port: 3069                          # Gateway HTTP port
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
+  websocket_message_buffer_size: 8192
+```
+
+### Redis (Optional)
+
+Required for multi-instance deployments (reputation storage, leader election):
+
+```yaml
+redis_config:
+  address: "localhost:6379"
+  password: ""
+  db: 0
+  pool_size: 10
+```
+
+### Concurrency
+
+```yaml
+concurrency_config:
+  max_parallel_endpoints: 1    # Endpoints queried in parallel per request (1-10)
+  max_concurrent_relays: 5500  # Global concurrent relay goroutine limit
+  max_batch_payloads: 5500     # Max payloads in batch request
+```
+
+### Full Node Connection
+
+```yaml
+full_node_config:
+  rpc_url: http://localhost:26657
+  grpc_config:
+    host_port: localhost:9090
+    insecure: true
+  lazy_mode: false              # When true, disables caching
+  session_rollover_blocks: 10   # Grace period for session transitions
+  cache_config:
+    session_ttl: 30s
+```
+
+## Gateway Configuration
+
+### Gateway Modes
+
+| Mode | Description |
+| --- | --- |
+| `centralized` | PATH owns the gateway and application stakes |
+| `delegated` | Applications delegate to the gateway — use `App-Address` header |
+| `permissionless` | Open access, no authentication |
+
+### Reputation System
+
+The reputation system scores endpoints based on success/failure history and selects the best ones for each request:
+
+```yaml
+gateway_config:
+  reputation_config:
+    enabled: true
+    storage_type: "memory"   # "memory" or "redis" (global only)
+    initial_score: 80
+    min_threshold: 30
+    recovery_timeout: 5m
+    tiered_selection:
+      enabled: true
+      tier1_threshold: 70    # Premium tier
+      tier2_threshold: 50    # Good tier
+      probation:
+        enabled: true
+        threshold: 10
+        traffic_percent: 10
+        recovery_multiplier: 2.0
+    signal_impacts:
+      success: 1
+      minor_error: -3
+      major_error: -10
+      critical_error: -25
+      fatal_error: -50
+      recovery_success: 15
+```
+
+### Retry Configuration
+
+```yaml
+  retry_config:
+    enabled: true
+    max_retries: 3
+    max_retry_latency: 5000ms
+    retry_on_5xx: true
+    retry_on_timeout: true
+    retry_on_connection: true
+    connect_timeout: 500ms    # TCP connect timeout for fast failure
+    hedge_delay: 200ms        # Start hedge request after this delay
+```
+
+### Latency Profiles
+
+Named profiles that services reference via `latency_profile`:
+
+| Profile | Fast Threshold | Normal | Slow | Penalty | Severe |
+| --- | --- | --- | --- | --- | --- |
+| `fast` | 50ms | 200ms | 500ms | 1000ms | 3000ms |
+| `standard` | 100ms | 500ms | 1000ms | 2000ms | 5000ms |
+| `slow` | 200ms | 1000ms | 2000ms | 5000ms | 10000ms |
+| `llm` | 2s | 10s | 30s | 60s | 120s |
+
+## Per-Service Configuration
+
+Each service inherits global settings and can override any of them:
+
+```yaml
+  services:
+    - id: eth                    # Service ID (matches on-chain service)
+      type: "evm"               # QoS type: evm, solana, cosmos, generic, passthrough
+      rpc_types: ["json_rpc", "websocket"]
+      latency_profile: "fast"
+      timeout_config:
+        relay_timeout: 10s
+      retry_config:              # Override global retry
+        max_retries: 2
+        hedge_delay: 300ms
+
+    - id: solana
+      type: "solana"
+      rpc_types: ["json_rpc"]
+      latency_profile: "standard"
+      timeout_config:
+        relay_timeout: 15s
+
+    - id: pocket
+      type: "cosmos"
+      rpc_types: ["json_rpc", "rest", "comet_bft"]
+      latency_profile: "slow"
+      rpc_type_fallbacks:        # Workaround for incorrect supplier stakes
+        comet_bft: json_rpc
+        rest: json_rpc
+```
+
+### Service Types
+
+| Type | QoS Module | Block Height Validation | Archival Detection |
+| --- | --- | --- | --- |
+| `evm` | EVM | Yes (eth_blockNumber) | Yes |
+| `solana` | Solana | Yes (getBlockHeight) | No |
+| `cosmos` | Cosmos SDK | Yes (CometBFT status) | No |
+| `generic` | JSON-RPC | No | No |
+| `passthrough` | NoOp | No | No |
+
+## Operational Endpoints
+
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/health` | GET | Overall gateway health |
+| `/ready/<service>` | GET | Service readiness (add `?detailed=true` for endpoint info) |
+| `/ready` | GET | All services readiness |
+| `/admin/circuit-breaker/clear/{serviceId}` | POST | Clear circuit breaker state (per-pod) |
+
+## Environment Variable Substitution
+
+PATH config supports environment variable references for secrets:
+
+```yaml
+gateway_config:
+  gateway_private_key_hex: "${GATEWAY_PRIVATE_KEY}"
+```

@@ -1,0 +1,94 @@
+---
+title: "Building with PATH"
+description: "PATH is the SDK for Shannon — if you're building a custom access point to Pocket Network, PATH is your starting point."
+section: "developers"
+persona: ["developer"]
+tabs: false
+status: "draft"
+sources: ["zip4/path/CLAUDE.md", "zip4/path/README.md"]
+lastUpdated: "2026-04-08"
+---
+
+
+Most developers just need an RPC endpoint — grab one from the [API Portal](/foundation/api-portal), plug it into ethers.js or web3.py, and go. But if you're building something more involved — your own gateway, a custom routing layer, a dedicated access point for your application — **PATH is the SDK for Shannon**.
+
+## What PATH Gives You
+
+PATH (Path API & Toolkit Harness) is the open-source gateway framework for Pocket Network. It handles everything between your users and the protocol:
+
+**Session management.** PATH manages on-chain sessions automatically — hydrating sessions, tracking block heights, handling session rollover, and recovering from edge cases.
+
+**QoS routing.** PATH routes requests to the best available Supplier using a pluggable QoS system. Built-in modules handle EVM, Solana, Cosmos, and generic chains. The reputation system tracks endpoint quality, latency, and correctness in real time.
+
+**Relay forwarding and proof generation.** PATH signs relay requests, forwards them to Suppliers, validates responses, and handles the cryptographic handshake that enables on-chain proof-of-work settlement.
+
+**Multi-chain support.** A single PATH instance can serve any chain the protocol supports — 60+ today and growing. Adding a new chain is a configuration change, not a code change.
+
+**Archival detection.** PATH automatically identifies which Suppliers serve archival data and routes historical queries to them.
+
+<Callout type="info">
+PATH is your interface to the Pocket Network. It's a full gateway framework that handles QoS, failover, session management, and proof generation out of the box.
+</Callout>
+
+## When to Use PATH
+
+Use PATH if you're:
+
+- **Running a gateway** — serving RPC access to your users or customers through Pocket Network
+- **Building a dedicated access point** — need more control than the public portal provides
+- **Integrating Pocket into a platform** — embedding Pocket Network access into a larger infrastructure product
+- **Operating at scale** — need QoS, failover, and routing intelligence beyond simple round-robin
+
+**Don't** use PATH if you just need an RPC endpoint for your dApp. Use the [API Portal](/foundation/api-portal) or [Integration Examples](/developers/integration-examples) instead.
+
+## Architecture Overview
+
+PATH sits between your users and the Pocket protocol:
+
+```
+Your Users → PATH Gateway → QoS Layer → Pocket Protocol → Supplier Nodes → Backend Chains
+```
+
+The architecture has three main layers:
+
+1. **Gateway layer** — accepts incoming RPC requests, manages connections, handles auth
+2. **QoS layer** — selects optimal Suppliers, tracks performance, manages failover
+3. **Protocol layer** — handles Shannon-specific session management, relay signing, and proof mechanics
+
+PATH ships with three deployable components:
+
+- **PATH** — the core gateway process
+- **GUARD** — authentication and access control
+- **WATCH** — monitoring and observability
+
+## Getting Started
+
+The PATH section of these docs covers everything you need:
+
+1. **[PATH Quick Start](/path/quickstart)** — get PATH running locally in minutes
+2. **[Installation](/path/installation)** — full setup guide
+3. **[Configuration](/path/configuration)** — YAML config reference for Shannon, QoS, services, and more
+4. **[Architecture](/path/architecture)** — deep dive into routing, QoS modules, and the reputation system
+5. **[Operating](/path/operating)** — Helm deployment, monitoring, health checks, and scaling
+6. **[Developing](/path/developing)** — extending PATH with custom QoS modules and middleware
+
+## Technical Details
+
+- **Language:** Go
+- **License:** Open source
+- **Repository:** [github.com/pokt-network/path](https://github.com/pokt-network/path)
+- **Protocol:** Shannon (Cosmos SDK)
+- **Deployment:** Helm charts for Kubernetes, or run locally for development
+
+## What About Client Libraries?
+
+PATH is the recommended way to build on Pocket. For direct chain queries, you can also run your own node via `pocketd` (installable via Homebrew) and query the chain directly.
+
+If your use case genuinely requires a lightweight client library (not a full gateway), you'd be writing against the Shannon gRPC/REST API directly. The [API Reference](/developers/api-reference) covers the available endpoints.
+
+## Related Pages
+
+- [PATH Quick Start](/path/quickstart) — get started
+- [PATH Architecture](/path/architecture) — QoS, routing, reputation
+- [API Portal](/foundation/api-portal) — for developers who just need endpoints
+- [Integration Examples](/developers/integration-examples) — drop-in code samples

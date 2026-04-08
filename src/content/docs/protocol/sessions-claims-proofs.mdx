@@ -1,0 +1,582 @@
+---
+title: "Sessions, Claims & Proofs"
+description: "How Pocket Network's session lifecycle works — relay serving, claims, proofs, and settlement."
+section: "protocol"
+persona: ["developer", "node-operator"]
+tabs: true
+status: "stable"
+sources: ["zip1/09-sessions-claims-proofs.md", "zip2/09-sessions-claims-proofs.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+## Overview
+
+Pocket Network needs to solve a fundamental problem: how do you pay suppliers fairly for serving data, without trusting anyone to tell the truth?
+
+The answer is a three-step cycle that repeats continuously across the network:
+
+1. **Session** — The network assigns suppliers to an application for a fixed window of time.
+2. **Claim** — After the window closes, each supplier reports what work they did.
+3. **Proof** — The supplier provides cryptographic evidence that the work actually happened.
+4. **Settlement** — The protocol validates everything and distributes payment.
+
+Think of it like shift work at a large company. The company assigns workers to shifts (sessions), workers submit timesheets (claims), managers spot-check the timesheets against receipts (proofs), and then payroll runs (settlement). No single person controls the process, and cheating is mathematically impractical.
+
+## Sessions
+
+A session is a time-bounded window where the network matches one application with a set of suppliers for a specific service.
+
+### How Sessions Work
+
+Every session is defined by three things:
+
+- **Which application** is requesting data access
+- **Which service** they need (for example, Ethereum mainnet data or Pocket mainnet data)
+- **Which block window** the session covers
+
+Given these inputs, every computer on the network independently calculates the exact same session assignment. There is no central scheduler. No one "picks" which suppliers serve which applications. The math is deterministic — like a formula that always produces the same answer from the same inputs. This makes the system permissionless and resistant to manipulation.
+
+### Session Structure
+
+Each session has a clear identity:
+
+- **Application Address** — The staked application that needs data served
+- **Service ID** — The specific blockchain or API service being accessed
+- **Session Start and End** — The block heights that define when the session begins and ends
+- **Session ID** — A unique fingerprint computed from all of the above
+
+### Session Parameters
+
+Several governance-controlled parameters shape how sessions behave:
+
+| Parameter | What It Controls | Default |
+|-----------|-----------------|---------|
+| **Blocks per session** | How long each session lasts (in blocks) | 60 blocks |
+| **Grace period** | A short buffer after a session ends, allowing a smooth handoff to the next session's suppliers | 10 blocks |
+| **Claim window** | The period during which suppliers must submit their work reports | Opens 11 blocks after session, stays open for 10 blocks |
+| **Proof window** | The period during which suppliers must submit their cryptographic proof | Opens 1 block after claims close, stays open for 10 blocks |
+
+These parameters can be adjusted through governance to tune network performance.
+
+### Session Windows Timeline
+
+The lifecycle of a session unfolds in a strict sequence:
+
+1. **Relay Window** — The session itself. The application sends data requests to its assigned suppliers, who respond in real time.
+2. **Grace Period** — A short overlap buffer. During this time, the network accepts requests from both the ending session and the new one, giving gateways time to transition traffic smoothly.
+3. **Claim Window** — Suppliers submit their work reports.
+4. **Proof Window** — Suppliers submit their cryptographic evidence.
+
+This strict timeline ensures the entire network stays synchronized, and every participant knows exactly when each phase begins and ends.
+
+### How Applications Send Requests
+
+Applications can send relay requests in two ways:
+
+- **Sovereign mode** — The application acts on its own behalf, signing requests directly.
+- **Delegated mode** — The application delegates to one or more gateways, which handle quality-of-service and routing. This is the typical setup for enterprise usage, where gateways provide a professional-grade access layer.
+
+In both cases, the supplier keeps a running record of every relay it serves, organized into a compact cryptographic structure (a special type of Merkle tree) that makes it easy to prove what work was done later.
+
+## Claims
+
+A claim is a supplier's formal report of the work they performed during a session — their "timesheet."
+
+### What a Claim Contains
+
+Each claim includes:
+
+- **Session details** — Which application, which service, and which session window
+- **A cryptographic fingerprint** — A compact summary (root hash) of all the relays served
+- **Total work done** — The sum of compute units represented by the relays
+
+There is exactly one claim per supplier, per application, per session. A supplier cannot submit multiple claims for the same session.
+
+### How Claims Are Submitted
+
+Claims are submitted automatically by the supplier's RelayMiner software. After a session ends:
+
+1. The software waits for the grace period to pass.
+2. It computes the final summary of all relays served.
+3. It saves the data locally.
+4. It waits for the claim window to open.
+5. It submits the claim to the blockchain.
+
+This is fully automated — suppliers do not need to manually file claims.
+
+### Claim Validation
+
+When the network receives a claim, it checks:
+
+- Is this supplier's identity valid?
+- Was this supplier actually assigned to this session?
+- Is the claim being submitted within the allowed time window?
+
+If any of these checks fail, the claim is rejected.
+
+### Claim Expiration
+
+If a supplier submits a claim but then fails to provide a proof when required, the claim expires. When that happens:
+
+- The supplier forfeits all payment for that session's work.
+- The expired claim is cleaned up from the blockchain to keep things tidy.
+
+This creates a strong incentive for suppliers to follow through on their commitments.
+
+## Proofs
+
+A proof is cryptographic evidence that a supplier actually did the work they claimed — the "receipt" that confirms the timesheet is honest.
+
+### Why Proofs Are Necessary
+
+Without proofs, a dishonest supplier could submit a claim saying "I served 10,000 requests" when they actually served none. Proofs make this kind of cheating mathematically impractical.
+
+### How Proof Selection Works
+
+The proof mechanism uses a clever commit-and-reveal approach:
+
+1. **Commit phase** — The supplier locks in their work summary (the claim) before knowing which specific piece of work will be checked.
+2. **Random selection** — After the claim is recorded on the blockchain, the protocol uses unpredictable blockchain data to randomly pick one specific relay to verify.
+3. **Reveal phase** — The supplier must produce valid cryptographic proof for the selected relay.
+
+Here is the key insight: because the supplier does not know which relay will be selected until after they have already committed their claim, they cannot fake it. If they only served half the relays they claimed, there is roughly a 50% chance they will be caught on any given session. Over time, dishonest suppliers are almost certain to be caught.
+
+This is similar to how a tax audit works. An auditor does not check every single transaction — they spot-check a random sample. If you have been keeping honest books, you have nothing to worry about. If you have been falsifying records, you will eventually get caught.
+
+### Proof Validation
+
+When the network receives a proof, it performs thorough verification:
+
+- Is this proof for a valid session?
+- Was this supplier actually assigned to this session?
+- Is the proof being submitted in the correct time window?
+- Is the relay request properly signed by the application (or its gateway)?
+- Did the supplier properly sign their response?
+- Is the cryptographic proof valid for the randomly selected relay?
+- Does the relay meet the minimum difficulty requirements for the service?
+- Does a matching claim exist for this proof?
+
+All of these checks are performed automatically by the protocol. No human review is needed. This is what makes the system trustless and self-healing — the math enforces honesty.
+
+### Proof Parameters
+
+The proof module has its own set of governance-controlled parameters that determine how aggressively the network audits supplier work. Refer to the technical documentation for the full parameter list.
+
+## Relay Mining and Difficulty
+
+Relay mining is the mechanism that allows Pocket Network to scale to billions of relays without overwhelming the blockchain.
+
+### The Scaling Problem
+
+If every single relay had to be individually recorded on the blockchain, the chain would quickly become bloated and slow. Pocket Network solves this with relay mining — a concept borrowed from Bitcoin's mining difficulty.
+
+### How Relay Mining Works
+
+Think of it like quality control in a factory. Instead of inspecting every single product coming off the assembly line, inspectors check a random sample. If the sample is good, they can statistically infer that the whole batch is good.
+
+Similarly, not every relay a supplier serves gets recorded on-chain. Instead, each relay is checked against a difficulty threshold for the service. Only relays that meet this threshold — called "reward-applicable relays" — are recorded. The protocol then uses the difficulty level to estimate the total number of relays actually served.
+
+### Automatic Load Balancing
+
+The relay mining difficulty adjusts automatically per service, much like Bitcoin adjusts its mining difficulty. When a service sees heavy traffic, the difficulty goes up, meaning a smaller fraction of relays are recorded. When traffic is light, difficulty goes down. This keeps the on-chain data manageable regardless of how much traffic the network handles.
+
+This self-regulating mechanism is a core part of what makes Pocket Network's architecture unstoppable — it can scale to meet growing demand without any manual intervention.
+
+## Settlement Flow
+
+After a valid proof is submitted and verified, the protocol settles payment. Settlement involves:
+
+1. **Burning** tokens from the application's stake, proportional to the work consumed.
+2. **Minting** tokens (potentially at a reduced rate, as explained in the Tokenomics section) and distributing them to suppliers, validators, the DAO, and the service source owner.
+
+For a complete explanation of how tokens flow during settlement, see the [Tokenomics Overview](/token/tokenomics).
+
+## Optimistic Relay Accumulation
+
+The RelayMiner software counts a relay toward rewards immediately when it receives the request, before the backend service has finished processing. This "count first, ask questions later" approach:
+
+- Enables fast, in-process rate limiting so applications cannot flood suppliers with excess requests.
+- Protects suppliers from over-servicing attacks.
+
+If the backend service fails to process the request (returns an error), the relay reward is immediately reversed. Successful responses keep the reward. This ensures suppliers only earn credit for relays that were actually served.
+
+## Max Claimable Amount and Over-Servicing
+
+To protect applications from being overcharged, the protocol enforces a cap on how much any single supplier can claim per session. The cap is calculated as the application's total stake divided by the number of suppliers assigned to that session.
+
+### What Happens with Over-Servicing
+
+If a supplier serves more relays than the cap allows, the excess is treated as voluntary "free work." The supplier still served the data, but the protocol only pays them up to the cap. The network tracks over-servicing events, and while there is no direct payment for the extra work, reliable suppliers may build a reputation that gateways and applications value.
+
+### Why Applications Stake for One Service
+
+Applications are limited to staking for exactly one service. This prevents a situation where an application staked for multiple services could be over-serviced by each one, compounding the exposure beyond what its stake can cover.
+
+This design keeps the economic model simple and predictable: an application's stake is always clearly allocated to one service, and the maximum exposure is always known.
+
+</Tab>
+<Tab label="Advanced">
+
+This document explains how sessions work in Pocket Network, how suppliers submit claims for work done, and how cryptographic proofs verify that work for settlement.
+
+## Overview
+
+Sessions are the foundational mechanism that pairs Applications to Suppliers for a bounded period of time. During a session, the Application sends relay requests to its assigned Suppliers. After the session ends, Suppliers submit claims and proofs to the blockchain, triggering settlement through the Token Logic Modules.
+
+The lifecycle follows a commit-and-reveal pattern:
+
+1. **Session**: The protocol deterministically assigns Suppliers to an Application for a specific service during a fixed block window.
+2. **Claim**: After the session ends, each Supplier commits a Merkle root hash representing the work done.
+3. **Proof**: The Supplier reveals a specific Merkle proof for a pseudo-randomly selected leaf, proving the integrity of the claimed work.
+4. **Settlement**: The protocol validates the proof and settles tokens between the Application and Supplier.
+
+> **New in v0.1.31:** Session cache has been removed for determinism. Session lookups are now computed directly from onchain parameters and the block hash, ensuring all nodes produce identical session assignments without relying on cached state.
+
+## Sessions
+
+A session is an onchain mechanism that pairs one Application to a set of Suppliers for a specific service during a fixed number of blocks. Sessions are deterministic — given the same application address, service ID, and block height, every node in the network computes the same session.
+
+### Session Structure
+
+Each session is defined by a **session header** containing:
+
+- **Application Address**: The staked application requesting service.
+- **Service ID**: The service being consumed (e.g., `eth`, `pocket`).
+- **Session Start Height**: The block height at which the session begins.
+- **Session End Height**: Computed as `start_height + num_blocks_per_session - 1`.
+- **Session ID**: A unique deterministic identifier derived from the above fields.
+
+### Querying a Session
+
+To look up the session for a specific application, service, and block height:
+
+```bash
+pocketd query session get-session pokt1mrqt5f7qh8uxs27cjm9t7v9e74a9vvdnq5jva4 eth 42 \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+If you omit the block height, it defaults to the latest height:
+
+```bash
+pocketd query session get-session pokt1mrqt5f7qh8uxs27cjm9t7v9e74a9vvdnq5jva4 eth \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+The response includes the session header, the list of Suppliers assigned to the session, and the number of blocks per session.
+
+### Session Parameters
+
+Sessions are governed by parameters in the `shared` module. These parameters control the timing of sessions, claim windows, and proof windows:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `num_blocks_per_session` | Number of blocks in each session | 60 |
+| `grace_period_end_offset_blocks` | Blocks after session end for the grace period | 10 |
+| `claim_window_open_offset_blocks` | Blocks after session end before claims are accepted | 11 |
+| `claim_window_close_offset_blocks` | Blocks after claim window opens before it closes | 10 |
+| `proof_window_open_offset_blocks` | Blocks after claim window closes before proofs are accepted | 1 |
+| `proof_window_close_offset_blocks` | Blocks after proof window opens before it closes | 10 |
+
+Query the current shared parameters:
+
+```bash
+pocketd query shared params \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+Query the current session parameters:
+
+```bash
+pocketd query session params \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+### Session Windows Timeline
+
+Blocks within and after a session are divided into distinct windows:
+
+```
+|-- Session N (relay window) --|-- Grace --|-- Claim Window --|-- Proof Window --|
+   num_blocks_per_session         grace       claim_open ->       proof_open ->
+                                  period      claim_close         proof_close
+```
+
+1. **Relay Window**: During the session itself (blocks `[start, end]`), the Application sends relay requests to Suppliers.
+2. **Grace Period**: A short buffer after the session ends where relays from both session N and session N+1 are accepted. This allows Gateways time to transition traffic to the next session's Suppliers.
+3. **Claim Window**: Suppliers must submit their `CreateClaim` transactions within this window.
+4. **Proof Window**: Suppliers must submit their `SubmitProof` transactions within this window.
+
+### Relay Handling During Sessions
+
+During a session, Applications (or Gateways acting on their behalf) send relay requests to one or more Suppliers. There are two modes of operation:
+
+- **Sovereign Application**: The Application acts as its own Gateway. The ring signature used to sign relay requests is constructed only from the Application's public key.
+- **Delegated Application**: The Application delegates to one or more Gateways. The ring signature is constructed from the Application's public key and the public keys of all delegated Gateways at session start.
+
+Each Supplier maintains a local **Sparse Merkle Sum Trie (SMST)** for each `(Application, Service, Session)` tuple. Every relay served is inserted as a leaf in this trie. The leaf contains the signed relay request, signed relay response, session metadata, and a weight proportional to the compute units required.
+
+## Claims
+
+A Claim is a structure submitted onchain by a Supplier asserting that it performed a certain amount of work during a session. The claim commits the Supplier to the root hash and sum of its SMST.
+
+### Claim Structure
+
+Each claim contains:
+
+- **Session Header**: Identifies the session (application, service, start height).
+- **Root Hash**: The Merkle root of the Supplier's SMST for that session.
+- **Sum**: The total compute units (work) represented by the trie.
+
+Exactly one claim exists for every `(Application, Supplier, Session)` tuple.
+
+### Submitting a Claim
+
+Claims are submitted automatically by the RelayMiner software. The Supplier's RelayMiner:
+
+1. Waits for the session to end and the grace period to elapse.
+2. Recomputes the SMST root and sum.
+3. Flushes the SMST to local disk.
+4. Waits for the claim window to open.
+5. Submits a `CreateClaim` transaction with the root hash and sum.
+
+### Claim Validation
+
+When the network receives a `CreateClaim` message, it validates:
+
+1. **Basic validation**: Checks that the supplier operator address, session start height, session ID, and service ID are all valid.
+2. **Session header validation**: Retrieves the onchain session and verifies that the session ID matches and that the claiming supplier was actually assigned to this session.
+3. **Claim window validation**: Confirms that the claim is being submitted within the valid claim window.
+
+### Querying Claims
+
+List all claims currently stored onchain:
+
+```bash
+pocketd query proof list-claims \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+Filter claims by session ID:
+
+```bash
+pocketd query proof list-claims \
+  --session-id abc123def456 \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+Filter claims by supplier operator address:
+
+```bash
+pocketd query proof list-claims \
+  --supplier-operator-address pokt1supplier0addr... \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+Filter claims by session end height:
+
+```bash
+pocketd query proof list-claims \
+  --session-end-height 12345 \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+Show a specific claim by session ID and supplier address:
+
+```bash
+pocketd query proof show-claim abc123def456 pokt1supplier0addr... \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+### Claim Expiration
+
+If a claim requires a proof (as determined by the probabilistic proofs mechanism) and the Supplier fails to submit a proof before the proof window closes, the claim expires. When a claim expires:
+
+- The Supplier forfeits all rewards for the work done in that session.
+- The claim is pruned from onchain state to prevent state bloat.
+
+Claims must expire in finite time because:
+
+1. The mint and burn associated with settlement must occur while the Application's stake is still locked.
+2. Applications must be allowed to complete unstaking in finite time.
+3. Proofs must be pruned to keep network state manageable, bounded by recent relay demand rather than historical accumulation.
+
+## Proofs
+
+A Proof is a structure submitted onchain by a Supplier containing a Merkle proof to a single pseudo-randomly selected leaf from the corresponding claim's SMST.
+
+### How Proof Selection Works
+
+The proof mechanism uses a commit-and-reveal approach to prevent Suppliers from fabricating work:
+
+1. The Supplier commits to the SMST root hash in the Claim (the "commit" phase).
+2. After the claim is onchain, the protocol uses a block hash as entropy to select a pseudo-random path through the SMST.
+3. The Supplier must produce a valid Merkle proof for the closest leaf to that path (the "reveal" phase).
+
+Because the path is determined after the claim is committed, the Supplier cannot know which leaf will be selected in advance. This means they must have genuinely served all the relays they claimed, since any leaf might be chosen for verification.
+
+### Proof Validation
+
+When the network receives a `SubmitProof` message, it performs extensive validation:
+
+1. **Basic validation**: Checks supplier operator address, application address, service ID, and that the Merkle proof is non-empty.
+2. **Session header validation**: Verifies the session header matches an onchain session and that the supplier was assigned to it.
+3. **Proof window validation**: Confirms the proof is submitted within the valid window.
+4. **Relay request validation**: Unpacks the proven relay and verifies the relay request's session header, ring signature from the Application, and metadata.
+5. **Relay response validation**: Verifies the Supplier's signature on the relay response and checks session header consistency.
+6. **Closest proof path verification**: Confirms the Merkle proof is for the correct path derived from the onchain seed.
+7. **Relay difficulty verification**: Checks that the relay meets the minimum difficulty threshold for the service.
+8. **Claim correspondence**: Verifies that a matching claim exists for this proof and that all session details align.
+
+### Querying Proofs
+
+List all proofs currently stored onchain:
+
+```bash
+pocketd query proof list-proofs \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+Filter proofs by session ID:
+
+```bash
+pocketd query proof list-proofs \
+  --session-id abc123def456 \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+Filter proofs by supplier operator address:
+
+```bash
+pocketd query proof list-proofs \
+  --supplier-operator-address pokt1supplier0addr... \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+Filter proofs by session end height:
+
+```bash
+pocketd query proof list-proofs \
+  --session-end-height 12345 \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+Show a specific proof:
+
+```bash
+pocketd query proof show-proof abc123def456 pokt1supplier0addr... \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+### Proof Parameters
+
+Query the proof module parameters:
+
+```bash
+pocketd query proof params \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+## Relay Mining and Difficulty
+
+Relay mining is the mechanism that allows the protocol to scale to billions or trillions of relays per session. It works by modulating an onchain difficulty parameter for each service, analogous to Bitcoin's mining difficulty adjustment.
+
+### How Relay Mining Works
+
+Not every relay served by a Supplier ends up in the SMST. Instead, each relay's hash is compared against the current relay mining difficulty for the service. Only relays whose hash meets the difficulty threshold ("reward-applicable relays") are inserted as leaves in the trie.
+
+When a claim is settled, the protocol uses the relay mining difficulty to estimate the total number of relays actually served based on the number of reward-applicable relays recorded. This allows the SMST to remain small even when the actual relay volume is very high.
+
+The key formula:
+
+```
+EstimatedOffchainComputeUnits = scaleUp(RelayMiningDifficulty, ClaimedComputeUnits)
+uPOKT = (EstimatedOffchainComputeUnits * ComputeUnitsToTokenMultiplier) / ComputeUnitCostGranularity
+```
+
+### Querying Relay Mining Difficulty
+
+View the relay mining difficulty for all services:
+
+```bash
+pocketd query service relay-mining-difficulty-all \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+View the difficulty for a specific service:
+
+```bash
+pocketd query service relay-mining-difficulty eth \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+> **New in v0.1.31:** You can now query historical relay mining difficulty at a specific block height and view the full difficulty change history for a service.
+
+View the difficulty that was effective at a specific block height:
+
+```bash
+pocketd query service relay-mining-difficulty-at-height eth 1000 \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+View the full history of difficulty changes for a service:
+
+```bash
+pocketd query service relay-mining-difficulty-history eth \
+  --network=mainnet \
+  --node=https://shannon-grove-rpc.mainnet.poktroll.com
+```
+
+## Settlement Flow
+
+After a valid proof is submitted and verified, the protocol settles the session through the Token Logic Modules (TLMs). Settlement involves:
+
+1. **Burning** tokens from the Application's stake proportional to the estimated compute units consumed.
+2. **Minting** tokens (potentially at a reduced rate due to the `mint_ratio` parameter) and distributing them to Suppliers, validators, the DAO, and the service source owner.
+
+For a complete description of the token settlement mechanics, see [Tokenomics Overview](/token/tokenomics).
+
+## Optimistic Relay Accumulation
+
+The RelayMiner accumulates relay rewards **before** forwarding the relay to the backend service. This optimistic approach:
+
+- Counts the relay immediately for rate-limiting purposes.
+- Enables in-process rate limiting without extra network calls.
+- Protects Suppliers against over-servicing flood attacks.
+
+If the backend responds with a `5xx` error, the relay reward is immediately reverted. Successful responses (`2xx`, `3xx`) keep the reward. This ensures Suppliers are not paid for failed relays while maintaining effective rate limiting.
+
+## Max Claimable Amount and Over-Servicing
+
+To prevent Applications from being over-charged, the protocol enforces a maximum claimable amount per session:
+
+```
+MaxClaimableAmount = Application.Stake / NumSuppliersPerSession
+```
+
+If a Supplier's claim exceeds this limit, the claim is capped at the maximum. The excess represents "free work" that the Supplier performed voluntarily. This over-servicing is tracked via an onchain event, and while the Supplier does not receive direct rewards for the excess, it may benefit from offchain reputation (e.g., Gateways may prefer reliable Suppliers).
+
+Applications are restricted to staking for exactly one service. This prevents a scenario where an Application staked for multiple services could be over-serviced by a factor of `n` (the number of services).
+
+</Tab>
+</Tabs>

@@ -1,0 +1,92 @@
+---
+import { getCollection, render } from 'astro:content';
+import DocsLayout from '../layouts/DocsLayout.astro';
+import SidebarNav from '../components/SidebarNav.astro';
+import SectionCards from '../components/SectionCards.astro';
+
+// Provided components — injected into MDX without explicit imports
+import Callout from '../components/Callout.astro';
+import Tabs from '../components/Tabs.astro';
+import Tab from '../components/Tab.astro';
+import GovParam from '../components/GovParam.astro';
+import GovParamBlock from '../components/GovParamBlock.astro';
+
+// Built components — also available in MDX
+import Card from '../components/Card.astro';
+import StepList from '../components/StepList.astro';
+import GlossaryTerm from '../components/GlossaryTerm.astro';
+import DeprecationBanner from '../components/DeprecationBanner.astro';
+import SupportedChains from '../components/SupportedChains.astro';
+
+export async function getStaticPaths() {
+  const docs = await getCollection('docs');
+  return docs
+    // Root index.mdx is served by src/pages/index.astro — exclude it here
+    .filter((entry) => entry.id !== 'index')
+    .map((entry) => {
+      // In Astro 5, folder/index.mdx gets id "folder" (already clean)
+      let slug: string = entry.id;
+      return {
+        params: { slug },
+        props: { entry },
+      };
+    });
+}
+
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+
+const slug = Astro.params.slug as string;
+const currentPath = `/${slug}`;
+
+// Detect section index pages — in Astro 5's glob loader, folder/index.mdx
+// gets id "folder" (no slash), while child pages get id "folder/page".
+const isSectionIndex = !entry.id.includes('/');
+const sectionKey = isSectionIndex ? entry.id : null;
+
+// Filter TOC to h2 and h3 only
+const tocHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+<DocsLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  section={entry.data.section}
+>
+  <SidebarNav slot="sidebar" currentPath={currentPath} />
+
+  <Fragment slot="toc">
+    {tocHeadings.length > 0 && (
+      <div class="toc-mock">
+        <div class="toc-title">On this page</div>
+        {tocHeadings.map((h) => (
+          <a
+            href={`#${h.slug}`}
+            class={`toc-link${h.depth === 3 ? ' indent' : ''}`}
+          >
+            {h.text}
+          </a>
+        ))}
+      </div>
+    )}
+  </Fragment>
+
+  <Content
+    components={{
+      Callout,
+      Tabs,
+      Tab,
+      GovParam,
+      GovParamBlock,
+      Card,
+      StepList,
+      GlossaryTerm,
+      DeprecationBanner,
+      SupportedChains,
+    }}
+  />
+
+  {isSectionIndex && sectionKey && (
+    <SectionCards section={sectionKey} excludeId={entry.id} />
+  )}
+</DocsLayout>

@@ -1,0 +1,263 @@
+---
+title: "POKT Tokenomics"
+description: "How POKT supply, burn, and mint mechanics work — plain-language overview and technical Token Logic Module details."
+section: "token"
+persona: ["token-holder", "investor", "developer", "node-operator"]
+tabs: true
+status: "stable"
+sources: ["zip1/10-tokenomics-overview.md", "zip3/pokt-tokenomics-explained.docx"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+POKT isn't just a governance token or a speculative asset — it's the fuel that runs a live, global data network. Every relay served burns POKT. Every node operator earns POKT. Understanding that loop is key to understanding the token's long-term economics.
+
+## How POKT Is Minted
+
+New POKT enters circulation as rewards to the actors who keep the network running. There is no fixed block reward — the amount minted is proportional to the volume of relays served.
+
+| Recipient | Share | Role |
+| --- | --- | --- |
+| **Suppliers** | ~79% | Serve relays to applications |
+| **Validators** | ~14% | Propose and validate blocks |
+| **DAO Treasury** | ~4.5% | Fund grants and ecosystem development |
+| **Source Owners** | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> | Maintain service definitions |
+
+Minting is demand-driven, not time-driven. If relay volume drops, fewer tokens are minted. If volume grows, more are minted — but burn also increases proportionally, keeping the system balanced.
+
+## How POKT Is Burned
+
+Burning ties token value directly to network usage. Two distinct burn mechanisms are active:
+
+### 1. Relay Fee Burn
+
+Gateways pay POKT to access the network. Those fees are burned on-chain — permanently removed from circulating supply — every time a relay is processed. More apps using the network means more relays, which means more burn.
+
+- Burn is continuous and automatic
+- As of early 2026, relay fee burn is approximately 38,000 POKT per day
+- At current relay volume, burn roughly equals mint — near-neutral inflation
+
+### 2. Programmable Deflation (PIP-41)
+
+[PIP-41](/token/pip-41) activated a structural burn mechanism: for every 100 POKT burned by applications, only 97.5 POKT is minted back. The remaining 2.5% is permanently removed from circulation.
+
+## The Supply Flywheel
+
+The economics create a self-reinforcing loop:
+
+1. More applications use the network → more relays served
+2. More relays → more POKT burned in fees
+3. More burn → reduced circulating supply
+4. Reduced supply → increased scarcity (if demand holds or grows)
+5. Increased value → attracts more Suppliers → better service → more applications
+
+## Staking and Locked Supply
+
+Staking removes POKT from circulating supply while it's actively securing the network:
+
+- Minimum stake to run a Supplier node: <GovParam module="supplier" param="min_stake" format="pokt" /> POKT
+- Current staked supply: approximately 383 million POKT (17–19% of total)
+- Staked tokens are locked and cannot be traded until unstaked (21-day unbonding period)
+
+A higher staked percentage means less liquid supply available to trade — which, combined with burn, reduces effective circulating supply over time.
+
+## Genesis Distribution
+
+At mainnet launch in July 2020, 650 million POKT were created and distributed across the founding team, investors, ecosystem funds, and the DAO treasury. All genesis token vesting is now fully complete — there are no further cliff or vesting unlocks. Any supply growth since launch is purely from protocol minting rewards.
+
+## What This Means for Different Stakeholders
+
+**For token holders:** The combination of relay fee burn, programmable deflation, and locked staking supply creates compounding downward pressure on circulating supply. As network usage grows, total supply shrinks.
+
+**For Suppliers:** Earn ~79% of all newly minted POKT. Rewards are proportional to relay volume.
+
+**For Gateways and developers:** Relay fees paid in POKT are burned. Every unit of demand directly reduces token supply.
+
+**For the DAO:** 4.5% of all Mint=Burn settlement flows to the DAO Treasury, funding grants and ecosystem development. Balances are publicly visible on [POKTscan](https://poktscan.com).
+
+</Tab>
+<Tab label="Advanced">
+
+Pocket Network's tokenomics are designed around a system of modular Token Logic Modules (TLMs) that process claim settlements independently. When a Supplier's claim is settled after proof validation, the TLMs determine how tokens flow between Applications, Suppliers, validators, service source owners, and the DAO.
+
+## Token Logic Modules
+
+There are two primary TLMs:
+
+1. **Mint=Burn TLM (RelayBurnEqualsMint)**: Burns tokens from the Application's stake and mints an equal (or, with PIP-41, slightly reduced) amount to distribute among protocol participants. This is the long-term core economic mechanism.
+2. **Global Mint TLM**: Mints additional inflationary tokens on top of the Mint=Burn settlement. Bootstraps the network during early growth; expected to reach zero as the network matures.
+
+## Settlement Processing
+
+### Phase 1: Pre-Processing
+
+Before running TLMs, the protocol checks whether the claimed amount exceeds the maximum:
+
+```
+MaxClaimableAmount = Application.Stake / NumSuppliersPerSession
+```
+
+If the claim exceeds this cap, it is reduced and an `ApplicationOverserviced` event is emitted. The final value is the **Settlement Amount (SA)**.
+
+### Phase 2: TLM Processing
+
+Each TLM processes the Settlement Amount independently and sequentially, producing mint, burn, and transfer operations executed atomically.
+
+## Mint=Burn TLM
+
+The fundamental economic mechanism for paying Suppliers.
+
+1. **Burn**: Settlement Amount is burned from the Application module's escrow
+2. **Mint**: `SettlementAmount * mint_ratio` is minted to the tokenomics module
+3. **Distribute**: Minted tokens are split according to `mint_equals_burn_claim_distribution`
+
+### Distribution
+
+| Recipient | Default | Description |
+| --- | --- | --- |
+| `supplier` | 79% | Distributed among the Supplier's revenue shareholders |
+| `proposer` | 14% | Distributed to validators weighted by stake |
+| `dao` | 4.5% | Sent to DAO treasury address |
+| `source_owner` | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> | Sent to service definition owner |
+| `application` | 0% | Returned to Application (typically zero) |
+
+### Example: With PIP-41 Deflation
+
+Settlement of 100 POKT with `mint_ratio = 0.975`:
+
+- **Burned from Application**: 100 POKT
+- **Minted for distribution**: 97.5 POKT
+- **Permanently removed**: 2.5 POKT
+- **Supplier receives**: 77.025 POKT (79% of 97.5)
+- **Validators receive**: 13.65 POKT (14% of 97.5)
+- **DAO receives**: 4.3875 POKT (4.5% of 97.5)
+- **Source Owner receives**: 2.4375 POKT (2.5% of 97.5)
+
+## PIP-41: mint_ratio
+
+The `mint_ratio` parameter (range `(0.0, 1.0]`) controls deflation:
+
+```
+DeflationAmount = SettlementAmount * (1 - mint_ratio)
+MintedAmount    = SettlementAmount * mint_ratio
+```
+
+- `mint_ratio = 1.0`: No deflation (pre-PIP-41 behavior)
+- `mint_ratio = 0.975`: 2.5% deflation per settlement
+
+### Querying mint_ratio
+
+```bash
+pocketd query tokenomics params --network=main
+```
+
+```yaml
+params:
+  dao_reward_address: "pokt1eeeksh2tvkh7wzmfrljnhw4wrhs55lcuvmekkw"
+  mint_equals_burn_claim_distribution:
+    dao: 0.1
+    proposer: 0
+    supplier: 0.8
+    source_owner: 0.1
+    application: 0
+  global_inflation_per_claim: 0.000001
+  mint_equals_burn_claim_distribution:
+    dao: 0.045
+    proposer: 0.14
+    supplier: 0.79
+    source_owner: 0.025
+    application: 0
+  mint_ratio: 0.975
+```
+
+## Global Mint TLM
+
+Mints additional inflationary tokens per claim. Designed as a bootstrap mechanism.
+
+1. Compute: `InflationAmount = SettlementAmount * global_inflation_per_claim`
+2. Mint new tokens equal to the inflation amount
+3. Distribute according to `mint_equals_burn_claim_distribution` (Supplier 80%, Source Owner 10%, DAO 10%)
+4. Application is overcharged by the inflation amount
+
+### Self-Dealing Prevention
+
+Without safeguards, a malicious actor controlling both an Application and Supplier could mint unlimited inflationary tokens via fake traffic. The overcharge-and-reimburse approach forces actors to identify themselves to PNF (via KYC) to recoup the inflation cost, making anonymous self-dealing financially unprofitable.
+
+## Relay Mining Economics
+
+Relay mining connects offchain work to onchain settlement:
+
+```
+ActualRelays → RelayMiningDifficulty → RewardApplicableRelays → ClaimedComputeUnits → uPOKT
+```
+
+### Key Parameters
+
+| Parameter | Scope | Controller | Description |
+| --- | --- | --- | --- |
+| `RelayMiningDifficulty` | Per service | Protocol (auto-adjusted) | Probability a relay qualifies for reward |
+| `ComputeUnitsPerRelay` | Per service | Service owner | Compute units per qualifying relay |
+| `ComputeUnitsToTokenMultiplier` | Network-wide | Governance | uPOKT per compute unit |
+
+### Querying Relay Mining Difficulty
+
+```bash
+# All services
+pocketd query service relay-mining-difficulty-all --network=main
+
+# Specific service
+pocketd query service relay-mining-difficulty eth --network=main
+
+# Historical difficulty at a block height
+pocketd query service relay-mining-difficulty-at-height eth 50000 --network=main
+
+# Full difficulty history
+pocketd query service relay-mining-difficulty-history eth --network=main
+```
+
+## Inspecting Tokenomics On-Chain
+
+### Monitor Balance Changes
+
+```bash
+for ((h=205950; h<=210000; h+=30)); do
+  echo -n "Height $h: "
+  curl -s -H "x-cosmos-block-height: $h" \
+    https://shannon-grove-api.mainnet.poktroll.com/cosmos/bank/v1beta1/balances/pokt1youraddresshere \
+    | jq -r '.balances[0].amount // "0"'
+done
+```
+
+### Inspect Claim Settlement in a Block
+
+```bash
+pocketd query block-results 210033 --network=main -o json > block_210033.json
+
+cat block_210033.json | jq -r '.finalize_block_events[]
+  | select(.type == "transfer")
+  | select(.attributes[]?
+      | select(.key == "recipient" and .value == "pokt1youraddresshere"))
+  | .attributes[] | select(.key == "amount") | .value'
+```
+
+### Query Claims and Proofs
+
+```bash
+pocketd query proof list-claims --network=main
+pocketd query proof list-proofs --network=main
+```
+
+## Tokenomics Parameters Reference
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `dao_reward_address` | bech32 | `pokt1eeeksh...` | DAO rewards destination |
+| `global_inflation_per_claim` | float64 | 0.000001 | Inflation percentage per claim |
+| `mint_equals_burn_claim_distribution` | object | See above | Global Mint distribution |
+| `mint_equals_burn_claim_distribution` | object | See above | Mint=Burn distribution |
+| `mint_ratio` | float64 | 0.975 | Proportion of burned tokens to mint |
+
+</Tab>
+</Tabs>

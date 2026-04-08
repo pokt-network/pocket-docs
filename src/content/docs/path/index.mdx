@@ -1,0 +1,68 @@
+---
+title: "PATH Gateway Software"
+description: "PATH (Path API & Toolkit Harness) — the open-source gateway framework for Pocket Network Shannon."
+section: "path"
+persona: ["gateway-operator", "developer", "core-developer"]
+tabs: false
+status: "stable"
+sources: ["zip4/path/README.md", "zip4/path/CLAUDE.md", "zip4/path/docusaurus/docs/README.md"]
+lastUpdated: "2026-04-07"
+---
+
+**PATH** (Path API & Toolkit Harness) is an open-source Go framework for enabling access to Pocket Network's decentralized supply network. It serves as the gateway that handles service requests and relays them through the Shannon protocol to blockchain endpoints.
+
+PATH is the same software PNF uses to operate [api.pocket.network](https://api.pocket.network). It's production-tested at scale and serves as the primary SDK and access layer for Shannon.
+
+## Who PATH Is For
+
+- **Gateway operators** running commercial RPC businesses on Pocket
+- **Developers** building custom access points to Pocket Network
+- **Chain foundations** deploying dedicated endpoints for their ecosystems
+- **Core developers** extending PATH's QoS, routing, or protocol layers
+
+## Architecture Overview
+
+PATH operates as a multi-layered gateway system:
+
+```
+HTTP Request → Gateway → QoS Service → Protocol (Shannon) → Blockchain Endpoint
+     ↑                                                              ↓
+     └──────────── Response ← QoS Validation ← Protocol ← ─────────┘
+```
+
+### Core Components
+
+| Component | Location | Purpose |
+| --- | --- | --- |
+| **Gateway** | `gateway/` | Main entry point — handles HTTP requests, coordinates processing |
+| **Protocol** | `protocol/` | Shannon protocol implementation — gRPC communication with the chain |
+| **QoS** | `qos/` | Quality of Service — endpoint validation per blockchain type |
+| **Router** | `router/` | HTTP routing, operational endpoints, admin API |
+| **Config** | `config/` | YAML-based configuration with per-service overrides |
+| **Reputation** | `reputation/` | Endpoint scoring — tiered selection, probation, recovery |
+| **Metrics** | `metrics/` | Prometheus metrics collection and reporting |
+
+### QoS Services
+
+| QoS Module | Chains | Capabilities |
+| --- | --- | --- |
+| **EVM** | Ethereum, Base, Arbitrum, Polygon, etc. | Block height sync, archival detection, JSON-RPC + WebSocket |
+| **Solana** | Solana | Slot-based sync, JSON-RPC |
+| **Cosmos** | Pocket, Osmosis, Celestia, etc. | REST + CometBFT + JSON-RPC, RPC type fallback |
+| **NoOp** | Any unsupported service | Pass-through — no QoS validation |
+
+## What's in This Section
+
+- [Quickstart](/path/quickstart) — Get PATH running in under 10 minutes
+- [Installation](/path/installation) — Local binary, Docker, and development setup
+- [Configuration](/path/configuration) — Full YAML config reference with per-service overrides
+- [Architecture](/path/architecture) — Reputation system, QoS data flow, session rollover
+- [Operating](/path/operating) — Helm deployment, monitoring, health checks, scaling
+- [Developing](/path/developing) — Extending PATH — adding QoS services, testing, contributing
+
+## Quick Links
+
+- **Repository:** [github.com/pokt-network/path](https://github.com/pokt-network/path)
+- **API spec:** `api/path_openapi.yaml` in the repo
+- **Default port:** 3069 (gateway), 9090 (Prometheus metrics)
+- **License:** MIT

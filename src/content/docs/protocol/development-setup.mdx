@@ -1,0 +1,235 @@
+---
+title: "Development Setup"
+description: "Set up a poktroll development environment — LocalNet with Tilt, DevNets, TestNet, and essential shell commands."
+section: "protocol"
+persona: ["core-developer"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/docusaurus/4_develop/networks/", "zip4/poktroll/.serena/memories/"]
+lastUpdated: "2026-04-08"
+---
+
+
+This guide gets you from zero to a running poktroll development environment. You'll set up LocalNet (the primary development network), learn the essential make targets, and understand the other network options.
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+- **Go 1.25+** — the poktroll codebase requires Go 1.25.8 (see `go.mod`)
+- **Docker** and **Docker Compose** — for running LocalNet services
+- **Tilt** — orchestrates the LocalNet environment ([install guide](https://docs.tilt.dev/install.html))
+- **kind** (Kubernetes in Docker) — LocalNet runs on a local Kubernetes cluster
+- **Make** — all development commands go through the Makefile
+- **protoc** and Go protobuf plugins — for proto regeneration
+- **Ignite CLI** — for scaffolding and code generation
+
+<Callout type="tip">
+On macOS, you can install `pocketd` directly via Homebrew: `brew install pokt-network/tap/pocketd`. This gives you the CLI without building from source — useful for interacting with TestNet or MainNet without a full dev environment.
+</Callout>
+
+## Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/pokt-network/poktroll.git
+cd poktroll
+
+# Build the pocketd binary
+make build
+
+# Verify
+./build/pocketd version
+```
+
+The build produces a single `pocketd` binary in `./build/` that serves as both the chain node and the RelayMiner.
+
+## LocalNet
+
+LocalNet is the primary development environment. It spins up a complete Pocket Network on your machine with validators, pre-staked actors, and backend services — everything you need to develop and test protocol changes.
+
+### Starting LocalNet
+
+```bash
+# Start the full LocalNet environment
+make localnet_up
+```
+
+This uses Tilt + kind to orchestrate:
+
+- A local Kubernetes cluster
+- CometBFT validators
+- Pre-configured Application, Supplier, and Gateway accounts
+- Backend service stubs for relay testing
+- A RelayMiner instance
+
+Tilt provides a web UI (typically at `http://localhost:10350`) where you can monitor all services, view logs, and trigger rebuilds.
+
+### Stopping LocalNet
+
+```bash
+make localnet_down
+```
+
+### LocalNet Accounts
+
+LocalNet comes with pre-funded accounts for each actor type. These are deterministic — the same addresses appear every time you start LocalNet.
+
+<Callout type="info">
+LocalNet accounts and their mnemonics are defined in the `localnet/` directory. Never use these keys on TestNet or MainNet.
+</Callout>
+
+### Iterating on LocalNet
+
+When you change code and want to test on LocalNet:
+
+1. Tilt watches for file changes and auto-rebuilds affected services
+2. For proto changes: run `make proto_regen` first, then let Tilt rebuild
+3. For module changes: the chain restarts automatically with your updated code
+
+## DevNets
+
+DevNets are shared development networks used for integration testing before changes hit TestNet. They're ephemeral — spun up for testing and torn down when done.
+
+DevNets are useful when:
+
+- You need to test cross-module interactions with real networking
+- Multiple developers need to test against the same state
+- You're validating a change before proposing it for TestNet
+
+DevNet configuration and deployment details are managed in the poktroll repository's CI/CD pipeline.
+
+## TestNet
+
+TestNet is the persistent test environment that mirrors MainNet configuration. It's publicly accessible and used for:
+
+- Operator onboarding and practice
+- Integration testing with real network conditions
+- Governance proposal testing
+- Relay flow validation before MainNet deployment
+
+### Connecting to TestNet
+
+```bash
+# Query TestNet state
+pocketd query block --node=https://testnet-rpc.pocket.network:443
+
+# Check your account
+pocketd query bank balances <your_address> --node=https://testnet-rpc.pocket.network:443
+```
+
+TestNet faucets and network details are available in the [Networks](/get-started/networks) page.
+
+## Private TestNet
+
+For testing that requires custom genesis state or non-standard parameters, you can spin up a private TestNet:
+
+```bash
+# Initialize a private chain
+pocketd init my-testnet --chain-id=pocket-private-1
+
+# Configure genesis (custom params, funded accounts, etc.)
+# Edit ~/.pocket/config/genesis.json
+
+# Start the private node
+pocketd start
+```
+
+This is useful for testing governance proposals with specific parameter values or simulating edge cases that require custom chain configuration.
+
+## Essential Make Targets
+
+### Build & Proto
+
+```bash
+make build                    # Build pocketd binary
+make proto_regen              # Regenerate all proto files (REQUIRED after .proto changes)
+make go_lint                  # Run golangci-lint
+```
+
+### Testing
+
+```bash
+make test_all                 # Run ALL tests (unit + integration + e2e)
+make test_unit                # Unit tests only
+make test_integration         # Integration tests (in-memory chain)
+make test_e2e                 # E2E tests (requires LocalNet running)
+```
+
+### Local Development
+
+```bash
+make localnet_up              # Start LocalNet (Tilt + kind)
+make localnet_down            # Stop LocalNet
+```
+
+### Module-Specific Testing
+
+```bash
+# Run tests for a specific module
+go test ./x/application/...
+go test ./x/proof/...
+go test ./x/tokenomics/...
+
+# Run a specific test
+go test ./x/proof/keeper/... -run TestMsgServer_CreateClaim
+
+# With verbose output and coverage
+go test ./x/proof/... -v -cover -coverprofile=coverage.out
+go tool cover -html=coverage.out
+```
+
+### Documentation
+
+```bash
+make docusaurus_update_gov_params_page   # Regenerate governance params page from protos
+```
+
+<Callout type="warning">
+Always run `make proto_regen` after modifying any `.proto` files. Forgetting this step is one of the most common causes of confusing compilation errors.
+</Callout>
+
+## Development Workflow
+
+A typical development cycle looks like:
+
+1. **Start LocalNet** — `make localnet_up`
+2. **Make changes** — edit module code, proto files, or tests
+3. **Regenerate protos** (if needed) — `make proto_regen`
+4. **Run unit tests** — `go test ./x/{module}/...`
+5. **Let Tilt rebuild** — automatic on file change
+6. **Test on LocalNet** — use `pocketd` CLI to interact with your changes
+7. **Run integration tests** — `make test_integration`
+8. **Run E2E tests** — `make test_e2e`
+9. **Lint** — `make go_lint`
+10. **Submit PR** — CI runs the full test suite
+
+## Environment Tips
+
+### IDE Setup
+
+For VS Code or GoLand, point your Go module at the poktroll root. The `x/` modules are all part of the same Go module, so imports resolve automatically.
+
+### Proto Tooling
+
+If `make proto_regen` fails, ensure you have the correct versions of:
+
+- `protoc` (Protocol Buffers compiler)
+- `protoc-gen-go` and `protoc-gen-go-grpc`
+- `protoc-gen-gocosmos` (Cosmos SDK specific)
+- `buf` (used for proto linting and breaking change detection)
+
+The Makefile has targets to install these tools — check `make help` for details.
+
+### Debugging
+
+For debugging on LocalNet, you can attach a Go debugger to the chain process. The Tilt configuration exposes debug ports for `dlv` (Delve).
+
+For debugging relay flows specifically, see the [Relay Flow Debugging](/protocol/testing#debugging-relay-flows) section.
+
+## Related Pages
+
+- [Repository Guide](/protocol/repository-guide) — what each repo does and where to start
+- [Testing](/protocol/testing) — unit, integration, and E2E testing patterns
+- [Contributing](/protocol/contributing) — code review process
+- [Networks](/get-started/networks) — TestNet and MainNet connection details

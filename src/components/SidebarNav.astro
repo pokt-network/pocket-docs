@@ -1,0 +1,90 @@
+---
+/**
+ * SidebarNav — Documentation sidebar navigation.
+ * Reads from content collection and renders grouped section links.
+ * CSS classes: .sidebar-section-label, .sidebar-link, .sidebar-link.active, .nav-badge
+ * Defined in tokens-and-components.css
+ */
+import { getCollection } from 'astro:content';
+
+interface Props {
+  currentPath: string;
+}
+
+const { currentPath } = Astro.props;
+const entries = await getCollection('docs');
+
+// Section config: defines display order and labels
+const SECTIONS = [
+  { key: 'get-started', label: 'Get Started' },
+  { key: 'developers', label: 'Developers' },
+  { key: 'node-operators', label: 'Node Operators' },
+  { key: 'gateways', label: 'Gateways' },
+  { key: 'path', label: 'PATH' },
+  { key: 'token', label: 'Token' },
+  { key: 'wallets', label: 'Wallets' },
+  { key: 'governance', label: 'Governance' },
+  { key: 'protocol', label: 'Protocol' },
+  { key: 'reference', label: 'Reference' },
+  { key: 'ecosystem', label: 'Ecosystem' },
+  { key: 'foundation', label: 'Foundation' },
+  { key: 'deprecated', label: 'Deprecated' },
+];
+
+// Compute the href for a content entry
+function entryHref(id: string): string {
+  if (id === 'index') return '/';
+  if (id.endsWith('/index')) return '/' + id.slice(0, -'/index'.length);
+  return '/' + id;
+}
+
+// Group entries by top-level section key
+const bySection: Record<string, typeof entries> = {};
+for (const entry of entries) {
+  const slash = entry.id.indexOf('/');
+  const section = slash > -1 ? entry.id.slice(0, slash) : '__root';
+  if (!bySection[section]) bySection[section] = [];
+  bySection[section].push(entry);
+}
+
+// Sort: section index page first, then alphabetical by title
+function sortEntries(list: typeof entries) {
+  return [...list].sort((a, b) => {
+    const aIdx = a.id.endsWith('/index');
+    const bIdx = b.id.endsWith('/index');
+    if (aIdx && !bIdx) return -1;
+    if (!aIdx && bIdx) return 1;
+    return a.data.title.localeCompare(b.data.title);
+  });
+}
+
+// Normalize path for active comparison
+const normalizedCurrent = currentPath.replace(/\/$/, '') || '/';
+---
+
+<!-- Home link -->
+<div class="sidebar-section-label">Home</div>
+<a href="/" class={`sidebar-link${normalizedCurrent === '/' ? ' active' : ''}`}>Documentation</a>
+
+<!-- Section groups -->
+{SECTIONS.map(({ key, label }) => {
+  const pages = bySection[key];
+  if (!pages || pages.length === 0) return null;
+  const sorted = sortEntries(pages);
+  return (
+    <div>
+      <div class="sidebar-section-label">{label}</div>
+      {sorted.map((entry) => {
+        const href = entryHref(entry.id);
+        const normHref = href.replace(/\/$/, '') || '/';
+        const isActive = normalizedCurrent === normHref;
+        return (
+          <a href={href} class={`sidebar-link${isActive ? ' active' : ''}`}>
+            {entry.data.title}
+            {entry.data.status === 'new' && <span class="nav-badge">New</span>}
+          </a>
+        );
+      })}
+    </div>
+  );
+})}

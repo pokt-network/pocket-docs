@@ -1,0 +1,577 @@
+---
+title: "Governance Parameters"
+description: "All governance-controlled parameters in Pocket Network Shannon — what they do, current values, and how to query them."
+section: "governance"
+persona: ["governance", "developer", "node-operator"]
+tabs: true
+status: "stable"
+sources: ["zip1/11-governance-params.md", "zip2/11-governance-params.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Callout type="warning">
+Governance parameters are subject to change via on-chain proposals. The values shown on this page are examples — always query the live on-chain state for current values using `pocketd query [module] params --node=https://sauron-rpc.infra.pocket.network:443` or the LCD REST endpoint at `https://sauron-api.infra.pocket.network/pokt-network/poktroll/{module}/params`.
+</Callout>
+
+
+<Tabs>
+<Tab label="Overview">
+
+## Overview
+
+Every network needs rules. In traditional companies, executives decide the rules. In Pocket Network, the community decides through **governance** — a transparent, on-chain process where changes are proposed, reviewed, and executed.
+
+Think of parameters like the settings on a thermostat. You do not need to rebuild your heating system to change the temperature — you just turn the dial. Similarly, Pocket Network's parameters let the community adjust how the network operates without rewriting the underlying code.
+
+All parameters live on the blockchain itself, which means they are public, auditable, and tamper-proof. Anyone can see what the current settings are at any time.
+
+### Who Can Change Parameters?
+
+Parameter changes must be authorized by the **governance authority** — essentially the DAO (Decentralized Autonomous Organization) that oversees the network. On MainNet, the **Pocket Network Foundation (PNF)** acts as the authorized agent to execute parameter changes on behalf of the DAO.
+
+There are two ways parameters get updated:
+
+- **One at a time** — A single setting is adjusted while everything else stays the same.
+- **All at once for a module** — Every setting in a particular area is submitted together. This requires extra care because any setting left out could be accidentally reset to zero.
+
+For the technical details of how parameter updates are submitted, see the developer documentation.
+
+## Application Module Parameters
+
+Applications are the actors that pay for data access. They stake POKT tokens to use the network's API services. These parameters control the rules for applications.
+
+| Parameter | What It Means |
+| --- | --- |
+| **Max Delegated Gateways** | The maximum number of gateways a single application can delegate its access to. Think of this as a cap on how many "access points" one application can use simultaneously. This limit exists for security and performance reasons — it keeps the cryptographic overhead manageable. Currently set to **<GovParam module="application" param="max_delegated_gateways" />**. |
+| **Minimum Stake** | The smallest amount of POKT an application must deposit to participate in the network. This is like a membership fee that ensures applications have skin in the game. The stake is not spent — it is held as collateral and returned when the application leaves the network (after an unbonding period). |
+
+## Gateway Module Parameters
+
+Gateways sit between applications and suppliers, providing a quality-of-service layer. They are especially useful for enterprises that want reliable, managed access to blockchain data without running their own infrastructure.
+
+| Parameter | What It Means |
+| --- | --- |
+| **Minimum Stake** | The smallest amount of POKT a gateway must deposit to operate on the network. Like the application stake, this is collateral that ensures gateways are committed participants. |
+
+## Supplier Module Parameters
+
+Suppliers are the backbone of Pocket Network — they are the node operators who actually serve the data. When an application requests blockchain data, it is a supplier that answers. These parameters define the entry requirements for suppliers.
+
+| Parameter | What It Means |
+| --- | --- |
+| **Minimum Stake** | The smallest amount of POKT a supplier must deposit to be eligible for sessions. This threshold ensures that suppliers have meaningful economic commitment to providing reliable service. Suppliers with more stake may be selected more frequently. |
+| **Staking Fee** | A small protocol fee charged when a supplier stakes. Think of this as a registration fee that goes to the network. |
+
+## Service Module Parameters
+
+Services represent the specific APIs and blockchains available through Pocket Network — for example, Ethereum Mainnet, Polygon, or POKT itself. These parameters govern how services are registered and how the network manages relay traffic.
+
+| Parameter | What It Means |
+| --- | --- |
+| **Add Service Fee** | The cost to register a new service on the network. This fee is transferred to the Pocket Network Foundation and prevents spam — without a cost, anyone could flood the registry with fake services. |
+| **Target Number of Relays** | The ideal number of relays (data requests) per session that the network aims for. The network automatically adjusts a "difficulty" setting for each service to stay near this target. If a service gets much more traffic than the target, the difficulty increases, which keeps the system balanced and prevents any single service from overwhelming the network. Think of it like traffic management on a highway — the system adapts to keep things flowing smoothly. |
+
+## Session Module Parameters
+
+Sessions are time-bounded windows during which a specific group of suppliers is paired with an application to serve data requests. Sessions are how Pocket Network organizes its permissionless marketplace of data providers.
+
+| Parameter | What It Means |
+| --- | --- |
+| **Number of Suppliers Per Session** | How many suppliers are assigned to serve a given application during each session. A higher number means more redundancy and resilience — if one supplier goes down, others can pick up the work. This is a key factor in making Pocket Network's data access **unstoppable** and **self-healing**. Currently set to **<GovParam module="session" param="num_suppliers_per_session" />**. |
+
+## Proof Module Parameters
+
+The proof system is how Pocket Network verifies that suppliers actually did the work they claim they did. Rather than checking every single relay (which would be prohibitively expensive), the network uses a probabilistic approach — it randomly audits a fraction of sessions to keep suppliers honest. These parameters control that auditing process.
+
+| Parameter | What It Means |
+| --- | --- |
+| **Proof Request Probability** | The chance (from 0% to 100%) that any given session below the cost threshold will be audited. A low probability keeps overhead minimal while still providing a strong deterrent against dishonesty. For example, a value of 0.1% means roughly 1 in 1,000 small sessions will be checked. |
+| **Proof Requirement Threshold** | The cost threshold above which a session is **always** audited, regardless of probability. High-value sessions are too important to leave to chance — they always require cryptographic proof. Think of it like airport security: small bags might get a random check, but large packages are always inspected. |
+| **Proof Missing Penalty** | The amount of POKT slashed (taken away) from a supplier who fails to submit a required proof. This penalty ensures that suppliers take their verification obligations seriously. If a supplier cannot prove they did the work, they lose stake. |
+| **Proof Submission Fee** | A small fee paid by the supplier when submitting a proof. This covers the cost of storing the proof on the blockchain and deters spam submissions. |
+
+## Shared Module Parameters
+
+The shared module contains settings that affect multiple parts of the network. These are the fundamental timing and pricing parameters that coordinate how sessions, claims, proofs, and unbonding all work together.
+
+### Session Timing
+
+| Parameter | What It Means |
+| --- | --- |
+| **Blocks Per Session** | How many blockchain blocks make up one session. This determines the duration of each session. More blocks means longer sessions, giving suppliers more time to serve relays but also delaying settlements. Currently set to **<GovParam module="shared" param="num_blocks_per_session" /> blocks**. |
+| **Grace Period End Offset** | After a session officially ends, suppliers get a short grace period to finish serving any in-progress relays. This prevents relays from being cut off mid-request. |
+
+### Claim and Proof Windows
+
+After a session ends, there is a structured sequence for suppliers to submit their work claims and proofs:
+
+| Parameter | What It Means |
+| --- | --- |
+| **Claim Window Open Offset** | How many blocks after the grace period before suppliers can begin submitting claims (summaries of work done). |
+| **Claim Window Close Offset** | How many blocks the claim window stays open. Suppliers must submit their claims within this window or forfeit their earnings. |
+| **Proof Window Open Offset** | How many blocks after the claim window closes before the proof window opens. |
+| **Proof Window Close Offset** | How many blocks the proof window stays open. If a proof is required, suppliers must submit it within this window. |
+
+Think of this sequence like filing an expense report at work: you have a deadline to submit the report (claim window), and then a deadline to submit receipts if audited (proof window).
+
+### Unbonding Periods
+
+When a participant decides to leave the network, their staked tokens are not returned immediately. There is a waiting period called "unbonding" to ensure all outstanding claims and proofs are settled first.
+
+| Parameter | What It Means |
+| --- | --- |
+| **Supplier Unbonding Period** | How many sessions a supplier must wait after requesting to unstake before their tokens are returned. This is the longest unbonding period because suppliers must wait for all their active claims and proofs to be resolved. Currently set to **<GovParam module="shared" param="supplier_unbonding_period_sessions" /> sessions**. |
+| **Application Unbonding Period** | How many sessions an application must wait after unstaking. This is typically shorter because applications do not have proof obligations. |
+| **Gateway Unbonding Period** | How many sessions a gateway must wait after unstaking. |
+
+### Pricing
+
+| Parameter | What It Means |
+| --- | --- |
+| **Compute Units to Tokens Multiplier** | This controls how much POKT a supplier earns per unit of work. Each relay has a cost measured in "compute units," and this multiplier converts those units into token amounts. Higher multiplier means suppliers earn more per relay. |
+| **Compute Unit Cost Granularity** | This controls the precision of pricing. It works together with the multiplier above to determine the exact per-relay cost. A higher granularity allows for finer-grained pricing — like being able to price items in cents instead of only in whole dollars. |
+
+Together, these two parameters determine the price of each relay using a simple formula: the multiplier divided by the granularity gives the cost per compute unit. The community can adjust both values to fine-tune the economics of the network.
+
+## Tokenomics Module Parameters
+
+Tokenomics parameters control the economic engine of Pocket Network — how tokens are minted, distributed, and potentially burned. These are among the most impactful settings in the entire protocol.
+
+| Parameter | What It Means |
+| --- | --- |
+| **DAO Reward Address** | The blockchain address where the DAO's share of settlement rewards is sent. This funds the community treasury that supports network development and growth. |
+| **Global Inflation Per Claim** | The percentage of new tokens minted each time a claim is settled. This is the inflation mechanism — when suppliers get paid for their work, the network creates a small amount of additional POKT. Setting this to zero disables inflation entirely. |
+| **Mint Allocation Percentages** | When new tokens are minted through inflation, this parameter determines who gets what share. The allocations go to five recipients, and they must add up to 100%: |
+| | — **DAO**: The community treasury (currently <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" />) |
+| | — **Proposer**: The block producer who processed the settlement (currently <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.proposer" format="percent" />) |
+| | — **Supplier**: The node operator who served the relays (currently <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" />) |
+| | — **Source Owner**: The owner of the service definition (currently <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" />) |
+| | — **Application**: The app that requested the relays (currently <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.application" format="percent" />) |
+| **Mint-Equals-Burn Claim Distribution** | When global inflation is turned off (set to zero), this alternative distribution kicks in. Instead of minting new tokens, the network redistributes the tokens that applications spend. The same five recipients receive shares, but at different ratios optimized for a non-inflationary model. |
+| **Mint Ratio** | Introduced via PIP-41, this is the deflation dial. It controls what percentage of burned tokens are re-minted. A value of 1.0 means no deflation (everything burned is re-minted). A value of 0.975 means 97.5% is re-minted and 2.5% is permanently removed from circulation. Over time, this gradually reduces the total token supply. Currently set to **<GovParam module="tokenomics" param="mint_ratio" />**, meaning the network is mildly deflationary. |
+
+These parameters give the community powerful tools to manage the network's economy. By adjusting inflation, distribution, and the mint ratio, the DAO can steer Pocket Network toward sustainability and growth.
+
+## Migration Module Parameters
+
+These parameters specifically control the Morse-to-Shannon migration process — the transition from the old version of Pocket Network to the new one. For a full explanation of the migration itself, see the Migration section.
+
+| Parameter | What It Means |
+| --- | --- |
+| **Waive Morse Claim Gas Fees** | When enabled, participants migrating from Morse do not have to pay transaction fees to claim their tokens on Shannon. This removes a barrier to migration by making it free to move your assets over. Currently **enabled**. |
+| **Allow Morse Account Import Overwrite** | Controls whether previously imported Morse accounts can be re-imported. This is a safety switch primarily used during testing. On the production network, this is **disabled** to prevent any possibility of double-claiming. |
+| **Morse Account Claiming Enabled** | The master switch for migration claims. When enabled, Morse account holders can claim their tokens on Shannon. If disabled, all claim transactions are rejected. Currently **enabled**. |
+
+## Parameter Update Workflow
+
+When a parameter change is needed, it follows a structured, transparent process:
+
+1. **Review current settings** — The current values are checked to understand the starting point.
+2. **Propose changes** — The proposed update is documented publicly (typically as a proposal or pull request) so the community can review it.
+3. **Community review** — Stakeholders discuss the proposed change and its potential impact.
+4. **Execute the change** — Once approved, PNF (acting on behalf of the DAO) submits the update transaction to the blockchain.
+5. **Verify the result** — The new parameter values are confirmed on-chain to ensure the change took effect correctly.
+6. **Record the change** — The transaction is documented for the permanent audit trail.
+
+This process ensures that every parameter change is public, auditable, and traceable. No one can silently change the rules of the network.
+
+## All Parameters Reference Table
+
+Below is a complete summary of every governance parameter in Pocket Network Shannon, organized by module.
+
+| Module | Parameter | What It Controls |
+| --- | --- | --- |
+| **Application** | Max Delegated Gateways | How many gateways one app can use |
+| **Application** | Minimum Stake | Entry deposit for applications |
+| **Gateway** | Minimum Stake | Entry deposit for gateways |
+| **Supplier** | Minimum Stake | Entry deposit for suppliers |
+| **Supplier** | Staking Fee | Registration fee for suppliers |
+| **Service** | Add Service Fee | Cost to register a new service |
+| **Service** | Target Number of Relays | Ideal relay volume per session |
+| **Session** | Suppliers Per Session | How many suppliers serve each app per session |
+| **Proof** | Proof Request Probability | Chance of a session being audited |
+| **Proof** | Proof Requirement Threshold | Cost level that always triggers an audit |
+| **Proof** | Proof Missing Penalty | Penalty for failing to submit proof |
+| **Proof** | Proof Submission Fee | Fee to submit a proof |
+| **Shared** | Blocks Per Session | Duration of each session |
+| **Shared** | Grace Period End Offset | Extra time after session ends |
+| **Shared** | Claim Window Open Offset | When suppliers can start claiming |
+| **Shared** | Claim Window Close Offset | How long the claim window stays open |
+| **Shared** | Proof Window Open Offset | When the proof window starts |
+| **Shared** | Proof Window Close Offset | How long the proof window stays open |
+| **Shared** | Supplier Unbonding Period | Wait time for suppliers to get stake back |
+| **Shared** | Application Unbonding Period | Wait time for apps to get stake back |
+| **Shared** | Gateway Unbonding Period | Wait time for gateways to get stake back |
+| **Shared** | Compute Units to Tokens Multiplier | How much suppliers earn per unit of work |
+| **Shared** | Compute Unit Cost Granularity | Precision of per-relay pricing |
+| **Tokenomics** | DAO Reward Address | Where community treasury funds are sent |
+| **Tokenomics** | Global Inflation Per Claim | Rate of new token creation |
+| **Tokenomics** | Mint Allocation Percentages | Who gets newly minted tokens |
+| **Tokenomics** | Mint-Equals-Burn Distribution | Who gets redistributed tokens (no-inflation mode) |
+| **Tokenomics** | Mint Ratio | Deflation control (PIP-41) |
+| **Migration** | Waive Morse Claim Gas Fees | Free migration claims |
+| **Migration** | Allow Import Overwrite | Re-import safety switch (testing only) |
+| **Migration** | Claiming Enabled | Master switch for migration |
+
+</Tab>
+<Tab label="Advanced">
+
+This document covers every governance-controlled parameter in the Pocket Network Shannon protocol, organized by module. It explains how parameters are queried, updated, and managed through the on-chain governance process.
+
+## Overview
+
+Pocket Network Shannon uses a parameter governance system built on the Cosmos SDK `x/authz` module. On-chain parameters control the behavior of the protocol — from session lengths to tokenomics distributions. All parameter changes must be authorized by the governance authority (the `x/gov` module account) or an authorized grantee such as PNF.
+
+The governance authority address is deterministic across all Pocket networks:
+
+```
+pokt10d07y265gmmuvt4z0w9aw880jnsr700j8yv32t
+```
+
+On MainNet, PNF acts as the authorized grantee to execute parameter changes on behalf of the DAO.
+
+## Updating Parameters: MsgUpdateParams vs MsgUpdateParam
+
+Pocket Network provides two mechanisms for parameter updates:
+
+| Message | Scope | Notes |
+| --- | --- | --- |
+| `MsgUpdateParams` | All params in a module | Standard Cosmos SDK approach. You must include every parameter for the module, even those you are not changing. Omitting a parameter resets it to its zero value. |
+| `MsgUpdateParam` | Single param | Pocket-specific extension. Allows updating one parameter at a time without affecting others. |
+
+When using `MsgUpdateParams`, always query the current parameters first and include all values in the update message. Only modify the parameters you intend to change.
+
+### Querying Current Parameters
+
+Before making changes, query the current values:
+
+```bash
+pocketd query shared params --network=main
+```
+
+### Submitting a Single Parameter Update
+
+To update a single parameter, create a JSON transaction file:
+
+```json
+{
+  "body": {
+    "messages": [
+      {
+        "@type": "/pocket.session.MsgUpdateParam",
+        "authority": "pokt10d07y265gmmuvt4z0w9aw880jnsr700j8yv32t",
+        "name": "num_suppliers_per_session",
+        "as_uint64": "50"
+      }
+    ]
+  }
+}
+```
+
+Then submit it using `authz exec`:
+
+```bash
+pocketd tx authz exec /tmp/update_param.json \
+  --from pnf \
+  --yes \
+  --network=main \
+  --fees 200upokt
+```
+
+### Submitting a Full Module Parameter Update
+
+For `MsgUpdateParams`, create a JSON file with all parameters included:
+
+```json
+{
+  "body": {
+    "messages": [
+      {
+        "@type": "/pocket.tokenomics.MsgUpdateParams",
+        "authority": "pokt10d07y265gmmuvt4z0w9aw880jnsr700j8yv32t",
+        "params": {
+          "mint_equals_burn_claim_distribution": {
+            "dao": "0.1",
+            "proposer": "0",
+            "supplier": "0.8",
+            "source_owner": "0.1",
+            "application": "0"
+          },
+          "dao_reward_address": "pokt1f0c9y7mahf2ya8tymy8g4rr75ezh3pkklu4c3e",
+          "global_inflation_per_claim": "0.000001",
+          "mint_equals_burn_claim_distribution": {
+            "dao": "0.045",
+            "proposer": "0.14",
+            "supplier": "0.79",
+            "source_owner": "0.025",
+            "application": "0"
+          },
+          "mint_ratio": "0.975"
+        }
+      }
+    ]
+  }
+}
+```
+
+Submit the transaction:
+
+```bash
+pocketd tx authz exec /tmp/update_all_tokenomics_params.json \
+  --from pnf \
+  --keyring-backend test \
+  --chain-id pocket-lego-testnet \
+  --node https://shannon-testnet-grove-rpc.beta.poktroll.com \
+  --fees 200upokt \
+  --yes
+```
+
+## Authorization and Access Control
+
+### Checking Grants
+
+To see what authorizations the governance account has granted:
+
+```bash
+# Grants issued by the x/gov module account
+pocketd query authz grants-by-granter pokt10d07y265gmmuvt4z0w9aw880jnsr700j8yv32t --network=main
+
+# Grants received by the PNF grantee
+pocketd query authz grants-by-grantee pokt1hv3xrylxvwd7hfv03j50ql0ttp3s5hqqelegmv --network=main
+```
+
+### Adding a New Authorization
+
+To authorize a new grantee for a specific message type:
+
+```bash
+pocketd tx authz grant \
+  pokt1newgrantee... \
+  "pocket.migration.MsgUpdateParams" \
+  --from pnf \
+  --expiration 16725225600 \
+  --network=main \
+  --gas auto
+```
+
+## Application Module Parameters
+
+Query with: `pocketd query application params --network=main`
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `max_delegated_gateways` | `uint64` | Maximum number of gateways a single application can delegate to. Prevents relay ring signatures from growing too large. |
+| `min_stake` | `Coin (uPOKT)` | Minimum stake an application must maintain to remain staked on the network. |
+
+Live values (fetched at build time):
+
+<GovParamBlock module="application" />
+
+## Gateway Module Parameters
+
+Query with: `pocketd query gateway params --network=main`
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `min_stake` | `Coin (uPOKT)` | Minimum amount of uPOKT a gateway must stake to operate on the network. |
+
+Live values (fetched at build time):
+
+<GovParamBlock module="gateway" />
+
+## Supplier Module Parameters
+
+Query with: `pocketd query supplier params --network=main`
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `min_stake` | `Coin (uPOKT)` | Minimum amount of uPOKT a supplier must stake to be included in network sessions. |
+| `staking_fee` | `Coin (uPOKT)` | Fee charged by the protocol when a supplier stakes. |
+
+Live values (fetched at build time):
+
+<GovParamBlock module="supplier" />
+
+## Service Module Parameters
+
+Query with: `pocketd query service params --network=main`
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `add_service_fee` | `Coin (uPOKT)` | Amount of uPOKT required to register a new service. Deducted from the signer's balance and transferred to the Pocket Network Foundation. |
+| `target_num_relays` | `uint64` | Target for the EMA (exponential moving average) of relays per session. On-chain relay mining difficulty adjusts per service to maintain this target. |
+
+Live values (fetched at build time):
+
+<GovParamBlock module="service" />
+
+## Session Module Parameters
+
+Query with: `pocketd query session params --network=main`
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `num_suppliers_per_session` | `uint64` | Maximum number of suppliers paired with a given application for a single session. |
+
+Live values (fetched at build time):
+
+<GovParamBlock module="session" />
+
+## Proof Module Parameters
+
+Query with: `pocketd query proof params --network=main`
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `proof_request_probability` | `double` | Probability (0.0 to 1.0) that a session below the proof requirement threshold will require a proof. |
+| `proof_requirement_threshold` | `Coin (uPOKT)` | Session cost threshold above which a proof is always required, regardless of probability. |
+| `proof_missing_penalty` | `Coin (uPOKT)` | Amount of uPOKT slashed from a supplier when a required proof is not submitted. |
+| `proof_submission_fee` | `Coin (uPOKT)` | Fee paid by the supplier operator when submitting a proof. Covers on-chain storage costs and deters spam. |
+
+Live values (fetched at build time):
+
+<GovParamBlock module="proof" />
+
+## Shared Module Parameters
+
+Query with: `pocketd query shared params --network=main`
+
+The shared module contains cross-module parameters that affect session timing, unbonding periods, and compute unit pricing.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `num_blocks_per_session` | `uint64` | Number of blocks between session start and end heights. |
+| `grace_period_end_offset_blocks` | `uint64` | Blocks after session end during which suppliers can still service payable relays. |
+| `claim_window_open_offset_blocks` | `uint64` | Blocks after the grace period at which the claim window opens. |
+| `claim_window_close_offset_blocks` | `uint64` | Blocks after the claim window opens at which the claim window closes. |
+| `proof_window_open_offset_blocks` | `uint64` | Blocks after the claim window closes at which the proof window opens. |
+| `proof_window_close_offset_blocks` | `uint64` | Blocks after the proof window opens at which the proof window closes. |
+| `supplier_unbonding_period_sessions` | `uint64` | Sessions a supplier must wait after unstaking before funds return to their balance. Must exceed active claim and proof lifecycle durations. |
+| `application_unbonding_period_sessions` | `uint64` | Sessions an application must wait after unstaking before funds return to their balance. Must exceed the proof window close height. |
+| `gateway_unbonding_period_sessions` | `uint64` | Sessions a gateway must wait after unstaking before funds return to its balance. |
+| `compute_units_to_tokens_multiplier` | `uint64` | Token amount per compute unit when settling a session. Denominated in fractional uPOKT (divided by `compute_unit_cost_granularity`). |
+| `compute_unit_cost_granularity` | `uint64` | Denomination precision for compute unit pricing. Must be a power of 10. A value of 1 means pricing in uPOKT; 1000 means pricing in nanoPOKT (1e-3 uPOKT). |
+
+The `compute_unit_cost_granularity` works with `compute_units_to_tokens_multiplier` to determine per-relay cost:
+
+```
+compute_unit_cost_in_uPOKT = compute_units_to_tokens_multiplier / compute_unit_cost_granularity
+```
+
+Live values (fetched at build time):
+
+<GovParamBlock module="shared" />
+
+## Tokenomics Module Parameters
+
+Query with: `pocketd query tokenomics params --network=main`
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `dao_reward_address` | `string (bech32)` | Address where the DAO's share of claim settlements is distributed. |
+| `global_inflation_per_claim` | `double` | Percentage of a claim's claimable uPOKT amount minted on settlement. Used by the Global Mint TLM. Set to 0 to disable global inflation. |
+| `mint_equals_burn_claim_distribution` | `MintAllocationPercentages` | Distribution of newly minted tokens when global inflation is active. Fields: `dao`, `proposer`, `supplier`, `source_owner`, `application`. Must sum to 1.0. |
+| `mint_equals_burn_claim_distribution` | `MintEqualsBurnClaimDistribution` | Distribution of settlement amounts when global inflation is disabled (`global_inflation_per_claim = 0`). Fields: `dao`, `proposer`, `supplier`, `source_owner`, `application`. Must sum to 1.0. |
+| `mint_ratio` | `double` | Proportion of burned tokens to mint (0.0 &lt; mint_ratio &lt;= 1.0). A value of 0.975 means 97.5% of burned tokens are re-minted and 2.5% are permanently removed from supply. Default is 1.0 (no deflation). |
+
+> **New in v0.1.31:** The `mint_ratio` parameter was introduced via PIP-41 to enable deflationary tokenomics. When set below 1.0, a fraction of each settlement is permanently burned, gradually reducing total supply.
+
+Live values (fetched at build time):
+
+<GovParamBlock module="tokenomics" />
+
+## Migration Module Parameters
+
+Query with: `pocketd query migration params --network=main`
+
+These parameters control the Morse-to-Shannon migration process.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `waive_morse_claim_gas_fees` | `bool` | When enabled, waives gas fees for transactions that contain only Morse claim messages signed by a secp256k1 key. |
+| `allow_morse_account_import_overwrite` | `bool` | When enabled, allows re-importing Morse claimable accounts. Previous imports are deleted (claimed accounts are preserved). Intended for testing; should be disabled in production. |
+| `morse_account_claiming_enabled` | `bool` | Enables or disables the processing of Morse account claim messages (`MsgClaimMorseAccount`, `MsgClaimMorseApplication`, `MsgClaimMorseSupplier`). |
+
+Live values (fetched at build time):
+
+<GovParamBlock module="migration" />
+
+## Parameter Update Workflow
+
+A complete governance parameter update follows these steps:
+
+1. **Query current values** to understand the existing state.
+2. **Create a PR** with the proposed changes documented (for audit trail).
+3. **Generate an update template** using the governance scripts or manually.
+4. **Modify the parameters** in the generated JSON file.
+5. **Submit the transaction** via `pocketd tx authz exec`.
+6. **Verify the changes** by re-querying the module parameters.
+7. **Merge the PR** with the transaction hash recorded.
+
+### Batch Updates Across All Modules
+
+The repository provides helper scripts for managing parameters at scale:
+
+```bash
+# Query all parameters across all modules
+./tools/scripts/params/gov_params.sh query-all --env main
+
+# Update parameters for a specific module
+./tools/scripts/params/gov_params.sh update tokenomics --env main
+
+# Batch update all modules from JSON config files
+./tools/scripts/params/update_all_params.sh main
+```
+
+### Verifying a Transaction
+
+After submitting a parameter update, verify the transaction result:
+
+```bash
+pocketd query tx --type=hash <TRANSACTION_HASH> --network=main
+```
+
+Then confirm the updated parameter values:
+
+```bash
+pocketd query tokenomics params --network=main
+```
+
+## All Parameters Reference Table
+
+| Module | Parameter | Type | Description |
+| --- | --- | --- | --- |
+| `application` | `max_delegated_gateways` | `uint64` | Max gateways per application delegation |
+| `application` | `min_stake` | `Coin` | Minimum application stake |
+| `gateway` | `min_stake` | `Coin` | Minimum gateway stake |
+| `supplier` | `min_stake` | `Coin` | Minimum supplier stake |
+| `supplier` | `staking_fee` | `Coin` | Protocol fee for supplier staking |
+| `service` | `add_service_fee` | `Coin` | Fee to register a new service |
+| `service` | `target_num_relays` | `uint64` | Target relay count per session (EMA) |
+| `session` | `num_suppliers_per_session` | `uint64` | Max suppliers per session |
+| `proof` | `proof_request_probability` | `double` | Probability of requiring proof |
+| `proof` | `proof_requirement_threshold` | `Coin` | Cost threshold requiring proof |
+| `proof` | `proof_missing_penalty` | `Coin` | Slash amount for missing proof |
+| `proof` | `proof_submission_fee` | `Coin` | Fee for submitting a proof |
+| `shared` | `num_blocks_per_session` | `uint64` | Blocks per session |
+| `shared` | `grace_period_end_offset_blocks` | `uint64` | Grace period after session end |
+| `shared` | `claim_window_open_offset_blocks` | `uint64` | Claim window open delay |
+| `shared` | `claim_window_close_offset_blocks` | `uint64` | Claim window duration |
+| `shared` | `proof_window_open_offset_blocks` | `uint64` | Proof window open delay |
+| `shared` | `proof_window_close_offset_blocks` | `uint64` | Proof window duration |
+| `shared` | `supplier_unbonding_period_sessions` | `uint64` | Supplier unbonding wait |
+| `shared` | `application_unbonding_period_sessions` | `uint64` | Application unbonding wait |
+| `shared` | `gateway_unbonding_period_sessions` | `uint64` | Gateway unbonding wait |
+| `shared` | `compute_units_to_tokens_multiplier` | `uint64` | Compute unit pricing multiplier |
+| `shared` | `compute_unit_cost_granularity` | `uint64` | Pricing denomination precision |
+| `tokenomics` | `dao_reward_address` | `string` | DAO reward destination address |
+| `tokenomics` | `global_inflation_per_claim` | `double` | Inflation rate per claim settlement |
+| `tokenomics` | `mint_equals_burn_claim_distribution` | `object` | Mint distribution (dao, proposer, supplier, source_owner, application) |
+| `tokenomics` | `mint_equals_burn_claim_distribution` | `object` | Burn distribution when inflation is disabled |
+| `tokenomics` | `mint_ratio` | `double` | Burn-to-mint ratio for deflationary mechanics (PIP-41) |
+| `migration` | `waive_morse_claim_gas_fees` | `bool` | Waive gas for Morse claim transactions |
+| `migration` | `allow_morse_account_import_overwrite` | `bool` | Allow re-importing Morse accounts |
+| `migration` | `morse_account_claiming_enabled` | `bool` | Enable Morse account claiming |
+
+</Tab>
+</Tabs>

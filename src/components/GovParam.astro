@@ -1,0 +1,72 @@
+---
+/**
+ * GovParam — Inline governance parameter display.
+ * Reads from data/governance-params.json (built by fetch-governance-params.mjs).
+ * 
+ * Usage in MDX:
+ *   <GovParam module="application" param="min_stake" format="pokt" />
+ *   <GovParam module="shared" param="num_blocks_per_session" />
+ *   <GovParam module="tokenomics" param="mint_allocation_percentages.dao" format="percent" />
+ * 
+ * Formats: raw (default), pokt, upokt, percent, commas
+ */
+import govParams from '../../data/governance-params.json';
+
+interface Props {
+  module: string;
+  param: string;
+  format?: 'raw' | 'pokt' | 'upokt' | 'percent' | 'commas';
+  fallback?: string;
+}
+
+const { module, param, format = 'raw', fallback = '—' } = Astro.props;
+const UPOKT_PER_POKT = 1_000_000;
+
+function resolveValue(mod: string, p: string): any {
+  const m = (govParams as any)?.modules?.[mod];
+  if (!m) return undefined;
+  if (p in m.flat) return m.flat[p];
+  if (p in m.raw) return m.raw[p];
+  return undefined;
+}
+
+function formatNumber(n: number): string {
+  return n.toLocaleString('en-US');
+}
+
+const value = resolveValue(module, param);
+let display = fallback;
+
+if (value !== undefined && value !== null) {
+  switch (format) {
+    case 'pokt': {
+      const amount = typeof value === 'object' && value.amount ? value.amount : String(value);
+      display = formatNumber(Number(amount) / UPOKT_PER_POKT);
+      break;
+    }
+    case 'upokt': {
+      const amount = typeof value === 'object' && value.amount ? value.amount : String(value);
+      display = `${amount}upokt`;
+      break;
+    }
+    case 'percent': {
+      const pct = Number(value) * 100;
+      display = `${parseFloat(pct.toPrecision(10))}%`;
+      break;
+    }
+    case 'commas': {
+      display = formatNumber(Number(value));
+      break;
+    }
+    default: {
+      if (typeof value === 'object') {
+        display = value.amount && value.denom ? `${value.amount} ${value.denom}` : JSON.stringify(value);
+      } else {
+        display = String(value);
+      }
+    }
+  }
+}
+---
+
+<span class="gov-param" title={`${module}.${param}`}>{display}</span>

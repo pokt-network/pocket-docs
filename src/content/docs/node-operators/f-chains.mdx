@@ -1,0 +1,62 @@
+---
+title: "F-Chains: How Suppliers Participate"
+description: "How Supplier nodes earn from F-Chains-supported chains — staking requirements, eligible chains, and how to qualify."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+sources: ["zip3/f-chains-supplier-guide.docx"]
+lastUpdated: "2026-04-07"
+---
+
+F-Chains is PNF's program to maintain Supplier node coverage on long-tail and low-traffic chains. As a Supplier operator, F-Chains affects you in two distinct ways:
+
+- **Path A (any Supplier):** Register for F-Chains-supported services and earn rewards from the relay sessions PNF's Application stakes generate. No special access required.
+- **Path B (F-Chains II operator):** A specific institutional arrangement for large-scale operators who run subsidized infrastructure under contract with PNF.
+
+The vast majority of Suppliers will pursue Path A — and that's the right choice.
+
+## Path A: Earning Rewards on F-Chains as a Regular Supplier
+
+F-Chains works by PNF staking POKT as Applications on-chain for each supported chain. Those Application stakes generate relay sessions. Every Supplier registered to serve an F-Chains-supported chain can be selected into those sessions and earn rewards.
+
+You don't need special access, a contract with PNF, or any relationship with F-Chains II operators.
+
+### Step 1 — Meet the Staking Requirements
+
+You need a minimum stake of <GovParam module="supplier" param="min_stake" format="pokt" /> native POKT as a Supplier. See [Supplier Staking](/node-operators/supplier-staking) for the full staking guide.
+
+### Step 2 — Register for F-Chains Services
+
+When staking as a Supplier, you declare which services (chains) you serve. F-Chains-supported services are all listed at [api.pocket.network](https://api.pocket.network) — every chain with a public endpoint has an active Application stake generating relay sessions.
+
+The service ID used in your stake config matches the subdomain on the endpoint URL. For example, to serve Boba, Osmosis, and Near, include `boba`, `osmosis`, and `near` in your service configuration.
+
+See [Service Management](/node-operators/service-management) for the full configuration reference.
+
+### Step 3 — Run the Backend Infrastructure
+
+For each service you register, you must run a corresponding backend node — the actual blockchain full node that your RelayMiner queries:
+
+- **EVM chains** (Ethereum, Base, Arbitrum, etc.): Standard Ethereum-compatible node software (Geth, Erigon, Reth, Nethermind)
+- **Cosmos chains** (Osmosis, Celestia, etc.): Chain-specific full node binaries
+- **Non-EVM chains** (Solana, Near, etc.): Native node implementations
+
+<Callout type="tip">
+  Start with 2–3 chains you can reliably serve before expanding. Quality of service matters more than breadth — PATH's reputation system filters poorly-performing nodes from session selection.
+</Callout>
+
+## Path B: F-Chains II Operator
+
+F-Chains II operators are professional infrastructure providers who run subsidized nodes under contract with PNF. Each operator receives a customized package of staked POKT:
+
+- **Validator nodes:** 3–7 validators per operator
+- **Supplier nodes:** 22–32 Supplier nodes per chain, depending on traffic tier and geographic coverage requirements
+
+Stakes are non-custodial — staked by PNF on the operator's behalf, but the operator controls operations. This arrangement is by invitation and application — contact [directors@pokt.foundation](mailto:directors@pokt.foundation) for inquiries.
+
+## Which Chains Are Supported?
+
+The current list of F-Chains-supported services is available at [api.pocket.network](https://api.pocket.network). This includes 60+ chains spanning EVM, Cosmos, Solana, and other ecosystems. New chains are added as PNF establishes partnerships with chain foundations.
+
+For the program overview and how chain foundations participate, see [F-Chains Program](/foundation/f-chains).

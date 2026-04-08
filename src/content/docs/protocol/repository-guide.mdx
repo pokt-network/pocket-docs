@@ -1,0 +1,191 @@
+---
+title: "Repository Guide"
+description: "Map of all active Pocket Network repositories — what each repo does, how they relate, and where to start contributing."
+section: "protocol"
+persona: ["core-developer", "community-contributor"]
+tabs: false
+status: "draft"
+sources: ["zip4/master-index"]
+lastUpdated: "2026-04-08"
+---
+
+
+Pocket Network's codebase is organized across several repositories under the [`pokt-network`](https://github.com/pokt-network) GitHub organization. This page maps the active repositories, explains their roles, and helps you find where to contribute.
+
+<Callout type="warning">
+All active development happens in the repositories listed below. The legacy `pocket-core` codebase is deprecated and does not work with Shannon.
+</Callout>
+
+## Active Repositories
+
+### poktroll
+
+**Role:** Shannon protocol chain — the core of Pocket Network.
+
+**Language:** Go (Cosmos SDK)
+
+**What's inside:** All nine `x/` modules (application, supplier, gateway, session, service, proof, tokenomics, shared, migration), the `pocketd` CLI binary, RelayMiner off-chain process, proto definitions, integration and E2E tests, and LocalNet configuration.
+
+**Documentation:** ~123 Docusaurus pages covering protocol internals, actors, tokenomics, governance, development guides, and testing.
+
+**Start here if:** You want to contribute to the protocol itself, understand module internals, or run a development environment.
+
+```
+github.com/pokt-network/poktroll
+```
+
+### path
+
+**Role:** PATH gateway framework — the open-source Shannon gateway implementation.
+
+**Language:** Go
+
+**What's inside:** QoS routing engine with pluggable modules (EVM, Solana, Cosmos, generic, NoOp), reputation system for endpoint selection, session rollover handling, RPC type auto-detection and fallback, health checks, Helm charts for Kubernetes deployment (PATH, GUARD, WATCH components).
+
+**Documentation:** ~43 Docusaurus pages covering QoS architecture, Helm operations, and development guides.
+
+**Start here if:** You're building or operating a gateway, extending QoS modules, or deploying PATH in production.
+
+```
+github.com/pokt-network/path
+```
+
+### pocket-relay-miner
+
+**Role:** High-availability RelayMiner — horizontally scalable relay mining.
+
+**Language:** Go
+
+**What's inside:** Redis-backed leader election, horizontal scaling across multiple instances, health monitoring. This is a separate codebase from the basic RelayMiner built into poktroll, designed for production Supplier operations at scale.
+
+**Documentation:** No existing docs — the [HA RelayMiner](/node-operators/ha-relayminer) page in these docs covers setup and operation.
+
+**Start here if:** You're running Supplier infrastructure at scale and need multi-instance relay mining.
+
+```
+github.com/pokt-network/pocket-relay-miner
+```
+
+### igniter
+
+**Role:** Staking operations platform — Provider and Middleman applications.
+
+**Language:** TypeScript
+
+**What's inside:** Two operational modes: **Provider** (direct staking management with on-chain transactions) and **Middleman** (delegated staking coordination). Web interface for staking operations.
+
+**Documentation:** No existing repo docs — see [Igniter](/ecosystem/igniter) for user-facing docs.
+
+**Start here if:** You're building staking tooling or contributing to the staking UX.
+
+```
+github.com/pokt-network/igniter
+```
+
+### pocket-network-resources
+
+**Role:** Network infrastructure index — endpoints, seeds, validators, snapshots.
+
+**What's inside:** Seed node lists, validator endpoints, snapshot URLs, health check configurations. This is the reference source for network connection details across TestNet and MainNet.
+
+**Start here if:** You need network endpoints or want to add infrastructure resources.
+
+```
+github.com/pokt-network/pocket-network-resources
+```
+
+### blockchain-query-mcp
+
+**Role:** BlockchainQuery MCP server — multi-chain blockchain querying tool.
+
+**Language:** TypeScript
+
+**What's inside:** MCP (Model Context Protocol) server with 37 tools spanning 63 chains across 7 protocol families (EVM, Solana, Cosmos, NEAR, Radix, Sui, Bitcoin). Read-only blockchain queries for balances, transactions, blocks, tokens, staking, and governance. Available as a Claude desktop extension.
+
+**Start here if:** You want to add chain support, build new query tools, or integrate BlockchainQuery into other platforms.
+
+```
+github.com/pokt-network/blockchain-query-mcp
+```
+
+### homebrew-pocketd
+
+**Role:** Homebrew tap for the `pocketd` CLI binary.
+
+**What's inside:** Homebrew formula for installing `pocketd` on macOS. Provides `brew install pokt-network/tap/pocketd`.
+
+**Start here if:** You're maintaining the macOS install path for pocketd.
+
+```
+github.com/pokt-network/homebrew-pocketd
+```
+
+## Repository Relationships
+
+```
+                    ┌──────────────┐
+                    │   poktroll   │  ← Protocol chain (source of truth)
+                    │  (Cosmos SDK) │
+                    └──────┬───────┘
+                           │
+              ┌────────────┼────────────┐
+              │            │            │
+              ▼            ▼            ▼
+        ┌──────────┐ ┌──────────┐ ┌──────────────────────┐
+        │   path   │ │pocket-   │ │ pocket-network-      │
+        │ (Gateway)│ │relay-    │ │ resources             │
+        │          │ │miner     │ │ (endpoints, seeds)    │
+        └──────────┘ │(HA Miner)│ └──────────────────────┘
+                     └──────────┘
+              │
+              ▼
+        ┌──────────┐      ┌────────────────────┐
+        │ igniter  │      │ blockchain-query-   │
+        │(Staking) │      │ mcp                 │
+        └──────────┘      │ (Multi-chain query) │
+                          └────────────────────┘
+                                    │
+                          ┌─────────┘
+                          ▼
+                    ┌──────────────┐
+                    │ homebrew-    │
+                    │ pocketd      │
+                    └──────────────┘
+```
+
+- **poktroll** is the upstream dependency — both `path` and `pocket-relay-miner` interact with the chain.
+- **path** and **pocket-relay-miner** are independent off-chain components that don't depend on each other.
+- **igniter** interacts with the chain for staking transactions.
+- **blockchain-query-mcp** connects to Pocket Network RPC endpoints (among 62 other chains) but doesn't depend on poktroll code.
+- **pocket-network-resources** is a data repository consumed by operators, not a code dependency.
+
+## Contribution Entry Points
+
+**New to Pocket development?** Start with `poktroll`:
+
+1. Read the [Development Setup](/protocol/development-setup) guide to get LocalNet running
+2. Browse open issues labeled `good-first-issue` on the poktroll repo
+3. Review the [Contributing](/protocol/contributing) guidelines
+4. Pick a module to focus on — `x/application` and `x/gateway` are the simplest
+
+**Frontend / TypeScript?** Look at `igniter` or `blockchain-query-mcp`.
+
+**Infrastructure / DevOps?** Look at `path` (Helm charts) or `pocket-relay-miner` (scaling).
+
+<Callout type="tip">
+Each repo has a `CLAUDE.md` file in the root with maintainer guidance, architecture notes, and development tips. This is the best starting point for understanding any repo's internals.
+</Callout>
+
+## Deprecated Repositories
+
+These repositories are archived and should not be used for new development:
+
+- **pocket-core** — Morse-era protocol implementation (Go). Replaced by poktroll.
+
+If you encounter references to these repos in external documentation or tutorials, they're outdated.
+
+## Related Pages
+
+- [Development Setup](/protocol/development-setup) — LocalNet and dev environment
+- [Contributing](/protocol/contributing) — code review and contribution process
+- [Shannon Architecture](/protocol/architecture) — protocol module overview

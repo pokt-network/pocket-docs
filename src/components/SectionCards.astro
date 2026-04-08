@@ -1,0 +1,45 @@
+---
+/**
+ * SectionCards — Auto-generated card grid for section index pages.
+ * Queries the content collection for all non-index pages in a section
+ * and renders them as a .card-grid.
+ *
+ * CSS classes: .card-grid, .card — defined in tokens-and-components.css
+ */
+import { getCollection } from 'astro:content';
+import Card from './Card.astro';
+
+interface Props {
+  section: string;  // e.g. "developers", "node-operators"
+  excludeId: string; // the current section index entry id — excluded from cards
+}
+
+const { section, excludeId } = Astro.props;
+
+const allDocs = await getCollection('docs');
+const pages = allDocs.filter((entry) =>
+  entry.id.startsWith(section + '/') &&
+  entry.id !== excludeId
+);
+
+const sorted = pages.sort((a, b) => a.data.title.localeCompare(b.data.title));
+
+function entryHref(id: string) {
+  return '/' + id;
+}
+---
+
+{sorted.length > 0 && (
+  <div>
+    <h2>In this section</h2>
+    <div class="card-grid">
+      {sorted.map((entry) => (
+        <Card
+          title={entry.data.title}
+          description={entry.data.description ?? ''}
+          href={entryHref(entry.id)}
+        />
+      ))}
+    </div>
+  </div>
+)}

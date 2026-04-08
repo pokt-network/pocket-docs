@@ -1,0 +1,231 @@
+---
+title: "Shannon Architecture"
+description: "Deep dive into Pocket Network's Shannon protocol — modules, actors, relay flow, and the proto-first development model."
+section: "protocol"
+persona: ["core-developer"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/CLAUDE.md", "zip4/poktroll/docusaurus/3_protocol/actors/", "zip4/poktroll/.serena/memories/module_architecture_and_relationships.md"]
+lastUpdated: "2026-04-08"
+---
+
+
+Shannon is Pocket Network's current protocol implementation, built on **Cosmos SDK v0.53.0** with **CometBFT v0.38.19** consensus. The codebase lives in the [`poktroll`](https://github.com/pokt-network/poktroll) repository and uses **Ignite CLI** for scaffolding and code generation.
+
+Shannon replaces the legacy Morse implementation with a modular, proto-first architecture. Every on-chain data structure, message, query, and event is defined in Protocol Buffers before any Go code is written. This approach ensures type safety across all components and makes the protocol self-documenting at the wire level.
+
+<Callout type="info">
+Shannon is the production protocol powering Pocket Network. If you're looking for operator-facing docs rather than protocol internals, see the [Node Operators](/node-operators/) and [Gateways](/gateways/) sections.
+</Callout>
+
+## Network Actors
+
+Shannon defines five actor types that interact to form the relay marketplace.
+
+### Application
+
+Applications represent **demand**. They stake POKT to access RPC and API services, specify which services they need via service IDs, and get matched with Suppliers through the session system. Applications burn POKT proportional to the relays they consume. For simplified access, Applications can delegate to one or more Gateways.
+
+On-chain state lives in `x/application/`. The `Application` struct stores the address, stake amount, service configurations, and delegated gateway addresses. An unbonding period is enforced on unstake.
+
+### Supplier
+
+Suppliers represent **supply**. They stake POKT and register the services they can provide along with their endpoints. The session system assigns Suppliers to sessions based on stake weight. Off-chain, Suppliers run **RelayMiner** software that services relay requests, builds a Sparse Merkle Sum Trie (SMST) of completed work, and submits claims and proofs on-chain.
+
+On-chain state lives in `x/supplier/`. The `Supplier` struct separates owner and operator addresses for security — the owner controls the stake while the operator runs day-to-day infrastructure.
+
+### Gateway
+
+Gateways are intermediaries that abstract protocol complexity for Applications. They stake POKT, accept delegations from Applications, sign relay requests on their behalf, and provide QoS, load balancing, and failover. The reference Gateway implementation is the open-source [PATH framework](/path/).
+
+On-chain state lives in `x/gateway/`. The `Gateway` struct stores the address and stake.
+
+### Validator
+
+Validators secure the network via CometBFT consensus. They validate blocks and transactions and earn a portion of minted POKT through the Proposer allocation. This is a standard Cosmos SDK validator role.
+
+### Source Owner
+
+Source Owners register new services in the protocol's service registry and set the `compute_units_per_relay` pricing for their service. They earn a default 15% of all settlement for relays served on their service — an incentive to bring new services to the network.
+
+## Module Architecture
+
+Shannon organizes its on-chain logic into nine Cosmos SDK modules under the `x/` directory. Each module owns its state, messages, queries, parameters, and events.
+
+### Core Modules
+
+| Module | Purpose | Key State |
+|--------|---------|-----------|
+| `x/application` | Application staking, service access, gateway delegation | `Application`: address, stake, service configs, delegatee addresses |
+| `x/supplier` | Supplier staking, service provision, endpoint registration | `Supplier`: owner address, operator address, stake, services with endpoints |
+| `x/gateway` | Gateway staking, application delegation acceptance | `Gateway`: address, stake |
+| `x/session` | Session hydration — deterministic app↔supplier matching | Sessions are **computed, not stored** |
+| `x/service` | Service registry, compute units, relay mining difficulty | `Service`: definition with compute_units_per_relay; `RelayMiningDifficulty`: per-service target |
+| `x/proof` | Claim and proof lifecycle management | `Claim`: pending claims; `Proof`: validated proofs |
+| `x/tokenomics` | Token Logic Modules, settlement, minting, burning | `MintAllocationPercentages`, relay mining difficulty |
+| `x/shared` | Cross-module parameters and types | `SharedParams`: session blocks, claim/proof windows, unbonding periods |
+| `x/migration` | Morse-to-Shannon migration utilities | Migration state |
+
+<Callout type="tip">
+Sessions are the only "stateless" module — given an `(application, service, block_height)` tuple, the session is deterministically derived from on-chain data rather than stored. This is a key architectural decision that avoids state bloat.
+</Callout>
+
+### Module Interaction Map
+
+The modules interact through keeper interfaces rather than direct imports. This prevents circular dependencies and keeps the dependency graph clean.
+
+```
+application ──────▶ session ◀────── supplier
+     │                │                │
+     │                ▼                │
+     │            service              │
+     │                                 │
+     ▼                                 ▼
+gateway            shared           proof
+                     │                │
+                     ▼                ▼
+                tokenomics ◀─────────┘
+```
+
+Key interaction patterns:
+
+- **Session hydration** reads from `application`, `supplier`, and `service` to compute sessions.
+- **Proof validation** reads from `session` to verify claims reference valid sessions.
+- **Settlement** in `tokenomics` reads validated proofs from `proof`, burns from `application` stakes via `bank`, and mints to recipients.
+- **Shared parameters** (session length, claim/proof windows) are consumed by nearly every module.
+
+## Relay Lifecycle
+
+The relay lifecycle is the core value flow of the protocol. It spans both off-chain relay servicing and on-chain proof-of-work settlement.
+
+```
+1. Application → Gateway: RPC request (e.g., eth_getBalance)
+2. Gateway: Looks up session, selects Supplier, signs request
+3. Gateway → RelayMiner: Forwards signed relay request
+4. RelayMiner: Validates session, forwards to backend service
+5. Backend → RelayMiner: Returns RPC response
+6. RelayMiner: Signs response, adds relay to SMST
+7. RelayMiner → Gateway → Application: Returns response
+8. (Session ends)
+9. RelayMiner: Submits MsgCreateClaim with SMST root
+10. RelayMiner: Submits MsgSubmitProof with ClosestMerkleProof
+11. Tokenomics: Validates proof, burns from Application, mints to recipients
+```
+
+For the full relay flow with code-level detail, see the [Sessions, Claims & Proofs](/protocol/sessions-claims-proofs) page.
+
+## Timing Windows
+
+Shannon uses block-height-based timing windows for the claim and proof lifecycle. These windows are governance-controlled parameters defined in `x/shared`.
+
+```
+Block N                     Session starts
+Block N + session_length    Session ends
+  + grace_period            Grace period ends (late relays still accepted)
+  + claim_open_offset       Claim window opens → Supplier submits MsgCreateClaim
+  + claim_close_offset      Claim window closes
+  + proof_open_offset       Proof window opens → Supplier submits MsgSubmitProof
+  + proof_close_offset      Proof window closes → Tokenomics settlement triggers
+```
+
+Missing a window means forfeiting rewards for that session. The RelayMiner handles this automatically, but operators should monitor for missed claims or proofs.
+
+## Relay Mining
+
+Relay Mining is Shannon's mechanism for scaling proof-of-work without scaling on-chain data. It's conceptually similar to Bitcoin's mining difficulty adjustment.
+
+**The problem:** If every relay were submitted on-chain, the network would not scale. Shannon needs a way to prove work statistically.
+
+**The solution:**
+
+1. Each completed relay is hashed. If `hash < target_difficulty`, the relay is "volume applicable" and gets added to the Supplier's **Sparse Merkle Sum Trie (SMST)**.
+2. The SMST root commits to all volume-applicable relays and their total compute units.
+3. When submitting a proof, the Supplier provides a **ClosestMerkleProof** — the relay leaf closest to a random on-chain target — proving they hold the data without revealing all relays.
+4. Difficulty adjusts per-service using an exponential moving average (EMA) of relay volume, keeping on-chain data bounded regardless of total throughput.
+
+For the math behind relay mining difficulty and TLM settlement, see [Tokenomics Deep Dive](/protocol/tokenomics-deep-dive).
+
+## Proto-First Development
+
+Shannon follows a strict proto-first development model. For any new feature:
+
+1. Define types in `proto/poktroll/{module}/types.proto`
+2. Define messages in `proto/poktroll/{module}/tx.proto`
+3. Define queries in `proto/poktroll/{module}/query.proto`
+4. Define events in `proto/poktroll/{module}/event.proto`
+5. Run `make proto_regen` to generate Go types
+6. Implement keeper methods and message handlers
+
+<Callout type="warning">
+Never edit `*.pb.go` files directly — they are generated artifacts. Always modify the `.proto` source and regenerate.
+</Callout>
+
+The proto directory structure mirrors the module structure:
+
+```
+proto/poktroll/
+├── application/
+│   ├── types.proto
+│   ├── tx.proto
+│   ├── query.proto
+│   ├── params.proto
+│   └── event.proto
+├── supplier/
+├── gateway/
+├── session/
+├── service/
+├── proof/
+├── tokenomics/
+└── shared/
+```
+
+## Off-Chain Components
+
+Two critical off-chain components complete the architecture:
+
+### RelayMiner
+
+The Supplier's off-chain process. It listens for incoming relay requests, validates request signatures and session membership, forwards requests to backend services, builds the SMST from completed relays, and submits claims and proofs on-chain. RelayMiner ships as part of the `poktd` binary.
+
+For high-availability deployments with Redis-backed leader election and horizontal scaling, see [HA RelayMiner](/node-operators/ha-relayminer).
+
+### PATH
+
+The open-source Gateway framework. PATH manages application delegations, routes requests to Suppliers using a QoS reputation system, handles failover and load balancing, and abstracts protocol complexity for end users. See the full [PATH documentation](/path/).
+
+## Directory Structure
+
+```
+poktroll/
+├── x/                          # Cosmos SDK modules (core protocol)
+│   ├── application/
+│   ├── supplier/
+│   ├── gateway/
+│   ├── session/
+│   ├── service/
+│   ├── proof/
+│   ├── tokenomics/
+│   ├── shared/
+│   └── migration/
+├── proto/poktroll/             # Protobuf definitions (source of truth)
+├── pkg/                        # Shared packages
+│   ├── crypto/                 # SMST, hashing, signatures
+│   ├── client/                 # Client utilities
+│   └── relayer/                # Relay mining logic
+├── cmd/poktd/                  # Main binary entry point
+├── app/                        # Cosmos app wiring
+├── tests/integration/          # Integration tests
+├── e2e/tests/                  # E2E tests (Gherkin BDD)
+├── localnet/                   # LocalNet configs
+└── docusaurus/                 # Internal documentation
+```
+
+For a map of all active Pocket Network repositories and how they relate, see the [Repository Guide](/protocol/repository-guide).
+
+## Next Steps
+
+- [Sessions, Claims & Proofs](/protocol/sessions-claims-proofs) — detailed claim/proof lifecycle with code examples
+- [Tokenomics Deep Dive](/protocol/tokenomics-deep-dive) — TLMs, settlement math, difficulty adjustment
+- [Development Setup](/protocol/development-setup) — LocalNet and dev environment
+- [Contributing](/protocol/contributing) — code review process and guidelines
+- [Testing](/protocol/testing) — unit, integration, and E2E testing patterns

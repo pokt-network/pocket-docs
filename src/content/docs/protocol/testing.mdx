@@ -1,0 +1,411 @@
+---
+title: "Testing"
+description: "Poktroll testing guide — unit tests with table-driven patterns, integration tests with in-memory chain, and E2E tests with Gherkin BDD on LocalNet."
+section: "protocol"
+persona: ["core-developer"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/docusaurus/4_develop/testing/", "zip4/poktroll/docusaurus/4_develop/e2e_testing/", "zip4/poktroll/.serena/memories/testing_strategies_and_commands.md"]
+lastUpdated: "2026-04-08"
+---
+
+
+Poktroll uses a three-tier testing strategy: **unit tests** for isolated module logic, **integration tests** with an in-memory chain for cross-module interactions, and **E2E tests** using Gherkin BDD scenarios on a live LocalNet. All tests must pass before a PR can merge.
+
+## Test Organization
+
+```
+poktroll/
+├── x/{module}/keeper/*_test.go    # Unit tests (per-module)
+├── tests/integration/              # Integration tests (cross-module)
+├── e2e/tests/                      # E2E tests (Gherkin + LocalNet)
+│   ├── *.feature                   # Gherkin feature files
+│   └── steps/                      # Step implementations
+└── testutil/                       # Shared test utilities
+    ├── sample/                     # Test data generation
+    ├── keeper/                     # Test keeper constructors
+    ├── network/                    # Test network setup
+    └── mocks/                      # Generated mocks
+```
+
+## Running Tests
+
+```bash
+# Everything
+make test_all
+
+# By tier
+make test_unit                          # Unit tests only
+make test_integration                   # Integration tests
+make test_e2e                           # E2E (requires LocalNet running)
+
+# Module-specific
+go test ./x/proof/...                   # All proof module tests
+go test ./x/proof/keeper/... -run TestMsgServer_CreateClaim  # Specific test
+
+# With coverage
+go test ./x/proof/... -cover -coverprofile=coverage.out
+go tool cover -html=coverage.out        # Opens browser with coverage map
+```
+
+## Unit Tests
+
+Unit tests live alongside the code they test in `x/{module}/keeper/*_test.go`. They use **table-driven patterns** with mocked dependencies — the keeper under test is real, but its dependencies (bank keeper, other module keepers) are mocked.
+
+### Table-Driven Pattern
+
+This is the standard pattern for all message handler tests:
+
+```go
+package keeper_test
+
+func TestMsgServer_CreateClaim(t *testing.T) {
+    tests := []struct {
+        name        string
+        setup       func(k *keeper.Keeper, ctx sdk.Context)
+        msg         *types.MsgCreateClaim
+        expectedErr error
+        validate    func(t *testing.T, k *keeper.Keeper, ctx sdk.Context)
+    }{
+        {
+            name: "success - valid claim",
+            setup: func(k *keeper.Keeper, ctx sdk.Context) {
+                // Pre-populate state needed for this test case
+            },
+            msg: &types.MsgCreateClaim{
+                SupplierOperatorAddress: sample.AccAddress(),
+                SessionHeader:          validSessionHeader,
+                RootHash:               validRootHash,
+            },
+            expectedErr: nil,
+            validate: func(t *testing.T, k *keeper.Keeper, ctx sdk.Context) {
+                // Verify the claim was stored correctly
+            },
+        },
+        {
+            name: "failure - invalid supplier address",
+            msg: &types.MsgCreateClaim{
+                SupplierOperatorAddress: "invalid",
+            },
+            expectedErr: types.ErrInvalidSupplier,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            k, ctx := keepertest.ProofKeeper(t)
+            msgServer := keeper.NewMsgServerImpl(k)
+
+            if tt.setup != nil {
+                tt.setup(k, ctx)
+            }
+
+            _, err := msgServer.CreateClaim(ctx, tt.msg)
+
+            if tt.expectedErr != nil {
+                require.ErrorIs(t, err, tt.expectedErr)
+            } else {
+                require.NoError(t, err)
+                if tt.validate != nil {
+                    tt.validate(t, k, ctx)
+                }
+            }
+        })
+    }
+}
+```
+
+Every test case defines its own setup, input, expected error, and post-condition validation. This makes tests self-contained and easy to extend — adding a new test case is just adding another struct to the slice.
+
+### Test Utilities
+
+**Sample data generation** (`testutil/sample/`):
+
+```go
+import "github.com/pokt-network/poktroll/testutil/sample"
+
+appAddr := sample.AccAddress()
+stake := sample.Coin("upokt", 1000000)
+sessionHeader := sample.SessionHeader(appAddr, serviceId, blockHeight)
+```
+
+**Test keeper constructors** (`testutil/keeper/`):
+
+```go
+import keepertest "github.com/pokt-network/poktroll/testutil/keeper"
+
+// Creates a real keeper with mocked dependencies
+k, ctx := keepertest.ProofKeeper(t)
+```
+
+**Custom mocks** (when you need specific mock behavior):
+
+```go
+ctrl := gomock.NewController(t)
+bankMock := mocks.NewMockBankKeeper(ctrl)
+
+bankMock.EXPECT().
+    SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+    Return(nil)
+
+k, ctx := keepertest.ProofKeeperWithMocks(t, bankMock)
+```
+
+### Context Manipulation
+
+Tests can control block height, time, and other context fields:
+
+```go
+ctx = ctx.WithBlockHeight(100)
+ctx = ctx.WithBlockTime(time.Now())
+```
+
+### Testing Events
+
+Verify that state-changing operations emit the correct events:
+
+```go
+_, err := msgServer.CreateClaim(ctx, validMsg)
+require.NoError(t, err)
+
+events := ctx.EventManager().Events()
+require.Len(t, events, 1)
+require.Equal(t, types.EventTypeClaimCreated, events[0].Type)
+```
+
+### Testing Queries
+
+```go
+// Setup: store a claim
+k.SetClaim(ctx, claim)
+
+// Query
+resp, err := k.Claim(ctx, &types.QueryGetClaimRequest{
+    SessionId:              sessionHeader.SessionId,
+    SupplierOperatorAddress: supplierAddr,
+})
+
+require.NoError(t, err)
+require.Equal(t, claim, resp.Claim)
+```
+
+## Integration Tests
+
+Integration tests use an **in-memory test network** to test cross-module interactions with real keeper wiring. They're slower than unit tests but catch interaction bugs that mocks miss.
+
+### Suite Pattern
+
+Integration tests use `testify/suite` for setup and teardown:
+
+```go
+package proof_test
+
+import (
+    "testing"
+    "github.com/stretchr/testify/suite"
+    "github.com/pokt-network/poktroll/tests/integration"
+)
+
+type ClaimIntegrationSuite struct {
+    integration.BaseSuite
+}
+
+func TestClaimIntegration(t *testing.T) {
+    suite.Run(t, new(ClaimIntegrationSuite))
+}
+
+func (s *ClaimIntegrationSuite) TestClaimSubmission() {
+    // 1. Stake an application
+    s.StakeApplication(s.AppAddr, "1000000upokt", "eth")
+
+    // 2. Stake a supplier
+    s.StakeSupplier(s.SupplierAddr, "1000000upokt", "eth")
+
+    // 3. Get session
+    session := s.GetSession(s.AppAddr, "eth", s.CurrentHeight())
+
+    // 4. Submit claim
+    s.SubmitClaim(s.SupplierAddr, session, rootHash)
+
+    // 5. Verify
+    claim := s.GetClaim(session.SessionId, s.SupplierAddr)
+    s.Require().NotNil(claim)
+}
+```
+
+### Test Network
+
+The `BaseSuite` creates an in-memory test network with real module wiring:
+
+```go
+func (s *BaseSuite) SetupSuite() {
+    s.Network = testnetwork.New(s.T(), testnetwork.DefaultConfig())
+    s.Network.WaitForNextBlock()
+}
+
+func (s *BaseSuite) TearDownSuite() {
+    s.Network.Cleanup()
+}
+```
+
+<Callout type="info">
+Integration tests are ideal for testing the full claim/proof/settlement lifecycle, cross-module parameter interactions, and delegation flows that span multiple modules.
+</Callout>
+
+### When to Use Integration vs Unit Tests
+
+| Scenario | Unit Test | Integration Test |
+|----------|-----------|-----------------|
+| Single message handler logic | ✅ | |
+| Query response shape | ✅ | |
+| Error codes for invalid input | ✅ | |
+| Claim → Proof → Settlement flow | | ✅ |
+| Session hydration with real stakers | | ✅ |
+| Parameter change affecting multiple modules | | ✅ |
+
+## E2E Tests (Gherkin BDD)
+
+E2E tests run against a live LocalNet using **Gherkin** (Behavior-Driven Development) syntax. They validate complete user flows from the perspective of external actors.
+
+### Feature Files
+
+Feature files describe scenarios in human-readable language:
+
+```gherkin
+# e2e/tests/proof.feature
+Feature: Proof Submission
+
+  Scenario: Supplier submits valid proof
+    Given an application "app1" staked for service "eth"
+    And a supplier "supplier1" staked for service "eth"
+    And a valid session exists for "app1" and "supplier1"
+    When "supplier1" services 100 relays
+    And the claim window opens
+    And "supplier1" submits a claim
+    And the proof window opens
+    And "supplier1" submits a proof
+    Then the proof should be accepted
+    And "supplier1" should receive rewards
+
+  Scenario: Supplier submits proof outside window
+    Given an application "app1" staked for service "eth"
+    And a supplier "supplier1" staked for service "eth"
+    And a valid session exists for "app1" and "supplier1"
+    When "supplier1" submits a proof before the window opens
+    Then the proof should be rejected with "proof window not open"
+```
+
+### Step Implementations
+
+Each Gherkin step maps to a Go function:
+
+```go
+// e2e/tests/steps/proof_steps.go
+func (s *Suite) supplierSubmitsProof(supplierName string) error {
+    supplier := s.GetActor(supplierName)
+    session := s.CurrentSession
+
+    proof := s.BuildProof(supplier, session)
+
+    resp, err := s.BroadcastTx(supplier, &prooftypes.MsgSubmitProof{
+        SupplierOperatorAddress: supplier.Address,
+        SessionHeader:          session.Header,
+        Proof:                  proof,
+    })
+
+    s.LastTxResponse = resp
+    s.LastError = err
+    return nil
+}
+```
+
+### Running E2E Tests
+
+E2E tests require a running LocalNet:
+
+```bash
+# Start LocalNet first
+make localnet_up
+
+# Wait for it to stabilize, then run E2E tests
+make test_e2e
+```
+
+<Callout type="warning">
+E2E tests are slow (they wait for real block production) and can be flaky due to timing sensitivity. If a test intermittently fails, check whether it's a timing issue with claim/proof windows before debugging the logic.
+</Callout>
+
+### Writing New E2E Tests
+
+1. Create or extend a `.feature` file in `e2e/tests/`
+2. Run the test — unimplemented steps will show as "pending"
+3. Implement step definitions in `e2e/tests/steps/`
+4. Use the suite's helper methods for staking, querying, and broadcasting transactions
+
+## Mocking Guidelines
+
+### When to Mock
+
+- External service dependencies
+- Bank keeper for token operations (unit tests only)
+- Other module keepers (unit tests only)
+- Time-sensitive operations
+
+### When NOT to Mock
+
+- The module under test (test the real code)
+- Simple data structures
+- Pure functions
+
+### Generating Mocks
+
+```bash
+mockgen -source=x/proof/types/expected_keepers.go \
+        -destination=testutil/mocks/proof_mocks.go \
+        -package=mocks
+```
+
+## Debugging Relay Flows
+
+When a relay-related test fails, follow this trace before examining code:
+
+```markdown
+**Observed:** [exact symptom]
+
+**Tracing relay flow:**
+- Session: [session_id, app, service, height range]
+- Suppliers in session: [from session hydration]
+- Relay path: [gateway → relayminer → backend]
+- Claim submission: [height, root hash, compute units]
+- Proof submission: [height, closest merkle proof]
+- Settlement: [expected mint/burn amounts]
+
+**Possible root causes:**
+1. [specific hypothesis]
+2. [specific hypothesis]
+
+**Investigating:** [which hypothesis first and why]
+```
+
+<Callout type="danger">
+Do not propose code fixes without completing the relay flow trace. Symptom-patching without understanding the root cause leads to fragile tests and hidden bugs.
+</Callout>
+
+## CI Integration
+
+All tests run on every PR via GitHub Actions:
+
+1. `make go_lint` — code quality
+2. `buf lint` + `buf breaking` — proto validation
+3. `make test_unit` — unit tests
+4. `make test_integration` — integration suite
+5. `make test_e2e` — E2E with fresh LocalNet
+
+Failed tests block PR merge. There are no exceptions.
+
+## Related Pages
+
+- [Development Setup](/protocol/development-setup) — environment and make targets
+- [Contributing](/protocol/contributing) — code review process
+- [Sessions, Claims & Proofs](/protocol/sessions-claims-proofs) — the relay lifecycle being tested
+- [Shannon Architecture](/protocol/architecture) — module overview

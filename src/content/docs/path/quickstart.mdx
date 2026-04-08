@@ -1,0 +1,102 @@
+---
+title: "PATH Quickstart"
+description: "Get PATH running and serving relays in under 10 minutes."
+section: "path"
+persona: ["gateway-operator"]
+tabs: false
+status: "stable"
+sources: ["zip4/path/docusaurus/docs/operate/getting_started/1_getting_started.md", "zip4/path/docs/HOW_TO_RUN_PATH.md"]
+lastUpdated: "2026-04-07"
+---
+
+This guide gets PATH running locally and serving relays through Pocket Network's Shannon protocol.
+
+## Prerequisites
+
+- Go 1.25+ installed
+- A Pocket mainnet wallet with a staked Gateway (minimum <GovParam module="gateway" param="min_stake" format="pokt" /> POKT)
+- At least one staked Application (for relay traffic)
+- Access to a Shannon full node (or use the public RPC)
+
+## Quick Start
+
+### 1. Clone and Build
+
+```bash
+git clone https://github.com/pokt-network/path.git
+cd path
+make path_build
+```
+
+### 2. Configure
+
+Copy the example config and edit it with your credentials:
+
+```bash
+cp config/examples/config.shannon_example.yaml config.yaml
+```
+
+Edit `config.yaml` — you must set:
+
+```yaml
+gateway_config:
+  gateway_address: "pokt1your_gateway_address"
+  gateway_private_key_hex: "your_64_char_hex_private_key"
+  owned_apps_private_keys_hex:
+    - "your_app_private_key_hex"
+
+full_node_config:
+  rpc_url: https://sauron-rpc.infra.pocket.network
+  grpc_config:
+    host_port: sauron-grpc.infra.pocket.network:443
+    insecure: false
+```
+
+### 3. Run
+
+```bash
+CONFIG_PATH=./config.yaml make path_run
+```
+
+PATH starts on port 3069 by default.
+
+### 4. Test a Relay
+
+```bash
+curl -X POST http://localhost:3069/v1 \
+  -H "Content-Type: application/json" \
+  -H "Target-Service-Id: eth" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+```
+
+<Callout type="info">
+  PATH requires the service ID via the `Target-Service-Id` HTTP header, not in the URL path. Common services: `eth`, `solana`, `poly`, `base`, `arb-one`, `bsc`.
+</Callout>
+
+### 5. Check Health
+
+```bash
+# Overall health
+curl http://localhost:3069/health
+
+# Service-specific readiness
+curl http://localhost:3069/ready/eth
+
+# Detailed endpoint info (reputation, latency, archival status)
+curl "http://localhost:3069/ready/eth?detailed=true"
+```
+
+## RPC Type Auto-Detection
+
+PATH automatically detects the RPC type from the request:
+
+- **JSON-RPC:** POST with `{"jsonrpc":"2.0",...}` body
+- **REST (Cosmos SDK):** GET/POST to Cosmos REST API paths (e.g. `/cosmos/base/...`)
+- **CometBFT RPC:** GET/POST to CometBFT paths (e.g. `/status`)
+- **WebSocket:** WebSocket upgrade requests
+
+## Next Steps
+
+- [Full installation options](/path/installation) — Docker, Tilt dev environment, binary download
+- [Configuration reference](/path/configuration) — all YAML options with per-service overrides
+- [Architecture](/path/architecture) — understand the reputation system and QoS flow

@@ -1,0 +1,55 @@
+---
+title: "Protocol & Core Development"
+description: "Pocket Network Shannon protocol architecture — modules, development setup, contributing, and technical deep dives."
+section: "protocol"
+persona: ["core-developer"]
+tabs: false
+status: "stable"
+sources: ["zip4/poktroll/CLAUDE.md", "zip4/poktroll/docusaurus/3_protocol/"]
+lastUpdated: "2026-04-07"
+---
+
+Pocket Network Shannon is built on the Cosmos SDK (v0.53.0) with CometBFT consensus (v0.38.19). The protocol is implemented in the [poktroll](https://github.com/pokt-network/poktroll) repository.
+
+## Module Architecture
+
+Shannon is organized into 9 application-specific modules (`x/`):
+
+| Module | Purpose |
+| --- | --- |
+| **application** | Application staking, delegation, and session participation |
+| **supplier** | Supplier staking, service registration, and relay serving |
+| **gateway** | Gateway registration and delegation management |
+| **service** | Service definition, compute unit pricing, relay mining difficulty |
+| **session** | Deterministic session assignment — matching Applications to Suppliers |
+| **proof** | Claim and proof lifecycle — submission, validation, settlement triggers |
+| **tokenomics** | Token Logic Modules (TLMs) — burn, mint, distribution, PIP-41 deflation |
+| **shared** | Cross-module parameters and shared state |
+| **migration** | Morse → Shannon account migration (ETVL process) |
+
+## Proto-First Development
+
+Shannon follows a proto-first development model. All messages, queries, and state objects are defined as Protocol Buffers before implementation. This ensures type safety, enables auto-generated clients, and provides a canonical API specification.
+
+## What's in This Section
+
+- [Architecture](/protocol/architecture) — Module interaction map, Cosmos SDK patterns, proto definitions
+- [Sessions, Claims & Proofs](/protocol/sessions-claims-proofs) — The relay lifecycle in technical depth
+- [Tokenomics Deep Dive](/protocol/tokenomics-deep-dive) — Token Logic Modules, relay mining math, settlement
+- [Governance Internals](/protocol/governance-internals) — Parameter storage, authorization, on-chain updates
+- [Repository Guide](/protocol/repository-guide) — All 7 active repos and their roles
+- [Development Setup](/protocol/development-setup) — LocalNet, DevNets, TestNet environments
+- [Contributing](/protocol/contributing) — Code review guidelines, observability, PR process
+- [Testing](/protocol/testing) — Unit, integration, E2E (Gherkin BDD), and load testing
+
+## Quick Links
+
+- **Repository:** [github.com/pokt-network/poktroll](https://github.com/pokt-network/poktroll)
+- **Docusaurus docs:** 123 pages of protocol documentation in the repo
+- **Language:** Go
+- **License:** MIT
+- **Active development:** Daily commits, multiple contributors
+
+<Callout type="info">
+  The legacy pocket-core (Morse protocol) is deprecated. All new development targets Shannon via poktroll and PATH.
+</Callout>

@@ -1,0 +1,56 @@
+---
+title: "POKT on Exchanges"
+description: "Where POKT is listed, why exchange integration for a Cosmos-based protocol is complex, and what to watch for."
+section: "token"
+persona: ["token-holder", "investor"]
+tabs: false
+status: "stable"
+sources: ["zip3/pokt-on-cexs-public.docx"]
+lastUpdated: "2026-04-07"
+---
+
+<Callout type="warning">
+  Exchange listings change. Verify current availability on [CoinGecko](https://coingecko.com/en/coins/pocket-network) before relying on this page.
+</Callout>
+
+POKT is currently listed on several centralized exchanges. CEX listings trade native POKT — exchanges handle custody and technical infrastructure on the backend. Withdrawals from CEXs go to your Cosmos-compatible wallet (`pokt1...` address).
+
+## Current Listings (April 2026)
+
+| Exchange | Notable Pairs | Notes |
+| --- | --- | --- |
+| **Upbit** | POKT/KRW, POKT/USDT, POKT/BTC | Largest Korean exchange; highest POKT volume |
+| **Gate.io** | POKT/USDT | Wide altcoin coverage |
+| **MEXC** | POKT/USDT | |
+| **KuCoin** | POKT/USDT | Major global exchange |
+| **Bybit** | POKT/USDT | |
+| **Bitget** | POKT/USDT | |
+| **Bithumb** | POKT/KRW | Korean exchange |
+
+For live price and volume data across all listed pairs, see [CoinGecko's POKT markets page](https://coingecko.com/en/coins/pocket-network).
+
+## Decentralized Exchanges
+
+POKT is also available on decentralized exchanges:
+
+- **Ethereum:** [Uniswap](https://app.uniswap.org), [CoW Swap](https://swap.cow.fi) — trades as wPOKT (ERC-20)
+- **Base:** [Aerodrome](https://aerodrome.finance) — trades as POKT on Base
+- **Solana:** [Jupiter](https://jup.ag), [Orca](https://orca.so) — trades as POKT on Solana
+
+## Why Exchanges Sometimes Pause Deposits/Withdrawals
+
+During major protocol upgrades (like the Shannon mainnet launch or v0.1.31 deflation upgrade), exchanges pause POKT deposits and withdrawals while they update their internal infrastructure. This involves node updates, wallet compatibility checks, and settlement reconciliation. The pause is a sign the exchange is being careful — not that something has gone wrong. Check the exchange's status page for timelines.
+
+## Why Native POKT Integration Is Complex
+
+Most tokens listed on CEXs are ERC-20 tokens — a standard every exchange already supports. Native POKT is a Cosmos SDK chain, which requires exchanges to run and maintain a Pocket-specific full node, implement custom transaction signing, and monitor protocol upgrades. This is comparable to what exchanges did for ATOM or OSMO.
+
+The wPOKT bridge serves as an integration layer: exchanges can list POKT as an ERC-20 without needing native chain infrastructure. As the ecosystem matures, native mainnet support becomes more viable for exchanges.
+
+## Where to Follow Listing Announcements
+
+- [Pocket Network Discord](http://discord.gg/pocket-network) — official announcements channel
+- [X/Twitter](https://twitter.com/POKTnetwork) — @POKTnetwork
+- [Forum](https://forum.pokt.network) — governance and ecosystem updates
+
+New exchange listings are announced when integrations are confirmed and live. PNF does not pre-announce exchange conversations.

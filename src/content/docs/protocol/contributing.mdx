@@ -1,0 +1,232 @@
+---
+title: "Contributing"
+description: "How to contribute to Pocket Network — code review guidelines, PR process, observability standards, and contribution paths."
+section: "protocol"
+persona: ["core-developer", "community-contributor"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/docusaurus/4_develop/contributing/", "zip4/path/.serena/memories/task_completion_checklist.md"]
+lastUpdated: "2026-04-08"
+---
+
+
+Pocket Network is open source and welcomes contributions. This page covers the code review process, contribution standards, and how to get your changes merged.
+
+## Getting Started
+
+1. **Set up your dev environment** — follow the [Development Setup](/protocol/development-setup) guide
+2. **Find an issue** — browse `good-first-issue` labels on [poktroll](https://github.com/pokt-network/poktroll/issues) or [path](https://github.com/pokt-network/path/issues)
+3. **Fork and branch** — create a feature branch from `main`
+4. **Write code** — follow the patterns described below
+5. **Write tests** — all changes need test coverage (see [Testing](/protocol/testing))
+6. **Submit a PR** — use the PR template and link the issue
+
+<Callout type="tip">
+Not sure where to start? The `x/application` and `x/gateway` modules are the simplest in poktroll. They have clear message handlers, straightforward state, and well-established test patterns to follow.
+</Callout>
+
+## Code Review Guidelines
+
+### What Reviewers Look For
+
+Code reviews in poktroll focus on correctness, clarity, and consistency. Reviewers evaluate:
+
+**Correctness**
+- Does the change do what the issue/spec says?
+- Are edge cases handled?
+- Is error handling appropriate (not swallowed, not overly broad)?
+- Do tests cover both happy paths and failure modes?
+
+**Consistency**
+- Does the code follow existing module patterns (keeper → msg_server → events)?
+- Are proto definitions consistent with other modules?
+- Do variable names match the codebase conventions?
+- Is the file organization standard?
+
+**Clarity**
+- Can a new contributor understand the code without extra context?
+- Are non-obvious decisions documented with comments?
+- Are complex algorithms explained?
+
+**Performance**
+- Are there unnecessary allocations in hot paths?
+- Is state access minimized (keeper calls are expensive)?
+- Are iterations bounded?
+
+### Review Response Expectations
+
+- Reviewers aim to respond to PRs within **1–2 business days**
+- Authors should address all comments or explain why they disagree
+- "LGTM" from at least one core maintainer is required to merge
+- CI must pass (lint, unit, integration, E2E tests)
+
+### Common Review Feedback
+
+These are the most frequently requested changes in PR reviews:
+
+- **Missing tests** — every message handler, query, and keeper method needs test coverage
+- **Swallowed errors** — don't ignore errors; handle them or propagate them
+- **Proto regeneration not run** — `*.pb.go` files must be regenerated after proto changes
+- **Missing events** — state-changing operations should emit events for indexers
+- **Hardcoded values** — governance-controlled parameters should not be hardcoded
+
+## PR Process
+
+### Branch Naming
+
+```
+feature/  — new functionality
+fix/      — bug fixes
+refactor/ — code restructuring without behavior change
+docs/     — documentation only
+test/     — test additions or fixes
+```
+
+### Commit Messages
+
+Follow conventional commit format:
+
+```
+type(scope): description
+
+feat(x/proof): add proof validation for new TLM type
+fix(x/session): handle edge case in session hydration at epoch boundary
+test(x/tokenomics): add settlement test for zero compute units
+docs(protocol): update architecture diagram for migration module
+```
+
+### PR Template
+
+PRs should include:
+
+- **Summary** — what the change does and why
+- **Issue link** — reference the GitHub issue
+- **Testing** — how the change was tested (unit, integration, manual on LocalNet)
+- **Breaking changes** — any proto changes, API changes, or state migrations
+- **Screenshots/logs** — if relevant (especially for CLI changes)
+
+### CI Pipeline
+
+Every PR triggers:
+
+1. **Linting** — `golangci-lint` checks code quality
+2. **Proto validation** — `buf lint` and `buf breaking` check proto definitions
+3. **Unit tests** — `make test_unit`
+4. **Integration tests** — `make test_integration`
+5. **E2E tests** — `make test_e2e` on a fresh LocalNet
+
+All checks must pass before merge.
+
+## Observability Standards
+
+Shannon modules emit structured data for monitoring and debugging. When adding new functionality, follow these observability patterns:
+
+### Events
+
+Every state-changing operation should emit a Cosmos SDK event:
+
+```go
+ctx.EventManager().EmitEvent(sdk.NewEvent(
+    types.EventTypeClaimCreated,
+    sdk.NewAttribute("session_id", claim.SessionHeader.SessionId),
+    sdk.NewAttribute("supplier", claim.SupplierOperatorAddress),
+    sdk.NewAttribute("compute_units", fmt.Sprintf("%d", claim.GetNumComputeUnits())),
+))
+```
+
+Event naming convention: `EventType{Action}` (e.g., `EventTypeClaimCreated`, `EventTypeProofValidated`, `EventTypeTokensMinted`).
+
+### Logging
+
+Use structured logging with context:
+
+```go
+logger := k.Logger(ctx)
+logger.Info("settling proof",
+    "session_id", proof.SessionId,
+    "supplier", proof.SupplierAddr,
+    "compute_units", computeUnits,
+)
+```
+
+Log levels:
+
+- **Info** — normal operations (settlement, session start, parameter updates)
+- **Warn** — recoverable issues (invalid proof rejected, insufficient stake)
+- **Error** — unexpected failures (keeper errors, state inconsistencies)
+- **Debug** — verbose development detail (relay hashes, SMST operations)
+
+### Metrics
+
+For performance-critical paths, expose Prometheus metrics:
+
+```go
+telemetry.IncrCounter(1, "proof", "claims_settled")
+telemetry.SetGauge(float32(computeUnits), "tokenomics", "compute_units_settled")
+```
+
+## Contribution Paths
+
+### Protocol Development (Go)
+
+The core contribution path. Work on `x/` modules, proto definitions, keeper logic, and message handlers.
+
+**Skills needed:** Go, Cosmos SDK patterns, protobuf.
+
+**Entry repos:** `poktroll`
+
+### Gateway Development (Go)
+
+Extend PATH's QoS system, add new chain-specific modules, improve routing algorithms, or contribute to Helm charts.
+
+**Skills needed:** Go, HTTP/gRPC proxying, Kubernetes/Helm.
+
+**Entry repos:** `path`
+
+### Frontend / Tooling (TypeScript)
+
+Build staking interfaces, blockchain query tools, or developer utilities.
+
+**Skills needed:** TypeScript, React, Web3 libraries.
+
+**Entry repos:** `igniter`, `blockchain-query-mcp`
+
+### Documentation
+
+Improve docs coverage, fix inaccuracies, add examples, or write tutorials.
+
+**Skills needed:** Technical writing, understanding of the protocol.
+
+**Entry:** This docs site (contributions welcome).
+
+### Infrastructure
+
+Contribute to network infrastructure — seed nodes, validators, snapshot hosting, health monitoring.
+
+**Skills needed:** DevOps, node operations, monitoring.
+
+**Entry repos:** `pocket-network-resources`
+
+## Task Completion Checklist
+
+Before marking any contribution as complete, verify:
+
+- [ ] All tests pass locally (`make test_all`)
+- [ ] Proto files regenerated if changed (`make proto_regen`)
+- [ ] Lint passes (`make go_lint`)
+- [ ] Events emitted for state changes
+- [ ] Error cases handled with appropriate error types
+- [ ] PR description is complete with issue link
+- [ ] Breaking changes documented (if any)
+- [ ] Proto comments updated for auto-generated docs
+
+<Callout type="info">
+Each repo has a `CLAUDE.md` file with maintainer-specific guidance. Read it before starting — it contains architectural context and common pitfalls specific to that codebase.
+</Callout>
+
+## Related Pages
+
+- [Development Setup](/protocol/development-setup) — environment setup and make targets
+- [Testing](/protocol/testing) — unit, integration, and E2E test patterns
+- [Repository Guide](/protocol/repository-guide) — repo map and contribution entry points
+- [Shannon Architecture](/protocol/architecture) — module overview

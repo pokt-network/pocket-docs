@@ -1,0 +1,94 @@
+---
+title: "How to Buy POKT"
+description: "Step-by-step guide for buying POKT on centralized exchanges, decentralized exchanges, or bridging to native POKT."
+section: "token"
+persona: ["token-holder", "investor"]
+tabs: false
+status: "stable"
+sources: ["zip3/how-to-buy-pokt.docx"]
+lastUpdated: "2026-04-08"
+---
+
+Most people's first POKT comes from a centralized exchange or a decentralized one. Both paths work, but they're meaningfully different — and which you choose depends on where you're starting from and what you want to do next.
+
+## Which Path Is Right for You?
+
+**Path 1: Centralized Exchange (CEX) — easiest for native POKT**
+Buy POKT directly with bank transfer or card on KuCoin, Gate.io, Upbit, Bybit, MEXC, or Bithumb. The POKT you buy on a CEX is already native POKT — the Cosmos-based token. Withdraw directly to your Cosmos-compatible wallet (`pokt1...` address). No bridging required.
+
+**Path 2: Decentralized Exchange (DEX) — easiest for DeFi traders**
+Swap crypto for POKT directly on-chain without creating an account. You buy POKT on Ethereum (as wPOKT), Base, Solana, or Arbitrum. This POKT can be used in DeFi liquidity pools, or bridged to native POKT for staking.
+
+<Callout type="tip">
+  Not sure? Start with a CEX. It's the simplest path for fiat buyers. CEX POKT is native POKT — no bridging needed to stake or participate in governance.
+</Callout>
+
+## Path 1: Buying on a Centralized Exchange (CEX)
+
+Centralized exchanges are the most straightforward way to buy POKT with fiat currency. You receive native POKT that you can withdraw directly to a Pocket mainnet wallet.
+
+### Step by Step
+
+1. **Create an account.** Sign up on your chosen exchange. You'll need an email address and, for most exchanges, government-issued ID for KYC verification.
+2. **Deposit funds.** Add fiat via bank transfer, debit card, or credit card — or deposit another crypto like USDT.
+3. **Search for POKT.** In the trading interface, search for "POKT" and select your pair (e.g. POKT/USDT).
+4. **Place your order.** Enter the amount and confirm. Most exchanges offer a simple "Buy" button for instant purchase at market price.
+5. **Withdraw to your wallet.** Consider withdrawing to a self-custody wallet rather than leaving funds on the exchange. Select the Pocket Network withdrawal option — you'll receive native POKT in your `pokt1...` wallet.
+
+<Callout type="info">
+  CEX POKT is native POKT on Pocket's mainnet. You do NOT receive wPOKT when withdrawing from a CEX. No bridging is required — just withdraw directly to a Cosmos-compatible wallet like Keplr, Soothe Vault, or via pocketd CLI.
+</Callout>
+
+For the current list of exchanges, see [Exchanges](/token/exchanges).
+
+## Path 2: Buying on a Decentralized Exchange (DEX)
+
+DEXs let you swap crypto for POKT directly on-chain, without creating an account. You need a crypto wallet funded with the relevant gas token.
+
+### Ethereum — Swap for wPOKT
+
+You need ETH in a MetaMask or compatible wallet for gas fees. On Ethereum, POKT trades as **wPOKT** (wrapped ERC-20).
+
+- [CoW Swap](https://swap.cow.fi) — MEV-protected, recommended for larger trades
+- [Uniswap](https://app.uniswap.org) — the largest DEX by volume
+
+### Base — Swap for POKT
+
+Very low gas fees, ideal for smaller purchases. You need a small amount of ETH on Base.
+
+- [Aerodrome](https://aerodrome.finance) — the leading DEX on Base, strong POKT liquidity
+
+### Solana — Swap for POKT
+
+You need a Phantom or Solflare wallet with SOL for transaction fees.
+
+- [Jupiter](https://jup.ag) — best-price aggregator across all Solana liquidity
+- [Orca](https://orca.so) — concentrated liquidity pools, lower slippage
+
+### Arbitrum — Swap for POKT
+
+You need a MetaMask or compatible wallet with ETH on Arbitrum.
+
+- [PancakeSwap](https://pancakeswap.finance) — available on Arbitrum
+
+### Step by Step
+
+1. **Set up your wallet.** Install MetaMask (for Ethereum/Base/Arbitrum) or Phantom (for Solana). Create or import a wallet and save your seed phrase offline.
+2. **Fund your wallet.** Send ETH (for Ethereum/Base/Arbitrum) or SOL (for Solana) to your wallet address.
+3. **Connect to the DEX.** Go to the DEX website and click "Connect wallet." Approve the connection request.
+4. **Select the swap pair.** Choose POKT (or wPOKT on Ethereum) as the output token. If it doesn't appear, paste the contract address from CoinGecko.
+5. **Review and confirm.** Check the exchange rate, price impact, and estimated gas fee before confirming.
+6. **POKT arrives in your wallet.** Typically completes within seconds on Base/Solana/Arbitrum, or about a minute on Ethereum.
+
+## Using DEX POKT for Staking
+
+DEX POKT lives on Base, Solana, Arbitrum, or Ethereum — not on Pocket's mainnet. To use it for staking, running a node, or governance, you need to bridge it to native POKT first.
+
+See the [Bridge guide](/token/bridge) for the step-by-step process. The short version: bridge your DEX POKT to wPOKT on Ethereum (via bridge.pocket.network), then bridge wPOKT to native POKT (via wpokt.network).
+
+## What to Do After You Buy
+
+- **Want to earn yield?** See [Staking POKT](/token/staking) for staking pools, node operators, and DIY options.
+- **Want to provide liquidity?** See [Providing DeFi Liquidity](/token/liquidity-mining) for DEX pool options.
+- **Want to hold securely?** See [Self-Custody Best Practices](/wallets/self-custody-best-practices).
+- **Want to participate in governance?** You need native POKT. CEX POKT is already native. DEX POKT requires bridging — see [Bridge](/token/bridge).

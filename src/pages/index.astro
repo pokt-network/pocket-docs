@@ -1,0 +1,256 @@
+---
+/**
+ * Landing page — hero + persona cards + sidebar navigation.
+ * Uses three-column layout with sidebar for navigation context.
+ * Hero + stat bar + persona cards appear in the main content area.
+ */
+import '../styles/global.css';
+import SidebarNav from '../components/SidebarNav.astro';
+---
+
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pocket Network Docs</title>
+  <meta name="description" content="Official documentation for Pocket Network — decentralized infrastructure for accessing any open data, anywhere." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- FOUC prevention -->
+  <script is:inline>
+    var s = localStorage.getItem('theme');
+    var p = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', s || p);
+  </script>
+
+  <!-- Header (matches DocsLayout) -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="header-logo">
+        <div class="logo-mark">P</div>
+        Pocket <span class="docs-badge">Docs</span>
+      </a>
+      <div class="search-input-wrapper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="search" class="search-input" placeholder="Search docs…" aria-label="Search documentation" />
+        <span class="search-kbd">⌘K</span>
+      </div>
+      <nav class="header-nav">
+        <a href="https://github.com/pokt-network" target="_blank" rel="noopener">GitHub</a>
+        <a href="http://discord.gg/pocket-network" target="_blank" rel="noopener">Discord</a>
+        <div class="theme-toggle" id="theme-toggle">
+          <button id="theme-light-btn" aria-pressed="false">☀ Light</button>
+          <button id="theme-dark-btn" aria-pressed="false">☽ Dark</button>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Page layout with sidebar -->
+  <div class="page-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <nav aria-label="Documentation navigation">
+        <SidebarNav currentPath="/" />
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main id="main-content" class="main-content">
+      <!-- Hero -->
+      <div class="hero-mock">
+        <div class="hero-content">
+          <h2>Pocket Network <span>Documentation</span></h2>
+          <p>Fully permissionless, fully decentralized open data delivery. 5,000+ independent nodes. 60+ blockchains. No API key required.</p>
+          <a href="/get-started/what-is-pocket" style="display:inline-block;background:var(--brand-blue);color:#fff;padding:var(--space-3) var(--space-6);border-radius:var(--radius-full);font-weight:var(--weight-semibold);font-size:var(--text-sm);text-decoration:none;transition:background var(--transition-fast);">
+            Get Started →
+          </a>
+        </div>
+      </div>
+
+      <!-- Stats strip -->
+      <div class="feature-grid" style="margin: var(--space-10) 0;">
+        <div class="feature-item">
+          <div class="feature-number" style="color: var(--brand-blue);">5,000+</div>
+          <div class="feature-label">Independent nodes</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-number" style="color: var(--brand-blue);">60+</div>
+          <div class="feature-label">Supported blockchains</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-number" style="color: var(--brand-blue);">0</div>
+          <div class="feature-label">API keys required</div>
+        </div>
+      </div>
+
+      <!-- Persona cards -->
+      <h2 style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--text-primary);margin-bottom:var(--space-6);">Find your path</h2>
+      <div class="card-grid" style="margin-bottom: var(--space-12);">
+        <a href="/developers" class="card persona">
+          <div class="card-icon" style="background:var(--brand-blue-light);color:var(--brand-blue);">🛠</div>
+          <h4>Application Developers</h4>
+          <p>Get an RPC endpoint and start querying blockchains in under 60 seconds.</p>
+          <span class="card-link">Start building →</span>
+        </a>
+        <a href="/node-operators" class="card persona">
+          <div class="card-icon" style="background:rgba(72,229,194,0.15);color:var(--brand-mint);">⚙️</div>
+          <h4>Node Operators</h4>
+          <p>Run a Supplier, stake POKT, and earn rewards for serving data.</p>
+          <span class="card-link">Run a node →</span>
+        </a>
+        <a href="/gateways" class="card persona">
+          <div class="card-icon" style="background:rgba(255,197,71,0.15);color:var(--brand-gold);">🔀</div>
+          <h4>Gateway Operators</h4>
+          <p>Deploy PATH and run your own decentralized open data gateway.</p>
+          <span class="card-link">Deploy a gateway →</span>
+        </a>
+        <a href="/token" class="card persona">
+          <div class="card-icon" style="background:var(--brand-blue-light);color:var(--brand-blue);">🪙</div>
+          <h4>Token Holders</h4>
+          <p>Buy, stake, delegate, and manage POKT across chains and wallets.</p>
+          <span class="card-link">Explore POKT →</span>
+        </a>
+        <a href="/protocol" class="card persona">
+          <div class="card-icon" style="background:rgba(184,184,255,0.15);color:var(--brand-lavender);">🔬</div>
+          <h4>Protocol Contributors</h4>
+          <p>Dive into the Shannon protocol, contribute code, and understand tokenomics.</p>
+          <span class="card-link">Read the protocol →</span>
+        </a>
+        <a href="/governance" class="card persona">
+          <div class="card-icon" style="background:rgba(255,90,95,0.1);color:var(--brand-coral);">🏛</div>
+          <h4>Governance</h4>
+          <p>Understand the DAO, vote on proposals, and shape Pocket's future.</p>
+          <span class="card-link">Join governance →</span>
+        </a>
+      </div>
+
+      <!-- Quick links -->
+      <h2 style="font-size:var(--text-xl);font-weight:var(--weight-semibold);color:var(--text-primary);margin-bottom:var(--space-4);">Quick links</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--space-3);margin-bottom:var(--space-12);">
+        {[
+          { label: 'What is Pocket?', href: '/get-started/what-is-pocket' },
+          { label: 'Available Networks', href: '/developers/supported-chains' },
+          { label: 'Install pocketd', href: '/get-started/pocketd-installation' },
+          { label: 'Shannon Upgrade', href: '/get-started/shannon-upgrade' },
+          { label: 'API Portal', href: '/foundation/api-portal' },
+          { label: 'Glossary', href: '/reference/glossary' },
+        ].map(({ label, href }) => (
+          <a href={href} style="background:var(--bg-tertiary);border:1px solid var(--border-primary);color:var(--text-secondary);padding:var(--space-2) var(--space-4);border-radius:var(--radius-full);font-size:var(--text-sm);text-decoration:none;transition:all var(--transition-fast);">
+            {label}
+          </a>
+        ))}
+      </div>
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>© {new Date().getFullYear()} Pocket Network Foundation</p>
+      <nav>
+        <a href="https://pocket.network" target="_blank" rel="noopener">pocket.network</a>
+        <a href="https://github.com/pokt-network" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+
+  <!-- Theme toggle script (same logic as DocsLayout) -->
+  <script is:inline>
+    (function () {
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        var l = document.getElementById('theme-light-btn');
+        var d = document.getElementById('theme-dark-btn');
+        if (l && d) {
+          l.classList.toggle('active', theme === 'light');
+          d.classList.toggle('active', theme === 'dark');
+          l.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+          d.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+        }
+      }
+      document.addEventListener('DOMContentLoaded', function () {
+        applyTheme(document.documentElement.getAttribute('data-theme') || 'light');
+        var l = document.getElementById('theme-light-btn');
+        var d = document.getElementById('theme-dark-btn');
+        if (l) l.addEventListener('click', function () { applyTheme('light'); });
+        if (d) d.addEventListener('click', function () { applyTheme('dark'); });
+      });
+    })();
+  </script>
+</body>
+</html>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--header-height);
+    background: var(--bg-header);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-primary);
+  }
+  .header-inner {
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: 0 var(--space-5);
+  }
+  .header-inner .search-input-wrapper {
+    flex: 1;
+    max-width: 360px;
+    margin: 0 var(--space-4);
+  }
+  .page-layout {
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    min-height: calc(100vh - var(--header-height));
+  }
+  .sidebar {
+    position: sticky;
+    top: var(--header-height);
+    max-height: calc(100vh - var(--header-height));
+    overflow-y: auto;
+    padding: var(--space-6) 0;
+    border-right: 1px solid var(--border-secondary);
+    background: var(--bg-sidebar);
+    align-self: start;
+  }
+  .main-content {
+    padding: var(--space-8) var(--space-10);
+    min-width: 0;
+  }
+  .site-footer {
+    border-top: 1px solid var(--border-primary);
+    padding: var(--space-8) var(--space-5);
+  }
+  .footer-inner {
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+  }
+  .footer-inner nav {
+    display: flex;
+    gap: var(--space-5);
+  }
+  @media (max-width: 1024px) {
+    .page-layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .main-content { padding: var(--space-6) var(--space-4); }
+  }
+</style>

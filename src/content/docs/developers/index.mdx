@@ -1,0 +1,60 @@
+---
+title: "Application Developers"
+description: "Access blockchain data through Pocket Network — quick endpoint setup for most developers, PATH SDK for builders."
+section: "developers"
+persona: ["developer"]
+tabs: false
+status: "stable"
+sources: ["zip3/api-gateway-access-guide.docx"]
+lastUpdated: "2026-04-07"
+---
+
+Most developers just need an RPC endpoint. Pocket Network provides decentralized, multi-chain blockchain data access — and for most use cases, getting started takes about 60 seconds.
+
+## Quick Start: Get an RPC Endpoint
+
+Pocket's public portal at [api.pocket.network](https://api.pocket.network) provides free, no-API-key-required access to 60+ blockchain networks. Drop the endpoint URL into your existing code and go:
+
+```bash
+# Ethereum mainnet
+curl -X POST https://eth.api.pocket.network \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+```
+
+```javascript
+// ethers.js — just change the URL
+import { JsonRpcProvider } from "ethers";
+const provider = new JsonRpcProvider("https://eth.api.pocket.network");
+const blockNumber = await provider.getBlockNumber();
+```
+
+```python
+# web3.py — same idea
+from web3 import Web3
+w3 = Web3(Web3.HTTPProvider("https://eth.api.pocket.network"))
+print(w3.eth.block_number)
+```
+
+The endpoint pattern is `https://{chain-slug}.api.pocket.network`. For the full list of supported chains and their slugs, see [Supported Chains](/developers/supported-chains).
+
+<Callout type="tip">
+  Pocket's RPC is standard JSON-RPC. Your existing ethers.js, web3.py, viem, wagmi, or curl integrations work without modification — just change the URL.
+</Callout>
+
+## Building Something Heavier?
+
+If you need more than a consumer endpoint — your own gateway, custom routing, dedicated access, or high-volume production traffic — [PATH](/path/) is the SDK for Shannon.
+
+PATH gives you out of the box: QoS-based endpoint selection, multi-chain routing, session management, proof generation, reputation scoring, and Helm-based production deployment.
+
+See [Building with PATH](/developers/building-with-path) for the full picture, or jump to the [PATH section](/path/) for installation and architecture docs.
+
+## What's in This Section
+
+- [Supported Chains](/developers/supported-chains) — All available chains with endpoint URLs
+- [Application Staking](/developers/application-staking) — Stake POKT for dedicated, higher-throughput access
+- [Integration Examples](/developers/integration-examples) — Drop-in code for ethers.js, web3.py, wagmi, viem, curl
+- [Building with PATH](/developers/building-with-path) — When and how to use PATH as your SDK
+- [AI Agents & MCP](/developers/ai-agents) — Pocket as an AI agent data layer
+- [API Reference](/developers/api-reference) — OpenAPI specs for poktroll and PATH

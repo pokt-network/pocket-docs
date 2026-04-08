@@ -1,0 +1,28 @@
+---
+/**
+ * Card — Section or persona navigation card.
+ *
+ * Usage in MDX:
+ *   <Card title="Developers" description="Build with Pocket" href="/developers" icon="🛠" />
+ *   <Card title="Validators" description="Run a node" href="/node-operators" variant="persona" />
+ *
+ * CSS classes: .card, .card.persona, .card-icon, .card-link
+ * Defined in tokens-and-components.css
+ */
+interface Props {
+  title: string;
+  description: string;
+  href: string;
+  icon?: string;
+  variant?: 'section' | 'persona';
+}
+
+const { title, description, href, icon, variant = 'section' } = Astro.props;
+---
+
+<a href={href} class={`card${variant === 'persona' ? ' persona' : ''}`}>
+  {icon && <div class="card-icon">{icon}</div>}
+  <h4>{title}</h4>
+  <p>{description}</p>
+  <span class="card-link">Learn more →</span>
+</a>

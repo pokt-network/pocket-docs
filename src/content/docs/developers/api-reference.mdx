@@ -1,0 +1,163 @@
+---
+title: "API Reference"
+description: "Pocket Network API endpoints — Shannon chain RPC, REST, gRPC, and PATH gateway APIs."
+section: "developers"
+persona: ["developer"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/docusaurus/open_api.md", "zip4/path/api/path_openapi.yaml"]
+lastUpdated: "2026-04-08"
+---
+
+
+Pocket Network exposes APIs at two levels: the **Shannon chain** (CometBFT/Cosmos SDK endpoints for on-chain operations) and the **PATH gateway** (relay forwarding and gateway management). Most developers only need the relay endpoints — the chain API is for operators and protocol integrators.
+
+<Callout type="warning">
+This page is a structural reference. Full OpenAPI specs exist in the poktroll and PATH repositories. The definitive API documentation is generated from those specs.
+</Callout>
+
+## Relay API (Gateway/PATH)
+
+This is what application developers interact with. Relay endpoints accept standard JSON-RPC requests and forward them through the Pocket Network to backend chains.
+
+### Endpoint Format
+
+```
+POST https://{chain-slug}.api.pocket.network
+Content-Type: application/json
+```
+
+### Request Body
+
+Standard JSON-RPC 2.0:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "eth_blockNumber",
+  "params": [],
+  "id": 1
+}
+```
+
+### Response
+
+Standard JSON-RPC 2.0 response from the backend chain:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "result": "0x134a5b8",
+  "id": 1
+}
+```
+
+### Error Codes
+
+| HTTP Status | Meaning |
+|-------------|---------|
+| 200 | Success (check JSON-RPC error field for RPC-level errors) |
+| 400 | Malformed request |
+| 502 | Backend chain unreachable |
+| 503 | Service unavailable (no suppliers available for this chain) |
+
+## Shannon Chain API
+
+The Shannon chain (poktroll) exposes standard Cosmos SDK API endpoints. These are used for on-chain operations: staking, querying state, submitting governance proposals, etc.
+
+### CometBFT RPC
+
+Default port: `26657`
+
+Used for transaction broadcasting, block queries, and consensus state. Standard CometBFT JSON-RPC interface.
+
+```bash
+# Get latest block
+curl http://localhost:26657/block
+
+# Broadcast transaction
+curl -X POST http://localhost:26657/broadcast_tx_commit \
+  -d '{"tx": "<encoded_tx>"}'
+```
+
+### Cosmos REST (LCD)
+
+Default port: `1317`
+
+RESTful API for querying chain state. Auto-generated from proto definitions.
+
+```bash
+# Query application
+curl http://localhost:1317/poktroll/application/application/{address}
+
+# Query all suppliers
+curl http://localhost:1317/poktroll/supplier/supplier
+
+# Query session
+curl http://localhost:1317/poktroll/session/get_session?application_address={addr}&service_id={id}&block_height={height}
+
+# Query shared params
+curl http://localhost:1317/poktroll/shared/params
+```
+
+### gRPC
+
+Default port: `9090`
+
+Protocol Buffers-based API for programmatic access. Fastest option for service integrations.
+
+```bash
+# Using grpcurl
+grpcurl -plaintext localhost:9090 poktroll.application.Query/Application
+grpcurl -plaintext localhost:9090 poktroll.supplier.Query/AllSuppliers
+grpcurl -plaintext localhost:9090 poktroll.session.Query/GetSession
+```
+
+### Key Query Endpoints
+
+| Module | REST Path | gRPC Service |
+|--------|-----------|-------------|
+| Application | `/poktroll/application/` | `poktroll.application.Query` |
+| Supplier | `/poktroll/supplier/` | `poktroll.supplier.Query` |
+| Gateway | `/poktroll/gateway/` | `poktroll.gateway.Query` |
+| Session | `/poktroll/session/` | `poktroll.session.Query` |
+| Service | `/poktroll/service/` | `poktroll.service.Query` |
+| Proof | `/poktroll/proof/` | `poktroll.proof.Query` |
+| Tokenomics | `/poktroll/tokenomics/` | `poktroll.tokenomics.Query` |
+| Shared | `/poktroll/shared/` | `poktroll.shared.Query` |
+
+### Key Transaction Endpoints
+
+| Module | Message | Description |
+|--------|---------|-------------|
+| Application | `MsgStakeApplication` | Stake or update application |
+| Application | `MsgDelegateToGateway` | Delegate to a gateway |
+| Supplier | `MsgStakeSupplier` | Stake or update supplier |
+| Gateway | `MsgStakeGateway` | Stake or update gateway |
+| Service | `MsgAddService` | Register a new service |
+| Proof | `MsgCreateClaim` | Submit a relay claim |
+| Proof | `MsgSubmitProof` | Submit a relay proof |
+
+## PATH Gateway API
+
+PATH exposes operational endpoints for monitoring and management:
+
+| Endpoint | Port | Description |
+|----------|------|-------------|
+| `/health` | 3069 | Gateway health status |
+| `/ready/<service>` | 3069 | Per-service readiness check |
+| `/metrics` | 9090 | Prometheus metrics |
+
+## OpenAPI Specifications
+
+Full machine-readable API specs are available in the source repositories:
+
+- **Shannon chain:** [`poktroll/docusaurus/open_api.md`](https://github.com/pokt-network/poktroll) (~10K words, auto-generated from protos)
+- **PATH gateway:** [`path/api/path_openapi.yaml`](https://github.com/pokt-network/path)
+
+## Related Pages
+
+- [Integration Examples](/developers/integration-examples) — code samples for using relay endpoints
+- [Supported Chains](/developers/supported-chains) — chain list with endpoint slugs
+- [Ports & Endpoints](/reference/ports-and-endpoints) — full port reference for all services
+- [Shannon Architecture](/protocol/architecture) — module overview for chain API context

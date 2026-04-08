@@ -1,0 +1,76 @@
+---
+title: "Wallets & Self-Custody"
+description: "Which wallet to use for native POKT, wPOKT, and hardware storage — full feature comparison and compatibility matrix."
+section: "wallets"
+persona: ["token-holder"]
+tabs: false
+status: "stable"
+sources: ["zip3/wallet-comparison-guide.docx"]
+lastUpdated: "2026-04-07"
+---
+
+Choosing the right wallet depends on one thing first: which form of POKT are you holding? Native POKT on Pocket's mainnet requires different wallet software than wrapped wPOKT on Ethereum, Base, or Solana.
+
+## Quick Reference — Which Wallet for Which Token?
+
+| Wallet | Native POKT | wPOKT (Ethereum/Base) | wPOKT (Solana) | Hardware Support |
+| --- | --- | --- | --- | --- |
+| **Soothe Vault** | ✓ | ✓ | ✗ | ✗ |
+| **Keplr** | ✓ | ✗ | ✗ | Ledger |
+| **Leap** | ✓ | ✗ | ✗ | Ledger |
+| **MetaMask** | ✗ | ✓ | ✗ | Ledger, Trezor |
+| **Rabby** | ✗ | ✓ | ✗ | Ledger |
+| **Phantom** | ✗ | ✗ | ✓ | Ledger |
+
+## Soothe Vault — Recommended for Most POKT Holders
+
+[Soothe Vault](https://trustsoothe.io) is the wallet built specifically for the Pocket Network ecosystem. It's the only browser extension that supports both native POKT and wPOKT (EVM) in a single interface.
+
+Developed by Decentralized Authority, open source ([github.com/trustsoothe/vault](https://github.com/trustsoothe/vault)), available for Chrome and Firefox.
+
+**Key features:** Native POKT and wPOKT in one vault, AES-256 encryption with local storage, MFA support, LavaMoat supply-chain protection, built-in Shannon migration tool.
+
+See the full [Soothe Vault Setup Guide](/wallets/soothe-vault) for installation and usage.
+
+## Keplr and Leap — Cosmos Ecosystem Wallets
+
+Since Pocket Network is built on the Cosmos SDK, both [Keplr](https://www.keplr.app/) and [Leap](https://leapwallet.io) support native POKT natively via the Cosmos chain registry. They do not support wPOKT on Ethereum or Solana — use MetaMask or Rabby alongside them for EVM chains.
+
+**Adding Pocket Network:** Open your wallet → chain selector → search "Pocket" → add the chain. Your `pokt1...` address is automatically generated from your existing seed phrase.
+
+**Keplr** offers browser extension + mobile, Cosmos ecosystem support, and Ledger hardware support. **Leap** offers a more modern UI and is often considered friendlier for new Cosmos users.
+
+## EVM Wallets for wPOKT
+
+wPOKT on Ethereum and Base is a standard ERC-20 token — compatible with any EVM wallet. [MetaMask](https://metamask.io), [Rabby](https://rabby.io), and [Coinbase Wallet](https://www.coinbase.com/wallet) are the most commonly used.
+
+**Adding wPOKT to your wallet:** Navigate to "Import Token" or "Add Custom Token" → paste the verified wPOKT contract address from [CoinGecko](https://coingecko.com/en/coins/pocket-network) → confirm.
+
+<Callout type="danger">
+  Never copy token contract addresses from social media or DMs. Always verify on CoinGecko or Etherscan.
+</Callout>
+
+## Solana Wallets for wPOKT
+
+wPOKT on Solana exists as an SPL token, supported by [Phantom](https://phantom.app) and [Solflare](https://solflare.com).
+
+## Hardware Wallet Support
+
+Hardware wallets keep your private keys on a physical device — the most secure option for significant holdings. **Ledger** supports native POKT via the Cosmos app (used with Keplr or Leap) and wPOKT via the Ethereum app. **Trezor** supports wPOKT only (via MetaMask). See the [Hardware Wallet Guide](/wallets/hardware-wallets) for full setup instructions.
+
+## Which Wallet Should I Use?
+
+| I want to... | Recommended wallet |
+| --- | --- |
+| Hold native POKT with the simplest setup | **Soothe Vault** |
+| Hold native POKT in the Cosmos ecosystem | **Keplr** or **Leap** |
+| Hold wPOKT and use DeFi on Ethereum/Base | **MetaMask** or **Rabby** |
+| Hold wPOKT on Solana | **Phantom** |
+| Maximum security for large holdings | **Ledger** + companion wallet |
+| Manage both native POKT and wPOKT | **Soothe Vault** (or Keplr + MetaMask) |
+
+## Wallet Security Essentials
+
+**Seed phrase rules:** Write it on paper. Never save it digitally. Store offline in multiple secure locations. Test your backup before sending significant funds.
+
+**Avoiding scams:** Always navigate directly to official wallet domains. Wallet support teams never DM you. Only install from the official Chrome Web Store or Firefox Add-ons. Use [revoke.cash](https://revoke.cash) to review and revoke unnecessary token approvals.

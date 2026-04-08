@@ -1,0 +1,551 @@
+---
+title: "Service Management"
+description: "Add, configure, and manage the blockchain services your Supplier node serves."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: true
+status: "stable"
+sources: ["zip1/08-service-management.md", "zip2/08-service-management.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+## What Is a Service?
+
+Think of services as the menu of what is available on the Pocket Network. Each service represents access to a specific blockchain or API — Ethereum, Polygon, Avalanche, Solana, and dozens more. The network has served nearly one trillion relays across more than 60 blockchains, and new services can be added at any time by anyone.
+
+Every service has three key properties:
+
+- **A unique identifier** — A short, permanent label like `eth` or `poly` that everyone on the network uses to refer to it.
+- **A human-readable name** — A description like "Ethereum Mainnet JSON-RPC" so participants know exactly what the service provides.
+- **Compute units per relay** — A number that represents how much computational work a single request to this service requires (more on this below).
+
+Services are the connective tissue of the Pocket Network. Applications request access to specific services. Suppliers stake against the services they want to provide. Gateways route traffic to the right suppliers. Everything revolves around the service registry.
+
+## Prerequisites
+
+To create or manage a service on the Pocket Network, a participant needs:
+
+- A funded account with enough POKT tokens to cover transaction fees and the service creation fee
+- Access to the network
+
+For the exact tools and procedures, refer to the technical documentation.
+
+## Adding a New Service
+
+The Pocket Network is permissionless, which means anyone can register a new service. There is no approval committee or gatekeeping process. If a new blockchain launches or a new API becomes valuable, any network participant can add it as a service.
+
+When creating a new service, the creator specifies:
+
+1. **The service identifier** — A permanent, unique label (up to 42 characters). Once set, this cannot be changed.
+2. **The service name** — A human-readable description (up to 169 characters). This is also set at creation and cannot be changed afterward.
+3. **Compute units per relay** — An optional number that indicates the relative computational cost of serving a request for this service. Defaults to 1 if not specified. The maximum value is 1,048,576. This value can be updated later.
+
+### Why Compute Units Matter
+
+Not all relay requests are created equal. A simple balance check on Ethereum takes far less computational power than running a complex smart contract simulation. Compute units per relay let the network account for these differences. A service with 10 compute units per relay is understood to require roughly 10 times the work of a service with 1 compute unit. This feeds into the tokenomics of the network, influencing how suppliers are compensated for their work.
+
+### Service Creation Fee
+
+Creating a brand-new service costs a one-time fee called the `add_service_fee`. This is a governance parameter, meaning the Pocket Network community can vote to adjust it. The fee serves two purposes:
+
+- **Quality signal** — It ensures that anyone adding a service has a genuine stake in the network, discouraging frivolous or spam service registrations.
+- **Network sustainability** — The fee contributes to the overall economic health of the protocol.
+
+The fee is only charged when creating a new service. Updating an existing service that you own does not incur this fee.
+
+### Updating an Existing Service
+
+The original creator of a service (the owner) can update its compute units per relay at any time. This is useful when the computational requirements of a service change — for example, after a blockchain upgrade that makes requests more or less expensive to serve.
+
+Only the service owner can make updates. The service name and identifier are permanent and cannot be changed after creation.
+
+## Service Metadata (Experimental)
+
+Services can carry on-chain metadata — additional information attached directly to the service record on the blockchain. This metadata acts like a product specification sheet: it gives applications, gateways, and suppliers detailed, machine-readable information about how to interact with the service.
+
+For example, a service could attach its full API specification, describing every available method, what parameters each method accepts, and what responses to expect. This makes it easier for developers building on the Pocket Network to integrate with services and for automated tools to verify compatibility.
+
+### How Metadata Works
+
+- Metadata is stored directly on the blockchain as part of the service record.
+- The maximum size is 256 KiB (roughly 256,000 characters).
+- Any format is accepted — the network does not enforce a specific structure, though common standards like OpenAPI are recommended.
+- Only the service owner can add, update, or remove metadata.
+- Metadata can be updated by re-submitting the service with new metadata, or removed by re-submitting without any metadata.
+
+### Why Metadata Matters
+
+In a permissionless network, metadata provides transparency. When a supplier is deciding which services to stake against, metadata helps them understand the technical requirements. When an application needs to choose a service, metadata describes exactly what it will get. This transparency strengthens the network by reducing confusion and ensuring participants can make informed decisions.
+
+### Handling Large Metadata Files
+
+Attaching large API specifications to a service requires more processing resources on the blockchain. When working with large metadata files, the transaction fees may need to be adjusted accordingly. The technical documentation covers the specific procedures for handling these cases.
+
+### Updating Metadata
+
+Metadata can be freely updated or removed by the service owner at any time. To update, the owner submits the service again with new metadata attached. To remove metadata entirely, the owner submits the service without any metadata.
+
+## Batch-Editing Services with edit-service
+
+Service owners who manage many services — for example, someone who registered and maintains a dozen different blockchain services — can update multiple services at once through a batch operation. Instead of updating each service one at a time, the owner prepares a list of changes and submits them all in a single transaction.
+
+The batch operation is intelligent: it checks the current state of each service on-chain, skips any services that are already up to date, and only submits changes for services that actually need updating. If everything is already current, no transaction is sent at all.
+
+This is particularly useful for operators who need to periodically recalibrate compute units per relay across their service portfolio — for instance, after a network-wide reassessment of computational costs.
+
+For the exact configuration format and procedures, refer to the technical documentation.
+
+### Validation Rules
+
+Before submitting any changes, the batch operation validates everything locally:
+
+- Every service identifier must be valid and correspond to an existing service on the network.
+- Every compute units per relay value must be a positive number.
+- The person submitting the update must be the owner of each service being changed.
+
+If anything fails validation, no changes are submitted. This all-or-nothing approach prevents partial updates that could leave the service registry in an inconsistent state.
+
+### Error Scenarios
+
+Common issues when batch-editing include:
+
+- A service identifier that does not exist on the network (it may need to be created first).
+- Attempting to update a service that belongs to a different owner.
+- Specifying an invalid compute units per relay value (must be greater than zero).
+
+## Querying Services
+
+Anyone on the network can look up information about services. This is part of what makes the Pocket Network transparent and permissionless — all service information is publicly available on the blockchain.
+
+### Show a Single Service
+
+You can look up any service by its identifier to see its full details: the name, compute units per relay, owner, and any attached metadata.
+
+### List All Services
+
+A full list of every service registered on the Pocket Network is available. Since the network supports more than 60 blockchains and the list continues to grow, this gives a comprehensive view of what data access is available.
+
+### Query Service Module Parameters
+
+The service module's governance parameters are publicly visible. This includes the current service creation fee and the target relay volume parameter. Transparency into these parameters lets participants understand the economic rules governing service management.
+
+### Relay Mining Difficulty Queries
+
+Relay mining difficulty is one of the most important self-regulating mechanisms in the Pocket Network. Here is how it works:
+
+Imagine a thermostat in a building. When the temperature rises, the thermostat automatically adjusts the cooling to compensate. When it drops, the heating kicks in. Nobody has to manually intervene — the system regulates itself.
+
+Relay mining difficulty works the same way, but for proof requirements. When a service gets very busy — handling a large volume of relay requests — the network automatically raises the difficulty. This means suppliers need to submit fewer but more selective proofs to demonstrate their work. When traffic is lighter, difficulty decreases and more proofs are accepted.
+
+This mechanism serves several purposes:
+
+- **Block space efficiency** — If every single relay required a proof, the blockchain would become congested during peak usage. Difficulty adjustment ensures that proof volume stays manageable regardless of traffic levels.
+- **Fair compensation** — Even with fewer proofs required during high-traffic periods, the tokenomics ensure that suppliers are fairly compensated for all the work they performed, not just the proofs they submitted.
+- **Self-healing resilience** — The automatic adjustment means the network adapts to changing conditions without any human intervention. A sudden surge in Ethereum traffic does not require a governance vote or manual parameter change — the network simply adjusts.
+
+You can look up the current difficulty for any service, check what the difficulty was at any specific point in time, and review the full history of difficulty changes. This transparency lets suppliers and applications understand the proof requirements for any service at any moment.
+
+## Service ID and Name Rules
+
+The rules for service identifiers and names are straightforward:
+
+- **Service identifiers** are permanent labels up to 42 characters long. They can contain letters, numbers, hyphens, and underscores. Once set, they cannot be changed.
+- **Service names** are human-readable descriptions up to 169 characters long. They can contain letters, numbers, hyphens, underscores, and spaces. Like identifiers, they are set at creation and cannot be changed afterward.
+
+The permanence of identifiers is intentional. Every supplier, application, and gateway on the network references services by their identifier. Changing an identifier would break those references and disrupt the network. This stability is part of what makes the Pocket Network a reliable, unstoppable infrastructure layer.
+
+## Quick Reference
+
+| What You Want to Do | What It Involves |
+|---|---|
+| Create a new service | Choose an identifier, name, and compute units. Pay the one-time creation fee. |
+| Update a service's compute units | Submit an update as the service owner. No creation fee required. |
+| Attach metadata to a service | Include an API specification or description when creating or updating. |
+| Update multiple services at once | Prepare a list of changes and submit as a batch. |
+| Look up a service | Query the network by service identifier. |
+| See all available services | Query the full service registry. |
+| Check relay mining difficulty | Query difficulty for any service, at any point in time. |
+
+For more about staking suppliers against services, see the Supplier Staking documentation. For an introduction to the network and account setup, see the Getting Started guide.
+
+</Tab>
+<Tab label="Advanced">
+
+This guide covers everything you need to manage services on the Pocket Network: creating new services, updating existing ones in bulk, attaching API metadata, and querying service information.
+
+A **service** represents an API endpoint (such as an Ethereum JSON-RPC node or a REST API) that suppliers provide and applications consume through the Pocket Network. Each service is uniquely identified by its `service_id` and carries a `compute_units_per_relay` value that determines how much work each relay request represents.
+
+## Prerequisites
+
+Before managing services, make sure you have:
+
+1. The `pocketd` CLI installed and configured.
+2. A funded account with enough `upokt` to cover transaction fees (and the `add_service_fee` when creating new services).
+3. Access to a network node via `--node` or `--network` flags.
+
+Check your account balance:
+
+```bash
+pocketd query bank balances $(pocketd keys show myaccount -a) --network=pocket-lego-testnet
+```
+
+Check the current service module parameters, including the add-service fee:
+
+```bash
+pocketd query service params --network=pocket-lego-testnet
+```
+
+## Adding a New Service
+
+Use the `add-service` transaction to register a new service on-chain. This is the primary command for creating services.
+
+### Syntax
+
+```bash
+pocketd tx service add-service <service_id> <service_name> [compute_units_per_relay] \
+    [--experimental-metadata-file <path>] \
+    [--experimental-metadata-base64 <base64-string>] \
+    --fees <fee> --from <account>
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|---|---|---|
+| `service_id` | Yes | Unique identifier for the service. Max 42 characters, alphanumeric plus `-` and `_`. |
+| `service_name` | Yes | Human-readable name/description. Max 169 characters, alphanumeric plus `-`, `_`, and spaces. |
+| `compute_units_per_relay` | No | Positive integer representing work per relay. Defaults to `1` if omitted. Maximum value is `1048576` (2^20). |
+
+### Creating a Basic Service
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 10 \
+    --fees 300upokt --from myaccount --network=pocket-lego-testnet
+```
+
+If you omit the `compute_units_per_relay` argument, the default value of `1` is used:
+
+```bash
+pocketd tx service add-service \
+    "avax" "Avalanche Mainnet" \
+    --fees 300upokt --from myaccount --network=pocket-lego-testnet
+```
+
+### Service Creation Fee
+
+Creating a new service requires paying the on-chain `add_service_fee`. This fee is deducted from your account automatically when the transaction is processed. The fee is only charged for brand-new services; updating an existing service you own does not incur this fee.
+
+To check the current fee:
+
+```bash
+pocketd query service params --network=pocket-lego-testnet --output json | jq '.params.add_service_fee'
+```
+
+### Updating an Existing Service
+
+The `add-service` command also works as an update when the `service_id` already exists on-chain. Only the original owner can update a service. When updating, the `compute_units_per_relay` and metadata are changed, but the `service_name` is preserved from the on-chain record.
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 20 \
+    --fees 300upokt --from myaccount --network=pocket-lego-testnet
+```
+
+In this example, the compute units per relay for service `eth` changes from `10` to `20`. No creation fee is charged because the service already exists.
+
+## Service Metadata (Experimental)
+
+> **New in v0.1.31:** Services can now carry on-chain metadata containing API specifications such as OpenAPI or OpenRPC documents. This metadata is stored as raw bytes and is limited to 256 KiB.
+
+Service metadata allows you to attach machine-readable API specifications directly to the on-chain service record. Applications, gateways, and suppliers can read this specification to understand how to interact with the service.
+
+### Attaching Metadata from a File
+
+Use the `--experimental-metadata-file` flag to attach a local file (JSON, YAML, or any format) as the service metadata:
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 10 \
+    --experimental-metadata-file ./ethereum-openapi.json \
+    --fees 300upokt --from myaccount --network=pocket-lego-testnet
+```
+
+### Attaching Metadata as Base64
+
+Alternatively, use the `--experimental-metadata-base64` flag to provide the specification as a base64-encoded string. This is useful in CI/CD pipelines or scripted environments:
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 10 \
+    --experimental-metadata-base64 $(base64 -w0 ./ethereum-openapi.json) \
+    --fees 300upokt --from myaccount --network=pocket-lego-testnet
+```
+
+### Metadata Constraints
+
+- The `--experimental-metadata-file` and `--experimental-metadata-base64` flags are **mutually exclusive**. You cannot use both in the same command.
+- The decoded metadata payload must not exceed **256 KiB** (262,144 bytes).
+- The metadata must not be empty if either flag is provided.
+- Metadata is stored on-chain as raw bytes and appears as base64-encoded data in JSON query responses.
+- Only the service owner can update or replace metadata.
+- Content format is not validated on-chain. You may store OpenAPI, OpenRPC, or any other specification format.
+
+### Updating Metadata
+
+To replace existing metadata, run `add-service` again with a new metadata flag:
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 10 \
+    --experimental-metadata-file ./ethereum-openapi-v2.json \
+    --fees 300upokt --from myaccount --network=pocket-lego-testnet
+```
+
+To remove metadata from a service, run `add-service` without any metadata flags:
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 10 \
+    --fees 300upokt --from myaccount --network=pocket-lego-testnet
+```
+
+### Handling Large Metadata Files
+
+When attaching a large API specification, you may encounter an "out of gas" error like:
+
+```
+Error: out of gas in location: txSize; gasWanted: 200000, gasUsed: 1910452: out
+```
+
+Replace the `--fees` flag with explicit gas estimation to avoid this:
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 10 \
+    --experimental-metadata-file ./large-openapi.json \
+    --gas auto --gas-prices 1upokt --gas-adjustment 1.5 \
+    --from myaccount --network=pocket-lego-testnet
+```
+
+## Batch-Editing Services with edit-service
+
+> **New in v0.1.31:** The `edit-service` command allows you to update multiple existing services in a single transaction using a YAML configuration file.
+
+The `edit-service` command is designed for service owners who manage many services and need to update their `compute_units_per_relay` values efficiently. It reads a YAML config, checks each service against on-chain state, skips services that are already up to date, and submits all changes in one batched transaction.
+
+### Syntax
+
+```bash
+pocketd tx service edit-service --config <config-file> \
+    [--disable-batch-msgs] \
+    --fees <fee> --from <account>
+```
+
+### YAML Configuration Format
+
+Create a YAML file listing the services you want to update:
+
+```yaml
+services:
+  - service_id: eth
+    compute_units_per_relay: 15
+  - service_id: avax
+    compute_units_per_relay: 25
+  - service_id: poly
+    compute_units_per_relay: 12
+```
+
+Each entry requires:
+
+| Field | Required | Description |
+|---|---|---|
+| `service_id` | Yes | The on-chain ID of the service to update. Must already exist. |
+| `compute_units_per_relay` | Yes | New value. Must be greater than 0 and at most 1048576. |
+| `service_name` | No | Ignored during edit. The on-chain name is preserved. |
+
+### Running the Batch Update
+
+```bash
+pocketd tx service edit-service \
+    --config services.yaml \
+    --fees 300upokt --from myaccount --network=pocket-lego-testnet
+```
+
+The command performs the following steps for each service entry:
+
+1. Queries the chain to confirm the service exists.
+2. Verifies the transaction signer (`--from`) is the service owner.
+3. Compares the on-chain `compute_units_per_relay` with the config value.
+4. Skips services that already match (prints a message like `Skipping service "eth": already up to date`).
+5. Collects all remaining updates and submits them as a single batched transaction.
+
+If all services are already up to date, the command prints `All services are already up to date, nothing to do.` and exits without sending a transaction.
+
+### Sending Individual Transactions
+
+If you prefer to send each update as a separate transaction instead of a single batch, use the `--disable-batch-msgs` flag:
+
+```bash
+pocketd tx service edit-service \
+    --config services.yaml \
+    --disable-batch-msgs \
+    --fees 300upokt --from myaccount --network=pocket-lego-testnet
+```
+
+When using `--disable-batch-msgs`, the command automatically increments the account sequence number for each transaction to avoid sequence mismatch errors when multiple transactions land in the same block.
+
+### Validation Rules
+
+The config file is validated before any on-chain queries are made:
+
+- The file must not be empty.
+- The `services` list must contain at least one entry.
+- Each `service_id` must be a valid service identifier (1--42 characters, alphanumeric plus `-` and `_`).
+- Each `compute_units_per_relay` must be greater than 0.
+
+If any entry fails validation, the command exits with an error and no transactions are sent.
+
+### Error Scenarios
+
+| Error | Cause | Resolution |
+|---|---|---|
+| `service "xyz" not found on-chain` | The service ID in your config does not exist on-chain. | Verify the service ID. Create the service first with `add-service` if needed. |
+| `signer is not the owner of service` | Your `--from` account does not own the service. | Use the correct owner account for the transaction signer. |
+| `compute_units_per_relay must be greater than 0` | A config entry has a zero or missing value. | Set a positive integer for `compute_units_per_relay`. |
+
+## Querying Services
+
+The service module provides several query commands for inspecting services and relay mining difficulty.
+
+### Show a Single Service
+
+Retrieve complete details for a specific service by its ID:
+
+```bash
+pocketd query service show-service eth --network=pocket-lego-testnet
+```
+
+With JSON output:
+
+```bash
+pocketd query service show-service eth --network=pocket-lego-testnet --output json | jq
+```
+
+Example response:
+
+```json
+{
+  "service": {
+    "id": "eth",
+    "name": "Ethereum Mainnet JSON-RPC",
+    "compute_units_per_relay": "10",
+    "owner_address": "pokt1abc123...",
+    "metadata": {
+      "experimental_api_specs": "<base64-encoded data>"
+    }
+  }
+}
+```
+
+To exclude metadata and reduce the response size, use the `--dehydrated` flag:
+
+```bash
+pocketd query service show-service eth --dehydrated --network=pocket-lego-testnet
+```
+
+### List All Services
+
+List every service registered on-chain:
+
+```bash
+pocketd query service all-services --network=pocket-lego-testnet
+```
+
+By default, metadata is excluded (dehydrated) to keep the response compact. To include full metadata for every service:
+
+```bash
+pocketd query service all-services --dehydrated=false --network=pocket-lego-testnet
+```
+
+Pagination is supported for large result sets:
+
+```bash
+pocketd query service all-services --limit 50 --network=pocket-lego-testnet
+pocketd query service all-services --page 2 --network=pocket-lego-testnet
+```
+
+### Query Service Module Parameters
+
+View the current on-chain parameters for the service module:
+
+```bash
+pocketd query service params --network=pocket-lego-testnet
+```
+
+This returns the `add_service_fee` (the cost to create a new service) and the `target_num_relays` parameter.
+
+### Relay Mining Difficulty Queries
+
+Relay mining difficulty determines the computational threshold for submitting valid relay proofs. The service module tracks this per-service.
+
+**List difficulty for all services:**
+
+```bash
+pocketd query service relay-mining-difficulty-all --network=pocket-lego-testnet
+```
+
+**Show difficulty for a specific service:**
+
+```bash
+pocketd query service relay-mining-difficulty eth --network=pocket-lego-testnet
+```
+
+**Show difficulty at a specific block height:**
+
+```bash
+pocketd query service relay-mining-difficulty-at-height eth 1000 --network=pocket-lego-testnet
+```
+
+**Show difficulty change history for a service:**
+
+```bash
+pocketd query service relay-mining-difficulty-history eth --network=pocket-lego-testnet
+```
+
+The history query supports pagination and returns each recorded difficulty change along with the block height at which it became effective. This is useful for historical analysis and verifying which difficulty was in effect during a particular session.
+
+## Service ID and Name Rules
+
+When creating or updating services, the following constraints are enforced:
+
+| Field | Max Length | Allowed Characters | Required |
+|---|---|---|---|
+| `service_id` | 42 | `a-z`, `A-Z`, `0-9`, `-`, `_` | Yes |
+| `service_name` | 169 | `a-z`, `A-Z`, `0-9`, `-`, `_`, space | Yes (for `add-service`) |
+
+The `service_id` is immutable after creation. It serves as the permanent on-chain identifier referenced by suppliers, applications, and gateways.
+
+The `service_name` is set at creation time and cannot be changed through subsequent `add-service` or `edit-service` calls. When updating a service, the on-chain name is always preserved.
+
+## Quick Reference
+
+| Operation | Command |
+|---|---|
+| Create a service | `pocketd tx service add-service <id> <name> <cupr> --fees 300upokt --from <acct>` |
+| Update compute units | `pocketd tx service add-service <id> <name> <new-cupr> --fees 300upokt --from <owner>` |
+| Attach metadata | `pocketd tx service add-service <id> <name> <cupr> --experimental-metadata-file ./spec.json --fees 300upokt --from <owner>` |
+| Batch update services | `pocketd tx service edit-service --config services.yaml --fees 300upokt --from <owner>` |
+| Query one service | `pocketd query service show-service <id>` |
+| Query all services | `pocketd query service all-services` |
+| Query params | `pocketd query service params` |
+| Query difficulty | `pocketd query service relay-mining-difficulty <id>` |
+| Query difficulty history | `pocketd query service relay-mining-difficulty-history <id>` |
+
+For more about staking suppliers against services, see [Supplier Staking](/node-operators/supplier-staking). For an introduction to the network and account setup, see [Getting Started](/get-started/pocketd-installation).
+
+</Tab>
+</Tabs>

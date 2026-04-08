@@ -1,0 +1,98 @@
+---
+title: "Igniter — Non-Custodial Node Staking"
+description: "Stake native POKT with professional providers without giving up custody — step-by-step setup, provider selection, and how it works under the hood."
+section: "ecosystem"
+persona: ["token-holder", "node-operator"]
+tabs: false
+status: "stable"
+sources: ["zip3/igniter-staking-guide.docx", "zip4/repo-profile-igniter.md"]
+lastUpdated: "2026-04-07"
+---
+
+[Igniter](https://igniter.build) is the easiest way to put your native POKT to work. It lets you delegate your stake to one or more professional node operators — earning relay rewards — while keeping full control of your tokens at every step. Your keys never leave your wallet, and every action is a signed on-chain transaction you approve.
+
+Built for holders who want staking participation without running infrastructure. No servers, no CLI, no DevOps knowledge required.
+
+## How Igniter Works
+
+1. **You connect your wallet** (Keplr, Leap, or Soothe Vault) to Igniter
+2. **You choose a provider** — a registered node operator running Supplier infrastructure
+3. **You sign a stake transaction** — your POKT is bonded on-chain to the provider's node, but recorded against your wallet address
+4. **The provider serves relays** and your proportional rewards flow back
+5. **You unstake anytime** — only you can initiate unstaking (21-day unbonding period)
+
+### What "Non-Custodial" Means
+
+The provider never holds your tokens. Your POKT is bonded directly to their node operator address on-chain, but the stake is recorded against your wallet address. Only you can submit an unstake transaction. This is different from custodial pools where you deposit tokens into someone else's wallet.
+
+### Multi-Provider Staking
+
+Igniter supports splitting your stake across multiple providers in a single session. This diversifies risk (if one provider has downtime, others continue earning) and supports network decentralization.
+
+## Before You Start
+
+- **Native POKT** in a Pocket mainnet wallet. Check your balance on [POKTscan](https://poktscan.com).
+- **A compatible wallet:** Keplr, Leap, or Soothe Vault — any wallet supporting Shannon mainnet
+- **Awareness of the 21-day unstaking period** — once staked, POKT is bonded until you unstake and wait 21 days
+
+## Step-by-Step: Staking with Igniter
+
+### Step 1: Go to Igniter
+
+Navigate to [staking.pocket.network](https://staking.pocket.network). Verify the URL and bookmark it.
+
+### Step 2: Connect Your Wallet
+
+Click "Connect Wallet & Stake." Select Keplr, Leap, or Soothe Vault. Approve the connection — Igniter requests read access to your address and the ability to propose transactions for your signature. It does not access your private keys.
+
+### Step 3: Choose a Provider
+
+Browse the registered provider list. Each entry shows their name and a link to their interface. Compare:
+
+- **Track record:** Check their node performance on [POKTscan Operator](https://poktscan.com/tools/operator)
+- **Services covered:** Which chains they serve — more services means more relay opportunities
+- **Fee structure:** Provider commissions vary
+- **Uptime history:** Consistent relay volume with minimal gaps
+
+### Step 4: Set Your Stake Amount
+
+Enter the amount of POKT to delegate. The minimum depends on the provider's configuration but must meet the protocol's per-node minimum. You can split across multiple providers from the same interface.
+
+### Step 5: Sign and Confirm
+
+Review the transaction details — provider address, stake amount, services. Sign the transaction in your wallet. Once confirmed on-chain, your stake is active and earning from the next eligible session.
+
+### Step 6: Monitor
+
+Track your rewards via [POKTscan Operator](https://poktscan.com/tools/operator). Add your address and check the Rewards tab for earnings over time.
+
+## Under the Hood
+
+<Callout type="info">
+  Igniter is a Turborepo monorepo containing two applications: the **Provider app** (for node operators managing Suppliers/Gateways/services) and the **Middleman app** (for delegators managing stake portfolios). Both are Next.js 15 applications backed by PostgreSQL with Temporal.io for workflow orchestration.
+</Callout>
+
+Igniter handles key management with AES-256 encryption — all private keys are encrypted at rest. The staking operations themselves are standard Pocket Network transactions, signed by your wallet, submitted to the chain. Igniter is the interface; the protocol is the trust layer.
+
+## Unstaking
+
+1. Navigate to your staked positions in Igniter
+2. Select the position to unstake and click "Unstake"
+3. Sign the unstake transaction in your wallet
+4. Wait 21 days (the protocol's unbonding period)
+5. Your POKT returns to your liquid wallet balance
+
+<Callout type="warning">
+  During the 21-day unbonding period, your tokens are not earning rewards and cannot be transferred. Plan accordingly.
+</Callout>
+
+## FAQ
+
+**Can I lose my POKT through Igniter?**
+Your tokens are bonded on-chain, not held by the provider. The main risk is opportunity cost — if your provider has poor performance, you earn fewer rewards than a better-performing provider. There is no slashing on Shannon currently.
+
+**Can I change providers without unstaking?**
+Not directly — you need to unstake from one provider and re-stake with another, which involves the 21-day unbonding period. Choose carefully.
+
+**What if my provider goes offline?**
+Your stake remains safe. You stop earning rewards for sessions where the provider isn't serving relays, but your tokens are not at risk. Monitor via POKTscan and consider unstaking if downtime persists.

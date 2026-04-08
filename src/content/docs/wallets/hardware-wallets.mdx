@@ -1,0 +1,111 @@
+---
+title: "Hardware Wallet Guide"
+description: "Secure POKT and wPOKT with Ledger or Trezor — compatibility matrix, step-by-step setup for each token type, and security practices."
+section: "wallets"
+persona: ["token-holder", "investor"]
+tabs: false
+status: "stable"
+sources: ["zip3/hardware-wallet-guide.docx"]
+lastUpdated: "2026-04-07"
+---
+
+Hardware wallets keep your private keys on a physical device that never connects to the internet. Even if your computer is compromised, an attacker cannot sign transactions without physical access to the device. For significant POKT holdings, this is the most secure storage option available.
+
+## Compatibility at a Glance
+
+| | Native POKT | wPOKT (Ethereum/Base) | wPOKT (Solana) |
+| --- | --- | --- | --- |
+| **Ledger** (Nano S Plus, Nano X, Stax, Flex) | ✓ via Cosmos app + Keplr | ✓ via Ethereum app + MetaMask | ✓ via Solana app + Phantom |
+| **Trezor** | ✗ | ✓ via MetaMask | ✗ |
+
+<Callout type="tip">
+  Ledger is the only hardware wallet that supports native POKT. If native POKT security is your priority, use Ledger.
+</Callout>
+
+## Part 1: Ledger Setup for Native POKT
+
+Uses the Ledger Cosmos app + [Keplr](https://www.keplr.app/) browser extension.
+
+**Requirements:** Ledger device (set up with PIN and seed phrase saved), [Ledger Live](https://www.ledger.com/ledger-live), Keplr browser extension, Chrome or Brave recommended.
+
+### Step 1: Install the Cosmos App
+
+Open Ledger Live → connect device → "My Ledger" → search "Cosmos" → Install.
+
+### Step 2: Connect Ledger to Keplr
+
+1. Open Keplr → account icon → "Add Wallet" → "Connect Hardware Wallet" → "Connect Ledger"
+2. Unlock Ledger, open the Cosmos app ("Cosmos ready" on screen)
+3. Select "Cosmos App (recommended)" → name your wallet
+4. Select chains — check **Pocket Network** → "Next" → approve on Ledger
+
+### Step 3: Add Pocket Network (if not in default list)
+
+Go to [chains.keplr.app](https://chains.keplr.app) → search "Pocket" → "Add to Keplr" → approve in popup. Your `pokt1...` address appears in Keplr.
+
+### Receiving and Sending Native POKT
+
+**Receive:** In Keplr, select Pocket Network → "Receive" → share your `pokt1...` address.
+
+**Send:** "Send" → enter recipient and amount → review → click "Send" → **verify all details on the Ledger screen** → approve by pressing both buttons.
+
+<Callout type="danger">
+  Always verify the recipient address, amount, and fee on your Ledger screen before approving. Malware can manipulate what Keplr displays — the Ledger screen is the ground truth.
+</Callout>
+
+## Part 2: Ledger Setup for wPOKT (Ethereum/Base)
+
+Uses the Ledger Ethereum app + MetaMask. The Ethereum app covers Base and all other EVM chains.
+
+1. **Install Ethereum app:** Ledger Live → "My Ledger" → search "Ethereum" → Install
+2. **Connect to MetaMask:** Account selector → "Add account or hardware wallet" → "Hardware wallet" → "Ledger" → unlock device, open Ethereum app → select account → "Unlock"
+3. **Add wPOKT:** "Import tokens" → paste verified contract address from [CoinGecko](https://coingecko.com/en/coins/pocket-network)
+4. **Every transaction requires physical Ledger approval** — this is the core security benefit
+
+### Using DeFi with Ledger
+
+Connect MetaMask to any DEX (Aerodrome, Uniswap). The DEX sees your Ledger-backed account. Every swap, LP deposit, or approval requires physical sign-off on the Ledger device, preventing browser-based attacks from draining your wallet.
+
+## Part 3: Ledger Setup for wPOKT (Solana)
+
+1. Install the Solana app via Ledger Live
+2. Open [Phantom](https://phantom.app) → "Connect Hardware Wallet" → "Ledger"
+3. Unlock Ledger, open Solana app → Phantom detects and generates a Solana address
+4. Add wPOKT SPL token via Phantom's token management
+
+## Trezor — wPOKT on EVM Only
+
+Trezor does not support Cosmos SDK chains, so native POKT cannot be secured with Trezor. For wPOKT on Ethereum/Base:
+
+1. Install [Trezor Suite](https://trezor.io) and connect device
+2. Connect to MetaMask: account selector → "Hardware wallet" → "Trezor" → follow pairing flow
+3. Add wPOKT token contract from CoinGecko
+4. Every transaction requires physical Trezor confirmation
+
+## Security Practices
+
+### Seed Phrase — The Most Important Thing
+
+- **Never photograph it.** Camera rolls sync to cloud. Cloud gets compromised.
+- **Never type it into any website or app.** The only legitimate use is restoring to a new physical device. Ledger Live and Keplr will never ask for it.
+- **Write on paper.** Two copies in separate physical locations. Consider a fireproof safe.
+- **Steel backup options.** Cryptosteel, Bilodal, and similar products protect against fire and water.
+- **Test your recovery** before holding significant funds.
+
+### PIN and Physical Security
+
+Use a strong PIN (at least 6 digits). Never share it. Store the device securely — treat it like cash. After several wrong PIN attempts, Ledger wipes itself (security feature).
+
+### Transaction Verification
+
+Always read the Ledger screen. If anything looks wrong, reject it. Watch for address substitution attacks — verify first and last characters of addresses on the Ledger screen.
+
+## Troubleshooting
+
+**Keplr doesn't detect Ledger:** Cosmos app must be open ("Cosmos ready" visible). Try a different USB cable/port. Check WebUSB is enabled in Chrome.
+
+**MetaMask doesn't detect Ledger:** Ethereum app must be open. Ensure WebHID/WebUSB is enabled. For Bluetooth (Nano X), pair in OS Bluetooth settings first.
+
+**Pocket address looks different from old Morse address:** Expected — Shannon uses Cosmos SDK bech32 format (`pokt1...`). Your Morse balance was migrated but uses a different address format. See [Shannon Upgrade](/get-started/shannon-upgrade).
+
+**Transaction approved but nothing happened:** Check status on [POKTscan](https://poktscan.com) or [Etherscan](https://etherscan.io). Network may be congested — wait and refresh. If not visible on-chain, the broadcast may have failed — retry.

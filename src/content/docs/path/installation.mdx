@@ -1,0 +1,94 @@
+---
+title: "PATH Installation"
+description: "Install and run PATH locally — binary build, Docker, and Tilt development environment."
+section: "path"
+persona: ["gateway-operator"]
+tabs: false
+status: "stable"
+sources: ["zip4/path/docs/HOW_TO_RUN_PATH.md", "zip4/path/CLAUDE.md"]
+lastUpdated: "2026-04-07"
+---
+
+## Option 1: Build from Source
+
+Requires Go 1.25+, Make, and Git.
+
+```bash
+git clone https://github.com/pokt-network/path.git
+cd path
+make path_build
+```
+
+Run with a config file:
+
+```bash
+CONFIG_PATH=./config.yaml make path_run
+```
+
+## Option 2: Docker
+
+```bash
+docker build -t path:local .
+docker run -p 3069:3069 -v $(pwd)/config.yaml:/app/config.yaml path:local
+```
+
+For production builds with glibc (smaller image):
+
+```bash
+docker build -f Dockerfile.release.glibc -t path:release .
+```
+
+## Option 3: Tilt Development Environment
+
+The full development stack includes PATH, Envoy Proxy, Prometheus, Grafana, rate limiting, and authentication — all running in a local Kubernetes cluster.
+
+```bash
+# Start the development environment
+make path_up
+
+# Stop
+make path_down
+```
+
+Requires: Docker, [kind](https://kind.sigs.k8s.io/), and [Tilt](https://tilt.dev/).
+
+The Tilt environment uses `local/kind-config.yaml` for cluster configuration and `Tiltfile` for service orchestration.
+
+## Configuration
+
+PATH requires a YAML config file. Copy the example and customize:
+
+```bash
+cp config/examples/config.shannon_example.yaml config.yaml
+```
+
+See [Configuration](/path/configuration) for the complete reference.
+
+## Verifying Installation
+
+```bash
+# Health check
+curl http://localhost:3069/health
+
+# Check all services
+curl http://localhost:3069/ready
+
+# Test a relay
+curl -X POST http://localhost:3069/v1 \
+  -H "Content-Type: application/json" \
+  -H "Target-Service-Id: eth" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+```
+
+## Development Commands
+
+| Command | Purpose |
+| --- | --- |
+| `make path_build` | Build binary locally |
+| `make path_run` | Run binary (needs `CONFIG_PATH`) |
+| `make path_up` / `path_down` | Start/stop Tilt dev environment |
+| `make test_unit` | Run unit tests |
+| `make test_all` | Unit + E2E tests |
+| `make e2e_test SERVICE_IDS` | E2E for specific services (e.g. `make e2e_test eth,poly`) |
+| `make load_test SERVICE_IDS` | Load tests |
+| `make go_lint` | Run golangci-lint |

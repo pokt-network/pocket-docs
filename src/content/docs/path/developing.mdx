@@ -1,0 +1,142 @@
+---
+title: "Developing with PATH"
+description: "Extend PATH — adding QoS services, custom middleware, testing, and development environment setup."
+section: "path"
+persona: ["core-developer"]
+tabs: false
+status: "stable"
+sources: ["zip4/path/CLAUDE.md", "zip4/path/docusaurus/docs/develop/"]
+lastUpdated: "2026-04-07"
+---
+
+## Development Environment
+
+PATH uses Tilt with kind (Kubernetes in Docker) for local development:
+
+```bash
+# Start full stack (PATH + Envoy + Prometheus + Grafana)
+make path_up
+
+# Tear down
+make path_down
+```
+
+The `Tiltfile` orchestrates the full stack. `local/kind-config.yaml` configures the cluster.
+
+## Building
+
+```bash
+make path_build              # Build binary
+make path_run               # Run (needs CONFIG_PATH env var)
+make release_build_local    # Build with version info for current platform
+make release_build_cross    # Build for all platforms
+```
+
+## Testing
+
+### Unit Tests
+
+```bash
+make test_unit    # go test ./... -short -count=1
+```
+
+### E2E Tests
+
+Full integration tests against live blockchain endpoints:
+
+```bash
+make e2e_test eth,poly       # Specific services
+make test_all                # Unit + E2E for key services
+```
+
+E2E tests are in `e2e/` and require a running PATH instance with valid config.
+
+### Load Tests
+
+Performance testing using Vegeta:
+
+```bash
+make load_test eth,solana    # Load test specific services
+```
+
+### Linting
+
+```bash
+make go_lint    # golangci-lint run --timeout 5m --build-tags test
+```
+
+## Adding a New QoS Service
+
+QoS modules live in `qos/`. Each module implements endpoint validation for a specific blockchain type.
+
+1. Create a new directory under `qos/` (e.g. `qos/mychain/`)
+2. Implement the QoS interface — block height validation, response checking, archival detection if applicable
+3. Register the new type in the QoS factory (`cmd/qos.go`)
+4. Add metrics in `metrics/qos/mychain/metrics.go` following the existing pattern
+5. Add E2E tests in `e2e/` for the new service type
+
+### Existing QoS Modules as Reference
+
+| Module | Key File | Capabilities |
+| --- | --- | --- |
+| `qos/evm/` | `evm.go` | Block sync, archival detection, JSON-RPC + WebSocket |
+| `qos/solana/` | `solana.go` | Slot-based sync |
+| `qos/cosmos/` | `cosmos.go` | REST + CometBFT + JSON-RPC, type fallback |
+| `qos/noop/` | `noop.go` | Pass-through (template for new modules) |
+
+## Key Architecture Points
+
+### Code Style
+
+- Standard Go formatting (gofmt) + golangci-lint
+- Structured logging with polylog
+- Error handling follows Go conventions
+- Metrics use `pathProcess = "path"` as subsystem, registered in `init()` functions
+
+### Metrics Pattern
+
+```go
+var myMetric = prometheus.NewCounterVec(
+    prometheus.CounterOpts{
+        Subsystem: pathProcess,
+        Name:      "my_metric_total",
+        Help:      "Description...",
+    },
+    []string{"service_id", "status"},
+)
+
+func init() {
+    prometheus.MustRegister(myMetric)
+}
+```
+
+### Proto Definitions
+
+Protocol buffer definitions are in `proto/path/`. Generated Go code lives in `observation/`. Regenerate with:
+
+```bash
+make proto_gen
+```
+
+## Key Directories
+
+| Directory | Purpose |
+| --- | --- |
+| `cmd/` | Application entry point and initialization |
+| `config/` | Configuration loading, schema, examples |
+| `gateway/` | Main gateway — request handling, RPC detection |
+| `protocol/shannon/` | Shannon protocol implementation |
+| `qos/` | QoS modules per blockchain type |
+| `reputation/` | Endpoint scoring and selection |
+| `router/` | HTTP routing, operational endpoints |
+| `metrics/` | Prometheus metrics |
+| `e2e/` | End-to-end tests |
+| `portal-db/` | Portal DB for SaaS gateway deployments |
+
+## Contributing
+
+- Check existing issues on [GitHub](https://github.com/pokt-network/path/issues)
+- Follow the code style conventions (gofmt, golangci-lint)
+- Add unit tests for new functionality
+- Run `make test_all` before submitting PRs
+- See the [task completion checklist](https://github.com/pokt-network/path/blob/main/.serena/memories/task_completion_checklist.md)

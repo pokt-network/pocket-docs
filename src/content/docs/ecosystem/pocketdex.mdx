@@ -1,0 +1,32 @@
+---
+title: "Pocketdex Indexer"
+description: "Shannon blockchain indexer for building data-driven applications on Pocket Network."
+section: "ecosystem"
+persona: ["developer"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/docusaurus/4_develop/developer_guide/pocketdex_indexer.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Callout type="info">
+  Pocketdex documentation is minimal. This page covers what is currently known. If you're building on Pocketdex, check the [poktroll repository](https://github.com/pokt-network/poktroll) for the latest source and configuration.
+</Callout>
+
+Pocketdex is a blockchain indexer for Pocket Network's Shannon protocol. It indexes on-chain events and state into a queryable database, enabling applications to efficiently retrieve historical data that would be expensive to compute from raw chain state.
+
+## What Pocketdex Does
+
+- Indexes Shannon chain events (claims, proofs, settlements, staking transactions, governance actions)
+- Provides queryable APIs for historical relay data, token flows, and actor state changes
+- Powers analytics platforms like POKTscan with the underlying data layer
+
+## When to Use Pocketdex
+
+Use Pocketdex if you're building a tool that needs historical or aggregated chain data — analytics dashboards, reward calculators, network health monitors, or governance tracking tools. For simple current-state queries (balances, parameters, active actors), the standard `pocketd` CLI or REST/gRPC endpoints are sufficient.
+
+## Getting Started
+
+Pocketdex is part of the [poktroll](https://github.com/pokt-network/poktroll) repository. For setup and configuration, consult the developer guide in the poktroll docusaurus documentation under `4_develop/developer_guide/`.
+
+For questions or contributions, join the [Pocket Network Discord](http://discord.gg/pocket-network) #developers channel.

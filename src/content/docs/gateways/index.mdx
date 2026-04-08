@@ -1,0 +1,55 @@
+---
+title: "Gateway Operators"
+description: "What a gateway is, the business opportunity, and how to get started running a commercial gateway on Pocket Network."
+section: "gateways"
+persona: ["gateway-operator", "business"]
+tabs: false
+status: "stable"
+sources: ["zip3/gateway-operator-guide.docx", "zip3/businesses-on-pocket-overview.docx"]
+lastUpdated: "2026-04-07"
+---
+
+A Gateway is the access layer between applications and Pocket Network's supplier pool. When a developer makes an API call to an RPC endpoint, that request hits a Gateway before being routed to a Supplier node. Running a commercial Gateway means operating this access layer as a business — serving customers who pay for RPC access, while routing their traffic through Pocket's decentralized infrastructure.
+
+This is the same model PNF uses to operate [api.pocket.network](https://api.pocket.network). The difference: as a commercial Gateway operator, you set your own pricing, serve your own customers, and keep the margin.
+
+## The Business Model
+
+| | Your Revenue | Your Cost |
+| --- | --- | --- |
+| **Source** | What customers pay you for RPC access | Protocol burn (POKT per relay) + infrastructure |
+| **Your margin** | Revenue minus protocol cost minus infrastructure | |
+
+**Volume rebates:** Shannon introduced DAO-funded rebates that reduce your effective protocol cost at higher volumes. Tiers and percentages are governance-controlled — check [poktscan.com/params](https://poktscan.com/params) for current values.
+
+## Technical Setup
+
+| Component | Purpose |
+| --- | --- |
+| **[PATH](/path/)** | The gateway software — routes requests, manages QoS, handles sessions |
+| **Gateway stake** | Minimum <GovParam module="gateway" param="min_stake" format="pokt" /> POKT staked on-chain |
+| **Application stake(s)** | One per customer segment — the payment mechanism (burn POKT per relay) |
+| **Backend nodes** | Optional — PATH routes to Pocket's Supplier pool by default |
+
+## Getting Started
+
+1. **Install PATH** — Clone and configure [PATH](/path/installation). It's the same software PNF uses in production.
+2. **Configure services** — Set which chains you want to support
+3. **Stake your Gateway** — Submit a gateway stake transaction via `pocketd` or the staking UI
+4. **Stake Applications** — Each Application burns POKT for relay traffic
+5. **Point customers** — Your customers use your endpoint URL as a drop-in replacement for any RPC provider
+6. **Monitor and scale** — PATH exposes Prometheus metrics; scale horizontally with Redis
+
+## Active Gateway Operators
+
+- **PNF** ([api.pocket.network](https://api.pocket.network)) — the reference implementation, 60+ chains
+- **DevDAO Cloud** — community-operated gateway
+- **POKT.ai** — AI-focused gateway routing LLM traffic through Pocket
+- Additional operators joining post-Shannon — see [Discord](http://discord.gg/pocket-network) #gateway-operators
+
+## What's in This Section
+
+- [Gateway Staking](/gateways/staking) — stake configuration and CLI commands
+- [Application-Gateway Delegation](/gateways/delegation) — how delegation works
+- [Gateway Business Model](/gateways/business-model) — revenue, rebates, cost structure
+- [Use Cases](/gateways/use-cases) — how teams are building on Pocket

@@ -1,0 +1,84 @@
+---
+title: "API Portal"
+description: "Pocket Network's public API portal — free RPC access to 60+ blockchains with no API key required."
+section: "foundation"
+persona: ["developer", "all"]
+tabs: false
+status: "draft"
+sources: ["zip3/api-gateway-access-guide.docx"]
+lastUpdated: "2026-04-08"
+---
+
+
+PNF operates a public API portal at [api.pocket.network](https://api.pocket.network) that provides free RPC access to 60+ blockchains. No API key, no account, no rate limit negotiation — just endpoints.
+
+## How It Works
+
+The portal is powered by Pocket Network's decentralized infrastructure. When you send a request to a portal endpoint, it's routed through the network's gateway layer to one of 5,000+ independent supplier nodes. This means:
+
+- **No single point of failure** — requests route around problems automatically
+- **No API key required** — public endpoints are open access
+- **Global distribution** — nodes are operated independently worldwide
+- **Self-healing** — underperforming nodes get deprioritized by the QoS system
+
+## Endpoint Format
+
+Portal endpoints follow the pattern:
+
+```
+https://{chain-slug}.api.pocket.network
+```
+
+For example:
+
+| Chain | Endpoint |
+|-------|----------|
+| Ethereum | `https://eth.api.pocket.network` |
+| Polygon | `https://poly.api.pocket.network` |
+| Arbitrum | `https://arb-one.api.pocket.network` |
+| Base | `https://base.api.pocket.network` |
+| Solana | `https://solana.api.pocket.network` |
+
+For the full list of supported chains and their endpoint slugs, see [Supported Chains](/developers/supported-chains).
+
+## Usage
+
+Portal endpoints are standard JSON-RPC and can be used as drop-in replacements for any centralized provider:
+
+```bash
+# curl example
+curl -X POST https://eth.api.pocket.network \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+```
+
+They work with any Web3 library — ethers.js, web3.py, viem, wagmi, or direct HTTP. See [Integration Examples](/developers/integration-examples) for framework-specific code.
+
+## Public vs. Dedicated Access
+
+The public portal is suitable for development, testing, and moderate production use. For higher-throughput or SLA-backed access, you have two options:
+
+**Application staking** — stake POKT on-chain to get dedicated access proportional to your stake. See [Application Staking](/developers/application-staking).
+
+**Gateway delegation** — delegate your staked application to a gateway operator who provides managed access with QoS guarantees. See [Gateway Delegation](/gateways/delegation).
+
+<Callout type="tip">
+Most developers should start with the public portal. Only upgrade to staked access when you need higher throughput or guaranteed capacity.
+</Callout>
+
+## Supported Protocols
+
+The portal supports multiple data access protocols depending on the chain:
+
+- **JSON-RPC** — standard for all EVM chains
+- **gRPC** — available for Cosmos chains
+- **REST** — available for Cosmos LCD endpoints
+
+WebSocket support varies by gateway operator. Check with your gateway provider for streaming capabilities.
+
+## Related Pages
+
+- [Supported Chains](/developers/supported-chains) — full chain list with endpoint slugs
+- [Integration Examples](/developers/integration-examples) — code samples for popular frameworks
+- [Application Staking](/developers/application-staking) — dedicated access via staking
+- [Developer Quick Start](/developers/) — getting started with Pocket endpoints

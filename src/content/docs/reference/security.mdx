@@ -1,0 +1,115 @@
+---
+title: "Security"
+description: "Security best practices for Pocket Network — key management, firewall configuration, and vulnerability reporting."
+section: "reference"
+persona: ["node-operator", "gateway-operator", "developer"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/CLAUDE.md", "zip4/igniter/CLAUDE.md", "zip4/pocket-relay-miner/CLAUDE.md"]
+lastUpdated: "2026-04-08"
+---
+
+
+Security guidance for anyone running Pocket Network infrastructure — from key management to firewall rules to responsible disclosure.
+
+## Key Management
+
+### Operator vs Owner Separation
+
+Shannon's Supplier model separates the **owner** (controls the stake) from the **operator** (runs day-to-day infrastructure). Use this separation:
+
+- Keep the **owner key** in cold storage or a hardware wallet. It controls staking and unstaking.
+- Use the **operator key** on your server. If compromised, the attacker can run relays but cannot steal your stake.
+
+<Callout type="danger">
+Never store owner keys on relay infrastructure. Never commit private keys to version control. Never share mnemonics over unencrypted channels.
+</Callout>
+
+### Key Storage
+
+- **Hardware wallets:** Keplr supports Pocket Network with Ledger integration. See [Hardware Wallets](/wallets/hardware-wallets).
+- **Encrypted keystores:** `pocketd` supports keyring backends (os, file, test). Use `os` for production — it stores keys in the system's credential manager.
+- **Environment variables:** For automated infrastructure, pass keys via environment variables or secrets managers (Vault, AWS Secrets Manager, etc.). Never hardcode them in config files.
+
+### Igniter Security
+
+The Igniter staking platform uses AES-256 encryption for key material. If you're running Igniter in production, ensure the encryption key is stored separately from the encrypted data.
+
+## Firewall Configuration
+
+Restrict access to Pocket Network services based on their role. Only expose what's necessary.
+
+### Supplier / RelayMiner
+
+| Port | Service | Exposure |
+|------|---------|----------|
+| 26657 | CometBFT RPC | Restrict to peers and operators |
+| 9090 | gRPC | Restrict to internal / operators |
+| 1317 | REST (LCD) | Restrict to internal / operators |
+| 80/8080 | RelayMiner HTTP | Expose to gateways (this is your service port) |
+| 8081 | RelayMiner health | Internal monitoring only |
+| 9090 | Prometheus metrics | Internal monitoring only |
+| 6060 | pprof | Internal debugging only — never expose publicly |
+
+### Gateway / PATH
+
+| Port | Service | Exposure |
+|------|---------|----------|
+| 3069 | PATH gateway | Public (this is your user-facing endpoint) |
+| 9090 | Prometheus metrics | Internal monitoring only |
+| 26657 | CometBFT RPC (upstream) | Internal — PATH connects to a full node |
+
+### HA RelayMiner
+
+| Port | Service | Exposure |
+|------|---------|----------|
+| 8080 | HTTP relay endpoint | Expose to gateways |
+| 8081 | Health check | Internal monitoring |
+| 9090 | Prometheus metrics | Internal monitoring |
+| 9092 | Miner-specific metrics | Internal monitoring |
+| 6060 | pprof | Internal debugging only |
+| 6379 | Redis | Internal only — never expose |
+
+<Callout type="warning">
+Redis (used by HA RelayMiner for leader election) must never be exposed to the public internet. Use network-level isolation or Redis AUTH at minimum.
+</Callout>
+
+See [Ports & Endpoints](/reference/ports-and-endpoints) for the complete port reference.
+
+## Network Security
+
+### P2P
+
+CometBFT P2P communication (port 26656) should be open to known peers. Consider using persistent peer lists and seed nodes from [pocket-network-resources](https://github.com/pokt-network/pocket-network-resources) rather than open peer discovery.
+
+### TLS
+
+For production deployments, terminate TLS at a reverse proxy (nginx, Caddy, Traefik) in front of your relay and gateway endpoints. Do not expose raw HTTP services to the internet.
+
+### DDoS Mitigation
+
+Relay endpoints are inherently high-traffic. Use rate limiting at the reverse proxy layer and consider CDN or DDoS protection services for public-facing gateways.
+
+## xPOKT Bridge Security
+
+<Callout type="warning">
+The xPOKT bridge at [bridge.pocket.network](https://bridge.pocket.network) uses the xERC20 standard (EIP-7281) with a custom Wormhole adapter for cross-chain POKT transfers across 7 EVM chains and Solana.
+</Callout>
+
+The xPOKT bridge uses the xERC20 standard (EIP-7281) with a custom Wormhole adapter. Bridge contracts are deployed via CREATE2 at the same address across all EVM chains. The bridge proxy contract address is `0x764a726d9ced0433a8d7643335919deb03a9a935`.
+
+## Vulnerability Reporting
+
+If you discover a security vulnerability in Pocket Network software, please report it responsibly:
+
+1. **Do not** disclose the vulnerability publicly before it's patched
+2. Contact the team via [Pocket Discord](http://discord.gg/pocket-network) (DM a core team member) or email [directors@pokt.foundation](mailto:directors@pokt.foundation)
+3. Include: affected component, reproduction steps, potential impact
+4. The team will acknowledge receipt and coordinate a fix
+
+## Related Pages
+
+- [Ports & Endpoints](/reference/ports-and-endpoints) — full port map
+- [Hardware Wallets](/wallets/hardware-wallets) — Ledger + Keplr setup
+- [Self-Custody Best Practices](/wallets/self-custody-best-practices) — wallet security guide
+- [HA RelayMiner](/node-operators/ha-relayminer) — Redis-backed relay miner operations

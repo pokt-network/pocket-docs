@@ -1,0 +1,197 @@
+---
+/**
+ * SupportedChains — Renders the live chain table from data/supported-chains.json.
+ *
+ * Grouping: EVM, Cosmos, Solana, NEAR, Sui, Radix, Tron, Other
+ * Sorting: mainnets first (alphabetical), then testnets in a separate section.
+ *
+ * Data is fetched at build time by scripts/fetch-supported-chains.mjs.
+ */
+import chainsData from '../../data/supported-chains.json';
+
+interface Chain {
+  name: string;
+  slug: string;
+  protocol: string;
+  url: string;
+  network: string;
+}
+
+// Protocol group display order and labels
+const PROTOCOL_GROUPS: Array<{ key: string; label: string }> = [
+  { key: 'evm',    label: 'EVM Networks' },
+  { key: 'cosmos', label: 'Cosmos Networks' },
+  { key: 'solana', label: 'Solana' },
+  { key: 'near',   label: 'NEAR Protocol' },
+  { key: 'sui',    label: 'Sui' },
+  { key: 'radix',  label: 'Radix' },
+  { key: 'tron',   label: 'Tron' },
+  { key: 'other',  label: 'Other' },
+];
+
+const allChains: Chain[] = (chainsData.chains as Chain[]) ?? [];
+
+if (!allChains.length) {
+  // Fallback message if data didn't load
+}
+
+// Separate mainnets and testnets
+const mainnets = allChains.filter((c) => c.network === 'mainnet');
+const testnets = allChains.filter((c) => c.network !== 'mainnet');
+
+// Group chains by protocol, sorted alphabetically within each group
+function groupByProtocol(chains: Chain[]) {
+  const groups: Record<string, Chain[]> = {};
+  for (const chain of chains) {
+    const key = chain.protocol?.toLowerCase() ?? 'other';
+    const groupKey = PROTOCOL_GROUPS.find((g) => g.key === key) ? key : 'other';
+    if (!groups[groupKey]) groups[groupKey] = [];
+    groups[groupKey].push(chain);
+  }
+  // Sort within each group
+  for (const key of Object.keys(groups)) {
+    groups[key].sort((a, b) => a.name.localeCompare(b.name));
+  }
+  return groups;
+}
+
+const mainnetGroups = groupByProtocol(mainnets);
+const testnetGroups = groupByProtocol(testnets);
+
+// First example EVM mainnet for curl example
+const firstEvm = mainnets.find((c) => c.protocol === 'evm');
+const exampleSlug = firstEvm?.slug ?? 'eth';
+const exampleUrl = firstEvm?.url ?? 'https://eth.api.pocket.network';
+---
+
+{!allChains.length ? (
+  <div class="callout warning">
+    <div class="callout-header">⚠ Warning</div>
+    <div class="callout-body">Chain data unavailable — the supported chains list could not be fetched at build time. See <a href="https://github.com/pokt-network/public-rpc">pokt-network/public-rpc</a> for the live list.</div>
+  </div>
+) : (
+  <>
+    {/* Curl example using first real EVM chain */}
+    <div class="code-block">
+      <div class="code-block-header">
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="astro-code"><code># Example: {firstEvm?.name ?? 'Ethereum'}
+curl -X POST {exampleUrl} \
+  -H "Content-Type: application/json" \
+  -d '{`{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}`}'</code></pre>
+    </div>
+
+    {/* Mainnet tables grouped by protocol */}
+    {PROTOCOL_GROUPS
+      .filter(({ key }) => mainnetGroups[key]?.length)
+      .map(({ key, label }) => (
+        <section class="chains-group">
+          <h3>{label}</h3>
+          <div class="data-table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Chain</th>
+                  <th>Slug</th>
+                  <th>Endpoint URL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mainnetGroups[key].map((chain) => (
+                  <tr>
+                    <td>{chain.name}</td>
+                    <td><code>{chain.slug}</code></td>
+                    <td><code>{chain.url}</code></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))
+    }
+
+    {/* Testnets — collapsible section */}
+    {testnets.length > 0 && (
+      <details class="testnets-details">
+        <summary><strong>Testnets ({testnets.length})</strong></summary>
+        {PROTOCOL_GROUPS
+          .filter(({ key }) => testnetGroups[key]?.length)
+          .map(({ key, label }) => (
+            <section class="chains-group">
+              <h4>{label} — Testnets</h4>
+              <div class="data-table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Chain</th>
+                      <th>Slug</th>
+                      <th>Endpoint URL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {testnetGroups[key].map((chain) => (
+                      <tr>
+                        <td>{chain.name}</td>
+                        <td><code>{chain.slug}</code></td>
+                        <td><code>{chain.url}</code></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ))
+        }
+      </details>
+    )}
+
+    <p style="font-size: var(--text-sm); color: var(--text-tertiary); margin-top: var(--space-4);">
+      Data sourced from <a href="https://github.com/pokt-network/public-rpc">pokt-network/public-rpc</a> at build time ({new Date(chainsData._meta.fetched_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}).
+    </p>
+  </>
+)}
+
+<style>
+  .chains-group {
+    margin-bottom: var(--space-8);
+  }
+
+  .chains-group h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    margin-bottom: var(--space-3);
+    color: var(--text-primary);
+  }
+
+  .chains-group h4 {
+    font-size: var(--text-base);
+    font-weight: var(--weight-semibold);
+    margin-bottom: var(--space-3);
+    color: var(--text-secondary);
+  }
+
+  .testnets-details {
+    margin-top: var(--space-8);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+  }
+
+  .testnets-details summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    padding: var(--space-1) 0;
+    user-select: none;
+  }
+
+  .testnets-details summary:hover {
+    color: var(--text-primary);
+  }
+
+  .testnets-details[open] summary {
+    margin-bottom: var(--space-4);
+  }
+</style>

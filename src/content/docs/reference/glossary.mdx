@@ -1,0 +1,427 @@
+---
+title: "Glossary"
+description: "Definitions of key terms in the Pocket Network ecosystem."
+section: "reference"
+persona: ["all"]
+tabs: true
+status: "stable"
+sources: ["zip1/16-glossary.md", "zip2/16-glossary.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+## Actors and Roles
+
+### Application
+
+An Application is a participant that stakes POKT tokens to consume services (like blockchain data) from the network. Think of it as a customer with a prepaid account — the more you stake, the more service you can use.
+
+### Gateway
+
+A Gateway is a participant that stakes POKT to send requests on behalf of one or more Applications. Think of it as a concierge service: instead of each Application dealing with the network directly, a Gateway handles the routing and quality of service for them.
+
+### PATH Gateway
+
+PATH Gateway is the actual software that runs the Gateway's routing logic. PATH stands for Protocol for Application-level Traffic Handling. While "Gateway" refers to the onchain identity, "PATH Gateway" is the program running on a server that does the real work of directing traffic.
+
+### RelayMiner
+
+A RelayMiner is the software that Suppliers run to actually serve data requests. It sits between the Gateway (which sends requests) and the backend service (which has the data). Think of it as the worker behind the counter who fulfills your order. Every Supplier must run a RelayMiner to earn rewards.
+
+### Supplier
+
+A Supplier is a participant that stakes POKT to earn rewards by providing services to the network. The Supplier is the onchain registration — it tells the network "I am here, I offer these services, and here is where you can reach me." The actual work is done by the RelayMiner software. Think of a Supplier as a business license and the RelayMiner as the business itself.
+
+### Validator
+
+A Validator is a node operator that helps secure the network by producing and verifying blocks. Validators stake POKT and earn rewards for their work. Only a limited number of Validators are active at any time — the ones with the most stake get priority. Think of Validators as the referees of the network, making sure every transaction plays by the rules.
+
+## Protocol Concepts
+
+### Claim
+
+A Claim is a Supplier's formal statement that it served a certain amount of work during a session. After serving relay requests, the Supplier submits a Claim as proof of commitment. Think of it as submitting a timesheet: you are declaring the work you did, which may then be audited.
+
+### Claim Window
+
+The Claim Window is the specific time period after a session ends during which Suppliers must submit their Claims. If you miss the window, you miss your chance to get paid for that session. Think of it as a filing deadline.
+
+### Compute Unit (CU)
+
+A Compute Unit is a standardized measure of how much work a single relay requires for a given service. Some services are more resource-intensive than others, and Compute Units normalize this so the network can fairly compare and price different types of work. Think of it as a unit of effort — a simple lookup costs fewer Compute Units than a complex calculation.
+
+### Cosmovisor
+
+Cosmovisor is a helper tool that automatically manages software upgrades for your node. When the network approves an upgrade, Cosmovisor downloads the new version and switches to it at the right block height, so you do not have to do it manually. Think of it as an auto-updater for your node software.
+
+### Delegation (Application to Gateway)
+
+Delegation is when an Application authorizes a Gateway to send requests on its behalf. Once delegated, the Gateway can use the Application's session allocation to route traffic. Think of it as giving someone power of attorney to act on your behalf for a specific purpose.
+
+### Delegation (Validator Staking)
+
+Delegation in the Validator context is when a token holder assigns their POKT to a Validator to increase its total stake. In return, the delegator earns a share of the Validator's rewards, minus a commission. Think of it as pooling resources: you back a Validator you trust, and you both benefit.
+
+### Mint Ratio
+
+The Mint Ratio controls how much new POKT is created relative to the value of relays served. When the ratio is below 1.0, less POKT is created than the value consumed, making the token deflationary over time. When it equals 1.0, creation matches consumption. This parameter is set through governance and is a key lever for managing the token economy.
+
+### Morse
+
+Morse is the name for the previous version of the Pocket Network protocol. Shannon (the current version) replaces Morse with a more modern architecture. The migration from Morse to Shannon involves moving all accounts and balances to the new chain.
+
+### Non-Custodial Staking
+
+Non-Custodial Staking separates token ownership from node operation. The person who owns the tokens (the Owner) does not need to be the same person running the node (the Operator). Think of it as hiring a property manager: you own the building, but someone else handles the day-to-day operations, and neither party needs to trust the other with full control.
+
+### Proof
+
+A Proof is the cryptographic evidence that a Supplier actually did the work it claimed. Not every Claim is audited — the network randomly selects some Claims and asks the Supplier to provide a Proof. Think of it as a spot check or random audit of your submitted work.
+
+### Proof Window
+
+The Proof Window is the time period after the Claim Window during which Suppliers must submit their Proofs, if selected. Think of it as the audit response deadline — if you are asked to prove your work, this is your window to respond.
+
+### Relay
+
+A Relay is a single request-and-response pair that flows through the network. An Application (or Gateway) sends a request, and a Supplier's RelayMiner sends back a response. Relays are the fundamental unit of work in Pocket Network — everything the network does ultimately comes down to serving relays.
+
+### Relay Mining
+
+Relay Mining is the process by which Suppliers earn POKT rewards for serving relays. It uses a difficulty system (similar in concept to Bitcoin mining) where Suppliers must serve a certain number of relays before qualifying for a reward. The difficulty adjusts based on how busy the network is.
+
+### Relay Mining Difficulty
+
+Relay Mining Difficulty is a per-service setting that determines how many relays a Supplier must serve before earning a reward for that service. Higher difficulty means more work per reward. The network adjusts difficulty automatically based on overall relay volume, keeping rewards proportional to actual demand.
+
+### Service
+
+A Service is a specific API or data source registered on the network. For example, "Ethereum Mainnet" or "Polygon" would each be a Service. Each Service has a unique identifier, a name, and a defined compute cost per relay. Suppliers register to offer Services, and Applications stake to consume them.
+
+### Session
+
+A Session is a time-limited window during which a specific group of Suppliers is assigned to serve a specific Application for a specific Service. Sessions are the network's way of organizing who serves whom. Think of it as a work shift: during this session, these particular Suppliers are responsible for handling this Application's requests.
+
+### Session Cache
+
+Session Cache was a performance optimization that stored session data locally to speed up lookups. It has been removed in recent versions to ensure every node computes sessions identically, improving the network's consistency and reliability.
+
+### Shannon
+
+Shannon is the current version of the Pocket Network protocol. Named after Claude Shannon (the father of information theory), it is built on the Cosmos SDK and CometBFT consensus engine. Shannon replaces the older Morse protocol and introduces features like non-custodial staking, modular tokenomics, and a claim-and-proof verification system.
+
+### SMST (Sparse Merkle Sum Trie)
+
+An SMST is a specialized data structure that Suppliers use to bundle all the relays they served during a session into a single, verifiable package. Think of it as a tamper-proof receipt book: it records every relay served and can prove that any individual relay was included, without having to reveal all the others. The SMST root hash is what gets submitted in the Claim.
+
+### Token Logic Module (TLM)
+
+A Token Logic Module is a building block of the tokenomics system that defines how tokens are created, destroyed, and distributed when work is settled. Different TLMs handle different aspects of the token economy. Think of them as accounting rules: each TLM specifies a particular formula for how money flows when Suppliers get paid for their work.
+
+## Infrastructure Terms
+
+### CometBFT
+
+CometBFT is the consensus engine that powers Pocket Network (and all Cosmos SDK-based blockchains). It is responsible for making sure all Validators agree on the order of transactions and the state of the chain. Think of it as the voting system that keeps everyone synchronized. It was formerly known as Tendermint.
+
+### Cosmos SDK
+
+The Cosmos SDK is the software framework that Pocket Network's Shannon protocol is built on. It provides standard features like staking, governance, and token transfers out of the box, on top of which Pocket Network adds its own specialized modules for relays, proofs, and tokenomics. Think of it as the foundation and plumbing of a building, with Pocket Network's unique rooms built on top.
+
+### Full Node
+
+A Full Node is a server that downloads and stores blockchain data and can answer queries, but does not participate in block production (that is the Validator's job). Full Nodes are essential infrastructure — Gateways and RelayMiners connect to Full Nodes to stay informed about the state of the network. Think of a Full Node as a library that has all the current records but does not write new ones.
+
+### Archival Node
+
+An Archival Node is a Full Node that keeps every piece of data from the beginning of the chain, never deleting anything. Regular Full Nodes prune (clean up) old data to save space, but Archival Nodes preserve the complete history. Think of it as the difference between a newspaper archive and a newsstand — one keeps everything, the other only has recent issues.
+
+### LevelDB
+
+LevelDB is the database engine used under the hood to store blockchain data on each node. You do not interact with it directly, but understanding that it exists helps when troubleshooting disk space issues, since your node maintains several LevelDB databases that grow over time.
+
+### Pruning
+
+Pruning is the process of deleting old blockchain data that your node no longer needs for day-to-day operation. By pruning, you keep your disk usage under control. Think of it as cleaning out your filing cabinet: you keep recent documents you might need and archive or discard the rest. Different pruning modes let you choose how aggressively to clean up.
+
+## Tokenomics Terms
+
+### Global Mint
+
+Global Mint is a token distribution rule that allocates newly created POKT to different parties whenever work is settled. Portions go to the block producer (Validator), the Supplier who did the work, the Application that requested the work, and the community treasury (DAO). Think of it as the payroll system that splits the paycheck among everyone who contributed.
+
+### Mint-Equal-Burn
+
+Mint-Equal-Burn is a token rule where the amount of new POKT created exactly matches the amount consumed (burned) from the Application's stake when relays are served. When combined with a Mint Ratio below 1.0, less is created than consumed, gradually reducing the total supply. This is one of the mechanisms that helps manage the long-term value and supply of POKT.
+
+### Overservicing
+
+Overservicing happens when a Supplier provides more relays than an Application's stake can cover. The network has built-in rate-limiting to prevent this, but intentional overservicing is considered misbehavior. Think of it as overdrawing a prepaid account — the system tries to prevent it, and deliberately causing it is against the rules.
+
+## Network and Chain Terms
+
+### Chain ID
+
+A Chain ID is the unique name that identifies a specific Pocket Network instance. The production network uses `pocket`, and the current testnet uses `pocket-lego-testnet`. Think of it as the network's address label so your software knows which network to connect to.
+
+### MainNet
+
+MainNet is the production Pocket Network where real POKT tokens have real value and real services are being provided. This is the live, operational network as opposed to test environments.
+
+### TestNet (Beta / Lego)
+
+TestNet is a testing environment where operators can practice, test configurations, and integrate without risking real tokens. The current TestNet uses the chain ID `pocket-lego-testnet`. Think of it as a sandbox or practice arena.
+
+## Key Management Terms
+
+### Keyring Backend
+
+The Keyring Backend is where your node stores its private keys. Options range from your operating system's built-in secure storage, to an encrypted file on disk, to an unencrypted format for testing only. Think of it as choosing between a safe, a lockbox, and a desk drawer — pick the one that matches your security needs.
+
+### Owner Address
+
+In non-custodial staking, the Owner Address belongs to the person who owns the staked tokens. The Owner can increase, decrease, or withdraw the stake, but does not need to run the node. Think of it as the landlord's address — they own the property but may not live there.
+
+### Operator Address
+
+In non-custodial staking, the Operator Address belongs to the person running the node. The Operator handles day-to-day operations but cannot withdraw or move the staked tokens. Think of it as the property manager's address — they run the building but do not own it.
+
+## Governance Terms
+
+### PIP (Pocket Improvement Proposal)
+
+A PIP is a formal proposal for changing something about the Pocket Network protocol. PIPs go through community discussion and onchain voting before taking effect. Think of it as a bill in a legislature: someone drafts a proposal, the community debates it, and Validators vote on whether to adopt it.
+
+### Governance Proposal
+
+A Governance Proposal is an onchain vote to change network parameters or trigger a software upgrade. If enough Validators vote in favor, the proposal passes and the change takes effect automatically. This is how the network evolves without any central authority making decisions.
+
+### Params
+
+Params (short for parameters) are the configurable settings that control how the protocol behaves. Every module in the network has its own set of parameters — things like how long sessions last, how much stake is required, or what the mint ratio is. Parameters can be changed through Governance Proposals, allowing the community to fine-tune the network over time without needing a software update.
+
+</Tab>
+<Tab label="Advanced">
+
+Key terms and definitions for the Pocket Network Shannon protocol. Terms are organized alphabetically within thematic sections.
+
+## Actors and Roles
+
+### Application
+
+An onchain actor that stakes POKT to consume and pay for services available on Pocket Network. Applications represent end-users or clients that send relay requests to Suppliers. The amount of service an Application can consume is proportional to its stake and bounded by session parameters. See [Application Staking](/developers/application-staking).
+
+### Gateway
+
+An onchain actor that stakes POKT to relay and sign requests on behalf of one or more Applications. Gateways serve as a quality-of-service layer, routing traffic from Applications to Suppliers. They enable enterprise usage patterns where a single Gateway can serve multiple Applications. See [Gateway Staking](/gateways/staking).
+
+### PATH Gateway
+
+An offchain actor — the software process that implements the Gateway routing logic. PATH (Protocol for Application-level Traffic Handling) is the offchain Gateway implementation developed by Grove. It optimizes routing, performance, and quality-of-service between Applications and Suppliers.
+
+### RelayMiner
+
+An offchain actor — a specialized service process that proxies relay requests between PATH Gateways and the backend service being supplied. Every staked Supplier must run a RelayMiner to process relays and earn rewards. RelayMiners are not onchain actors; they execute business logic offchain that is verified onchain. Resource requirements scale linearly with relay volume.
+
+### Supplier
+
+An onchain actor that stakes POKT to earn rewards in exchange for providing services to the network. Suppliers register the services they offer and the endpoints where their RelayMiner can be reached. A Supplier's lifecycle includes staking, activation (at the next session boundary), active service, unstaking, unbonding, and completion. See [Supplier Staking](/node-operators/supplier-staking).
+
+### Validator
+
+A node operator that participates in CometBFT consensus to produce and validate blocks. Validators stake POKT and earn block rewards and transaction fee commissions. Only the top `max_validators` by total stake are in the active set. Validators use standard Cosmos SDK staking mechanics including delegation and commission.
+
+## Protocol Concepts
+
+### Claim
+
+The first phase of the claim-and-proof lifecycle. After serving relays during a session, a Supplier submits a Claim containing the root hash of the Sparse Merkle Sum Trie (SMST) that commits to all relays served. The Claim is a commitment to work done, analogous to the "commit" phase of a commit-and-reveal scheme.
+
+### Claim Window
+
+The time period after a session ends during which Suppliers must submit their Claims. The window is defined by onchain parameters and begins a configurable number of blocks after the session ends.
+
+### Compute Unit (CU)
+
+A unit of measurement that normalizes the cost of relays across different services. Each service defines a `compute_units_per_relay` value that reflects the relative computational cost of processing one relay for that service. Compute Units are used in tokenomics calculations to determine how much POKT a Supplier earns for servicing relays.
+
+### Cosmovisor
+
+A process manager for Cosmos SDK-based chains that monitors for onchain upgrade proposals and automatically downloads and switches to new binary versions at the designated upgrade height. Pocket Network uses Cosmovisor for automated upgrades of `pocketd`.
+
+### Delegation (Application to Gateway)
+
+The mechanism by which an Application authorizes a Gateway to send relays on its behalf. When an Application delegates to a Gateway, the Gateway can sign relay requests using the Application's session allocation.
+
+### Delegation (Validator Staking)
+
+The mechanism by which token holders delegate their POKT to a Validator to increase its stake weight and share in block rewards. Follows standard Cosmos SDK delegation mechanics.
+
+### Mint Ratio
+
+A tokenomics parameter introduced by PIP-41 that controls the ratio of POKT minted relative to the value of relays served. When `mint_ratio` is less than 1.0, the protocol becomes deflationary (less POKT is minted than the relay value burned). When equal to 1.0, mint equals burn. This parameter is set through governance.
+
+> **New in v0.1.31:** The `mint_ratio` parameter was introduced as part of the PIP-41 upgrade handler.
+
+### Morse
+
+The previous (legacy) version of the Pocket Network protocol. Morse used a different consensus mechanism and key scheme. The migration from Morse to Shannon involves a state snapshot and 1:1 token migration to the new Cosmos SDK-based chain.
+
+### Non-Custodial Staking
+
+A staking pattern where the owner of the staked tokens (the Owner address) is different from the operator running the node (the Operator address). This allows token holders to stake without giving operational control of their tokens to the node operator, and vice versa.
+
+### Proof
+
+The second phase of the claim-and-proof lifecycle. After submitting a Claim, a Supplier may be required to submit a Proof — a Merkle proof from the SMST that demonstrates a specific relay was included in the committed set. Not all Claims require Proofs; the protocol uses probabilistic sampling to determine which Claims must be proven.
+
+### Proof Window
+
+The time period after the Claim Window during which Suppliers must submit Proofs if required. The window is defined by onchain parameters and follows the Claim Window.
+
+### Relay
+
+A single request-response pair between an Application (or Gateway) and a Supplier through a RelayMiner. A relay consists of a RelayRequest sent by the Application/Gateway and a RelayResponse returned by the Supplier's RelayMiner. Relays are the fundamental unit of work in Pocket Network.
+
+### Relay Mining
+
+The mechanism by which Suppliers earn POKT rewards for serving relays. Relay Mining uses a difficulty-based system where the number of relays a Supplier must serve before earning a "relay mining token" is dynamically adjusted based on network-wide relay volume. This is described in detail in the [Relay Mining paper](https://arxiv.org/pdf/2305.10672).
+
+### Relay Mining Difficulty
+
+A per-service parameter that controls how many relays must be served before a relay qualifies for reward. Higher difficulty means more relays must be served per reward. Difficulty adjusts automatically based on network relay volume for each service.
+
+> **New in v0.1.31:** Relay mining difficulty history is now queryable onchain for historical analysis.
+
+### Service
+
+An API service registered onchain that Suppliers can offer and Applications can consume. Each service has a unique ID, a human-readable name, a `compute_units_per_relay` value, and an owner address. Services can optionally include metadata (up to 256 KiB). See [Service Management](/node-operators/service-management).
+
+### Session
+
+A time-bounded window during which a specific set of Suppliers is assigned to serve a specific Application for a specific Service. Sessions are deterministically computed from the block height, Application address, and Service ID. Sessions define which Suppliers can serve which Applications, and all claims and proofs reference a specific session.
+
+### Session Cache
+
+A mechanism previously used to cache session data for performance. The session cache was removed in recent versions to ensure deterministic session computation across all nodes.
+
+> **New in v0.1.31:** Session cache has been removed for improved determinism.
+
+### Shannon
+
+The current version of the Pocket Network protocol, built on the Cosmos SDK and CometBFT consensus. Shannon replaces the legacy Morse protocol and introduces modular tokenomics, non-custodial staking, Cosmos-standard key management, and a claim-and-proof system for verifying relay work.
+
+### SMST (Sparse Merkle Sum Trie)
+
+A cryptographic data structure used by Suppliers to commit to the set of relays served during a session. The SMST allows efficient Merkle proofs of inclusion and tracks the cumulative sum of compute units across all leaves. The root hash of the SMST is included in the Claim, and individual leaf proofs are submitted as Proofs.
+
+### Token Logic Module (TLM)
+
+A modular component of the tokenomics system that determines how tokens are minted, burned, and distributed when claims are settled. TLMs are processed sequentially during claim settlement. Current TLMs include Mint-Equal-Burn (where POKT minted equals the value of relays served) and Global Mint (configurable mint allocations). The `mint_ratio` parameter modifies TLM behavior.
+
+## Infrastructure Terms
+
+### CometBFT
+
+The Byzantine Fault Tolerant consensus engine used by Pocket Network (and all Cosmos SDK chains). CometBFT handles block production, transaction ordering, and consensus among validators. Formerly known as Tendermint.
+
+### Cosmos SDK
+
+The application framework on which Pocket Network's Shannon protocol is built. The Cosmos SDK provides standard modules for staking, governance, banking, slashing, and distribution, on top of which Pocket Network adds its own protocol-specific modules.
+
+### Full Node
+
+A node that synchronizes and stores blockchain data but does not participate in consensus (unlike a Validator). Full Nodes serve RPC queries and can be used as backend nodes for Gateways and RelayMiners. See [Getting Started](/get-started/pocketd-installation).
+
+### Archival Node
+
+A Full Node configured to retain all historical blockchain data (no pruning). Archival nodes are used for historical queries and analysis. They require significantly more disk space than pruned nodes.
+
+### LevelDB
+
+The key-value database engine used by CometBFT and the Cosmos SDK to store blockchain state. Pocket Network nodes maintain four LevelDB databases: `blockstore.db`, `tx_index.db`, `state.db`, and `application.db`.
+
+### Pruning
+
+The process of removing old blockchain data to keep disk usage bounded. Pruning modes include `everything` (aggressive, keeps minimal history), `default` (moderate retention), `custom` (configurable retention), and `nothing` (archival, keeps all history).
+
+## Tokenomics Terms
+
+### Compute Unit
+
+See [Compute Unit (CU)](#compute-unit-cu) above.
+
+### Global Mint
+
+A Token Logic Module that distributes newly minted POKT according to configurable allocation percentages. Allocations include shares for the block proposer, the Supplier, the Application, and the DAO/community pool.
+
+### Mint-Equal-Burn
+
+A Token Logic Module where the amount of POKT minted equals the amount burned from the Application's stake for relays consumed. When combined with a `mint_ratio` less than 1.0, the effective mint can be less than the burn, creating deflationary pressure.
+
+### Overservicing
+
+A scenario where a Supplier serves more relays than an Application's stake can cover. The protocol includes optimistic rate-limiting mechanisms to bound overservicing, but intentional overservicing by Gateways or Applications is considered misbehavior.
+
+## Network and Chain Terms
+
+### Chain ID
+
+The identifier for a specific Pocket Network chain instance. The current testnet chain ID is `pocket-lego-testnet` (previously `pocket-beta`). MainNet uses `pocket`.
+
+> **New in v0.1.31:** Chain ID `pocket-beta` has been renamed to `pocket-lego-testnet`.
+
+### MainNet
+
+The production Pocket Network chain where real POKT tokens are at stake and real services are provided.
+
+### TestNet (Beta / Lego)
+
+A more stable testing network for operator onboarding and integration testing. Uses chain ID `pocket-lego-testnet`.
+
+## Key Management Terms
+
+### Keyring Backend
+
+The storage mechanism for private keys used by `pocketd`. Options include `os` (OS-native keyring), `file` (encrypted file on disk), and `test` (unencrypted, for testing only).
+
+### Owner Address
+
+In non-custodial staking, the address that owns the staked tokens. The Owner address has authority to manage the stake (increase, decrease, unstake) but does not need to operate the node.
+
+### Operator Address
+
+In non-custodial staking, the address that operates the node. The Operator address can perform operational tasks but does not have authority over the staked tokens.
+
+## Governance Terms
+
+### PIP (Pocket Improvement Proposal)
+
+A formal proposal for changes to the Pocket Network protocol. PIPs go through community discussion and onchain governance voting. PIP-41 introduced the `mint_ratio` parameter for deflationary tokenomics.
+
+### Governance Proposal
+
+An onchain proposal that, if passed by validator vote, enacts parameter changes or software upgrades. Pocket Network uses standard Cosmos SDK governance mechanics.
+
+### Params
+
+Onchain parameters that control protocol behavior. Each module has its own set of parameters (e.g., tokenomics params, shared params, service params, proof params). Parameters can be modified through governance proposals.
+
+Query all parameters:
+
+```bash
+pocketd query params
+```
+
+Query module-specific parameters:
+
+```bash
+pocketd query tokenomics params --network=mainnet
+pocketd query shared params --network=mainnet
+pocketd query service params --network=mainnet
+```
+
+</Tab>
+</Tabs>

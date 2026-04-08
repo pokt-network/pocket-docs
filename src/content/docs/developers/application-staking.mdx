@@ -1,0 +1,356 @@
+---
+title: "Application Staking"
+description: "Stake POKT as an Application to access blockchain data services on Pocket Network."
+section: "developers"
+persona: ["developer"]
+tabs: true
+status: "stable"
+sources: ["zip1/03-application-staking.md", "zip2/03-application-staking.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+## What Is an Application?
+
+In Pocket Network, an **Application** represents the demand side of the network. Applications are the entities that actually need blockchain data — they want to read from Ethereum, query Solana, or access any other supported chain's API. If Suppliers are the data providers, Applications are the data consumers.
+
+Think of it this way: Pocket Network is a decentralized marketplace for blockchain data. Suppliers set up shop to serve that data. Applications are the customers who walk through the door. But instead of paying per request with a credit card, Applications put up a deposit of POKT tokens to gain ongoing access to the network's services. That deposit is called a **stake**.
+
+## What Is Staking?
+
+Staking is the act of locking up POKT tokens as a deposit to participate in the network. When an Application stakes, three things happen:
+
+1. **Your tokens are held in escrow.** The protocol locks your POKT in a module-controlled account. You cannot spend these tokens while they are staked, but they remain yours — you get them back when you leave.
+
+2. **You are registered on-chain.** The network now knows your Application exists and is ready to consume data services.
+
+3. **You declare which services you need.** You specify which blockchain or API service you want to access (more on this below).
+
+Staking is not a fee or a payment. It is closer to a security deposit. The tokens remain yours, and you reclaim them when you unstake. While staked, the protocol uses your stake to calculate how much service you are entitled to and to hold you accountable within the network's economic system.
+
+### Why Does the Network Require Staking?
+
+Staking serves several purposes in making Pocket Network unstoppable and self-healing:
+
+- **Sybil resistance.** Requiring a real economic commitment prevents bad actors from flooding the network with fake Applications that waste Supplier resources.
+- **Economic alignment.** Your stake ties your interests to the health of the network. Participants with skin in the game are more likely to behave honestly.
+- **Service metering.** The protocol uses your stake amount as one factor in determining how much service capacity is allocated to you during each session.
+
+## Choosing Your Services (Service IDs)
+
+When you stake an Application, you must declare which service you want to access. Services are identified by short codes called **Service IDs** — for example, `eth` for Ethereum or `sol` for Solana. These correspond to the blockchain APIs and data services that Suppliers on the network are set up to provide.
+
+Think of Service IDs as channels on the network. You tune into the channel you need, and the protocol matches you with Suppliers who serve that channel.
+
+Currently, the protocol requires each Application to choose exactly one service at a time. This is a deliberate design choice enforced by the tokenomics module to prevent any single Application from consuming a disproportionate share of network resources across many services simultaneously. If you need access to multiple blockchains, you would stake separate Applications for each one.
+
+The list of available services is maintained on-chain. You can browse the service registry to see which services are currently supported before deciding where to stake.
+
+## Stake Lifecycle Summary
+
+An Application moves through a clear lifecycle on the network. Understanding these stages helps you plan your participation.
+
+### 1. Staked (Active)
+
+Once your staking transaction is confirmed, your Application is live. The protocol begins including you in sessions, matching you with Suppliers who serve your chosen service. Your staked tokens are held in escrow by the protocol.
+
+At this stage, you (or a Gateway you have delegated to) can begin sending data requests through the network.
+
+### 2. Updating (Upstaking or Changing Services)
+
+At any time while staked, you can update your Application. You might want to:
+
+- **Increase your stake** to access more service capacity. The protocol only allows you to increase your stake, never decrease it — this is sometimes called "upstaking." If you want to reduce your stake, you must fully unstake and re-stake with the lower amount.
+- **Switch services** by changing your Service ID. For example, you might move from an Ethereum service to a Solana service.
+
+An update takes effect on-chain once the transaction is confirmed. There is no downtime — your Application remains active throughout.
+
+### 3. Unbonding (Leaving the Network)
+
+When you decide to stop using the network, you initiate an **unstake**. This begins the unbonding process:
+
+- **During the current session**, your Application can still request service normally. This ensures that in-progress work is not disrupted.
+- **After the current session ends**, your Application becomes inactive. It is no longer matched with Suppliers and cannot send requests.
+- **The unbonding period begins.** Your tokens remain locked for a set number of sessions (governed by the `application_unbonding_period_sessions` parameter). This waiting period exists so the protocol can finalize any outstanding accounting — for example, settling claims from Suppliers who served your Application.
+- **Once the unbonding period ends**, your staked tokens are returned to your account. You are free to use them however you wish.
+
+If you change your mind during the unbonding period, you can re-stake. This cancels the unbonding process and makes your Application active again immediately.
+
+### 4. Transferring
+
+Instead of unstaking, you can transfer your Application to a different address. This moves your entire Application — stake, service configuration, and gateway delegations — to a new owner without going through the unstake and re-stake process. Transfers are covered in detail in the [Application Gateway Delegation](/gateways/delegation) section.
+
+While a transfer is pending, you cannot unstake the Application. You must wait for the transfer to complete first.
+
+## Governance Parameters
+
+The Application module is governed by parameters that the Pocket Network community can adjust through on-chain governance proposals. These parameters set the rules for how Applications participate.
+
+### min_stake
+
+**Default: <GovParam module="application" param="min_stake" format="pokt" /> POKT**
+
+This is the minimum deposit required to register an Application on the network. If you try to stake less than this amount, the transaction will be rejected.
+
+The minimum stake exists to ensure that every Application on the network has meaningful economic commitment. It prevents the network from being cluttered with trivially-staked Applications that consume matching and session resources without real participation.
+
+If the community decides that the barrier to entry should be lower (to encourage more adoption) or higher (to ensure higher-quality participants), they can propose a change to this parameter through governance.
+
+### max_delegated_gateways
+
+**Default: 7**
+
+This is the maximum number of Gateways that a single Application can delegate to at the same time. Delegation is covered in detail in the [Application Gateway Delegation](/gateways/delegation) section, but in short: Gateways are intermediaries that can handle data requests on your behalf, and you might want to use more than one for redundancy or geographic coverage.
+
+Setting a cap on delegations prevents any single Application from spreading its authority too thinly across the network. Seven is the default, providing substantial flexibility while keeping the system manageable.
+
+### application_unbonding_period_sessions
+
+**Defined in the shared module**
+
+This parameter controls how many sessions must pass after you unstake before your tokens are returned. It is not specific to the Application module — it lives in the shared module because it affects timing across the entire protocol.
+
+The unbonding period is a safety mechanism. It gives the network time to finalize all settlement activity related to your Application before releasing your tokens. Without it, an Application could unstake and withdraw tokens before Suppliers have been properly compensated for the data services they provided.
+
+## How Staking Makes Data Access Unstoppable
+
+Application staking is one of the core mechanisms that makes Pocket Network permissionless and censorship-resistant. Here is why:
+
+- **No gatekeepers.** Anyone with enough POKT can stake an Application and begin accessing data services. There is no approval process, no terms of service to negotiate, no vendor to rely on.
+- **Economic security, not trust.** The network does not need to trust that Applications will behave well. The stake itself provides the economic guarantee. If something goes wrong, the protocol's tokenomics handle it automatically.
+- **Self-healing sessions.** The protocol continuously matches Applications with Suppliers through rotating sessions. If a Supplier goes offline, the next session automatically pairs you with available Suppliers. Your access is resilient by design.
+
+For technical implementation details — including how to run the staking transactions, configure YAML files, and query on-chain state — refer to the [technical Application Staking documentation](/developers/application-staking).
+
+</Tab>
+<Tab label="Advanced">
+
+This guide covers how to stake, unstake, and update an Application on the Pocket Network. An Application stakes POKT tokens to consume RPC services provided by Suppliers through the network.
+
+## Prerequisites
+
+Before staking an Application, ensure you have:
+
+- A funded account with enough `upokt` to cover the stake amount plus transaction fees.
+- The `pocketd` CLI installed and configured.
+- A keyring entry for the application account (e.g., via `pocketd keys add <key_name>`).
+- At least one valid service ID that you intend to consume (e.g., `anvil`, `eth`, `sol`).
+
+You can verify your account balance before staking:
+
+```bash
+pocketd query bank balances <your_app_address> --network=pocket-lego-testnet
+```
+
+## Staking an Application
+
+Staking registers your Application on-chain, locks your specified POKT tokens, and declares which service(s) you intend to consume.
+
+### Stake Configuration File
+
+The `stake-application` transaction requires a YAML configuration file passed via the `--config` flag. This file defines the stake amount and the service(s) the Application will consume.
+
+```yaml
+stake_amount: 1000000000upokt
+service_ids:
+  - anvil
+```
+
+#### `stake_amount` (required)
+
+The amount of `upokt` to stake. This value must be:
+
+- Greater than zero.
+- Denominated in `upokt` (1 POKT = 1,000,000 upokt).
+- Greater than or equal to the on-chain `min_stake` governance parameter (currently <GovParam module="application" param="min_stake" format="upokt" /> / <GovParam module="application" param="min_stake" format="pokt" /> POKT).
+- When updating an existing stake, the new amount must be strictly greater than the current stake (you can only upstake, never downstake).
+
+Query the current minimum stake requirement:
+
+```bash
+pocketd query application params --network=pocket-lego-testnet
+```
+
+#### `service_ids` (required, non-empty)
+
+A list of service identifiers that the Application wants to consume. Each service ID must:
+
+- Be a string of 8 or fewer alphanumeric characters, underscores, and dashes (matching `^[a-zA-Z0-9_-]{1,8}$`).
+- Correspond to a service registered on the network.
+
+The current protocol requires the `service_ids` list to contain exactly one entry to prevent applications from over-servicing. This restriction is enforced by the tokenomics module.
+
+### Stake Command
+
+```bash
+pocketd tx application stake-application \
+  --config ./app_stake_config.yaml \
+  --from my_app_key \
+  --keyring-backend test \
+  --network=pocket-lego-testnet \
+  --home ~/.pocket
+```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `--config` | Path to the YAML stake configuration file (required). |
+| `--from` | Name or address of the key in your keyring that will sign the transaction. This address becomes the Application address. |
+| `--keyring-backend` | Keyring backend to use (`test`, `file`, `os`). |
+| `--network` | Network to broadcast the transaction to (e.g., `local`, `pocket-lego-testnet`). |
+| `--home` | Path to the pocketd home directory. |
+
+### Example: Complete Staking Workflow
+
+1. Create a stake configuration file (`app_stake_config.yaml`):
+
+```yaml
+stake_amount: 1000000000upokt
+service_ids:
+  - eth
+```
+
+2. Stake the application:
+
+```bash
+pocketd tx application stake-application \
+  --config ./app_stake_config.yaml \
+  --from my_app_key \
+  --keyring-backend test \
+  --network=pocket-lego-testnet
+```
+
+3. Verify the application was staked:
+
+```bash
+pocketd query application show-application pokt1yourappaddress123 --network=pocket-lego-testnet
+```
+
+## Updating an Existing Stake
+
+To update a staked Application, submit a new `stake-application` transaction. The new stake amount must be strictly greater than the current stake amount. You may also change the service IDs when updating.
+
+If the application is currently in the unbonding period (i.e., it was previously unstaked), re-staking cancels the unbonding process and the application becomes active again.
+
+```yaml
+# Updated config with higher stake and different service
+stake_amount: 2000000000upokt
+service_ids:
+  - sol
+```
+
+```bash
+pocketd tx application stake-application \
+  --config ./updated_app_stake_config.yaml \
+  --from my_app_key \
+  --keyring-backend test \
+  --network=pocket-lego-testnet
+```
+
+## Unstaking an Application
+
+Unstaking begins the unbonding process. The Application can still request service until the end of the current session. After that, it enters the unbonding period, after which the staked tokens are returned to the Application's account.
+
+```bash
+pocketd tx application unstake-application \
+  --from my_app_key \
+  --keyring-backend test \
+  --network=pocket-lego-testnet \
+  --home ~/.pocket
+```
+
+### Unstaking Restrictions
+
+- An application that is already unbonding cannot be unstaked again.
+- An application with a pending transfer cannot be unstaked. You must wait for the transfer to complete first.
+- An application that is unbonding can be re-staked (which cancels the unbonding).
+
+### Unbonding Period
+
+The unbonding period is governed by the `application_unbonding_period_sessions` parameter in the `shared` module. Query it with:
+
+```bash
+pocketd query shared params --network=pocket-lego-testnet
+```
+
+Or extract just the value:
+
+```bash
+pocketd query shared params -o json | jq .params.application_unbonding_period_sessions
+```
+
+The application's tokens are locked until the unbonding period elapses after the end of the session in which the unstake transaction was submitted.
+
+## Querying Applications
+
+### List All Applications
+
+```bash
+pocketd query application list-application --network=pocket-lego-testnet
+```
+
+Supports standard Cosmos SDK pagination flags:
+
+```bash
+pocketd query application list-application \
+  --limit 10 \
+  --offset 0 \
+  --network=pocket-lego-testnet
+```
+
+### Show a Specific Application
+
+```bash
+pocketd query application show-application pokt1ad28jdap2zfanjd7hpkh984yveney6k9a42man \
+  --network=pocket-lego-testnet
+```
+
+Example output:
+
+```yaml
+application:
+  address: pokt1ad28jdap2zfanjd7hpkh984yveney6k9a42man
+  delegatee_gateway_addresses: []
+  pending_transfer: null
+  pending_undelegations: {}
+  service_configs:
+    - service_id: anvil
+  stake:
+    amount: "1000000"
+    denom: upokt
+  unstake_session_end_height: "0"
+```
+
+### Query Application Module Parameters
+
+```bash
+pocketd query application params --network=pocket-lego-testnet
+```
+
+This returns the `max_delegated_gateways` (default: <GovParam module="application" param="max_delegated_gateways" />) and `min_stake` (default: <GovParam module="application" param="min_stake" format="upokt" />) governance parameters.
+
+## Governance Parameters
+
+The Application module has two governance parameters:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `max_delegated_gateways` | 7 | Maximum number of gateways an application can delegate to simultaneously. |
+| `min_stake` | <GovParam module="application" param="min_stake" format="upokt" /> (<GovParam module="application" param="min_stake" format="pokt" /> POKT) | Minimum stake required to register an application. |
+
+These parameters can be updated through governance proposals. The `application_unbonding_period_sessions` parameter that controls the unbonding wait time lives in the `shared` module.
+
+## Stake Lifecycle Summary
+
+1. **Staked** — The application is active and can request service from Suppliers for the declared service(s). Its staked tokens are held in escrow by the application module account.
+2. **Updating** — A new `stake-application` transaction can increase the stake or change services at any time. Stake can only go up, never down.
+3. **Unbonding** — After unstaking, the application enters an unbonding period. During the current session it can still request service. After that, it is inactive until the unbonding period ends and tokens are returned.
+4. **Transferring** — An application can be transferred to a new address (see [Application Gateway Delegation](/gateways/delegation) for transfer details). Transferring applications cannot be unstaked.
+
+> **New in v0.1.31:** The `min_stake` parameter is now enforced at staking time. Applications that attempt to stake below the minimum will receive an error. Historical parameter tracking was also introduced as part of the v0.1.31 upgrade handler.
+
+</Tab>
+</Tabs>

@@ -1,0 +1,29 @@
+---
+/**
+ * DeprecationBanner — Morse-era deprecation notice.
+ *
+ * Usage in MDX:
+ *   <DeprecationBanner replacement="/protocol/sessions-claims-proofs" />
+ *
+ * CSS classes: .deprecation-banner, .banner-content
+ * Defined in tokens-and-components.css
+ */
+interface Props {
+  replacement?: string;
+}
+
+const { replacement } = Astro.props;
+---
+
+<div class="deprecation-banner">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="10"/>
+    <polyline points="12 6 12 12 16 14"/>
+  </svg>
+  <div class="banner-content">
+    <strong>This page describes Morse-era protocol behavior</strong>
+    <p>Shannon has replaced this functionality.
+      {replacement && <a href={replacement}>See the Shannon equivalent →</a>}
+    </p>
+  </div>
+</div>

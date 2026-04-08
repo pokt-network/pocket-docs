@@ -1,0 +1,123 @@
+---
+title: "Operating PATH in Production"
+description: "Helm deployment, monitoring, health checks, and scaling PATH for production gateway operation."
+section: "path"
+persona: ["gateway-operator"]
+tabs: false
+status: "stable"
+sources: ["zip4/path/docusaurus/docs/operate/helm/", "zip4/path/CLAUDE.md"]
+lastUpdated: "2026-04-07"
+---
+
+## Helm Deployment
+
+PATH provides Helm charts for production Kubernetes deployment. The stack includes three components:
+
+| Chart | Purpose |
+| --- | --- |
+| **PATH** | The gateway itself — request routing, QoS, relay forwarding |
+| **GUARD** | Rate limiting and authentication layer |
+| **WATCH** | Monitoring and alerting sidecar |
+
+### Quick Deploy
+
+```bash
+helm repo add path https://charts.path.grove.city
+helm install path path/path -f values.yaml
+```
+
+See the [Helm values reference](https://github.com/pokt-network/path/tree/main/docusaurus/docs/operate/helm/) for all configurable options.
+
+## Health Checks
+
+### Endpoint Reference
+
+| Endpoint | Purpose | Expected Response |
+| --- | --- | --- |
+| `GET /health` | Overall gateway health | `200 OK` |
+| `GET /ready/<service>` | Service-specific readiness | `{"ready":true,"endpoint_count":49,"has_session":true}` |
+| `GET /ready/<service>?detailed=true` | Detailed endpoint info | Includes reputation scores, latency, archival status |
+| `GET /ready` | All services readiness | Aggregated status |
+
+### Active Health Checks
+
+PATH supports external health check rules from [pocket-network-resources](https://github.com/pokt-network/pocket-network-resources):
+
+```yaml
+gateway_config:
+  active_health_checks:
+    enabled: true
+    external:
+      url: "https://raw.githubusercontent.com/pokt-network/pocket-network-resources/main/pocket-health-checks.yaml"
+      refresh_interval: 5m
+```
+
+This loads per-chain sync allowances and health check parameters managed by the Pocket community.
+
+## Monitoring
+
+### Prometheus Metrics
+
+PATH exposes metrics on port 9090 (configurable). Key metric families:
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `path_requests_total` | Counter | Total requests by service, status |
+| `path_request_duration_seconds` | Histogram | Request latency distribution |
+| `path_relays_total` | Counter | Relays forwarded to suppliers |
+| `path_relay_duration_seconds` | Histogram | Relay latency |
+| `path_reputation_score` | Gauge | Current endpoint reputation scores |
+| `path_endpoints_available` | Gauge | Available endpoints per service |
+
+### Grafana
+
+The development stack includes pre-configured Grafana dashboards in `local/observability/`. For production, import these as a starting point and customize for your deployment.
+
+## Scaling
+
+### Horizontal Scaling with Redis
+
+For multi-instance deployments, use Redis as the reputation storage backend:
+
+```yaml
+redis_config:
+  address: "redis:6379"
+
+gateway_config:
+  reputation_config:
+    storage_type: "redis"
+```
+
+This ensures all PATH instances share endpoint reputation data and circuit breaker state.
+
+### Concurrency Tuning
+
+```yaml
+concurrency_config:
+  max_parallel_endpoints: 1      # Increase for redundant queries
+  max_concurrent_relays: 5500    # Tune based on available memory/CPU
+  max_batch_payloads: 5500       # Match or lower than max_concurrent_relays
+```
+
+## Ports Reference
+
+| Port | Service | Protocol |
+| --- | --- | --- |
+| 3069 | Gateway HTTP | HTTP/WebSocket |
+| 9090 | Prometheus metrics | HTTP |
+
+## Admin Operations
+
+### Clear Circuit Breaker
+
+When a domain is stuck in circuit breaker state after a transient issue resolves:
+
+```bash
+# Port-forward to each pod
+kubectl port-forward <pod> 13069:3069 &
+curl -X POST http://localhost:13069/admin/circuit-breaker/clear/{serviceId}
+```
+
+<Callout type="warning">
+  Must be called on each pod individually. Rolling restarts don't clear circuit breaker state because `refreshFromRedis` repopulates from Redis.
+</Callout>

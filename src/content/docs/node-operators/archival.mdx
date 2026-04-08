@@ -1,0 +1,71 @@
+---
+title: "Archival Node Operation"
+description: "Running archival nodes for Pocket Network — which chains need them, storage requirements, and how PATH detects archival capability."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+sources: ["zip4/path/docusaurus/docs/learn/qos/2_evm_archival.md", "zip4/path/docusaurus/docs/learn/qos/3_adding_new_archival.md"]
+lastUpdated: "2026-04-07"
+---
+
+Some blockchain queries require historical data that standard full nodes don't retain. Archival nodes store the complete chain history, enabling queries against any historical block height.
+
+## What Archival Means
+
+A standard full node prunes old state to save storage. An archival node retains everything — enabling queries like "What was this wallet's balance at block 10,000?" or "What was the contract state 6 months ago?"
+
+## How PATH Detects Archival
+
+PATH's EVM QoS module automatically tests whether Supplier endpoints can serve historical data. It queries a known old block height and checks whether the endpoint returns valid data or an error.
+
+- **Archival endpoints** are marked `is_archival: true` and can serve historical queries
+- **Non-archival endpoints** are excluded from requests requiring historical data
+- **Detection expires** periodically and is re-validated (see `expires_at` in the `/ready?detailed=true` response)
+
+Check endpoint archival status:
+
+```bash
+curl "http://localhost:3069/ready/eth?detailed=true" | jq '.endpoints[].archival'
+```
+
+## Which Chains Need Archival
+
+Not all chains require archival nodes. It matters most for:
+
+- **EVM chains** (Ethereum, Base, Arbitrum, etc.) — DeFi apps, analytics tools, and block explorers frequently query historical state
+- **High-value chains** where historical data queries are common in production workloads
+
+For lower-traffic or newer chains, standard full nodes are usually sufficient.
+
+## Storage Requirements
+
+Archival nodes require significantly more storage than pruned nodes:
+
+| Chain | Approximate Archival Size | Growth Rate |
+| --- | --- | --- |
+| Ethereum | 15+ TB | ~2 GB/day |
+| Base | 3+ TB | Growing rapidly |
+| Arbitrum | 5+ TB | ~1 GB/day |
+| Polygon | 10+ TB | ~2 GB/day |
+
+<Callout type="warning">
+  These are approximate and grow continuously. Plan for NVMe SSD storage with room to expand. Check the specific chain's documentation for current requirements.
+</Callout>
+
+## Running an Archival Node
+
+1. **Choose your chain** — focus on chains where archival queries generate meaningful relay volume
+2. **Provision storage** — NVMe SSD, sized for the chain's full history plus growth headroom
+3. **Sync from genesis** — or use a snapshot with full state history (check chain-specific resources)
+4. **Configure your backend** — disable pruning in the node's configuration
+5. **Register the service** — include the chain's service ID in your Supplier stake config
+6. **PATH auto-detects** — once your node is serving historical queries, PATH marks it as archival
+
+## Compute Unit Considerations
+
+Archival queries may consume more compute units than standard queries due to their complexity. The `ComputeUnitsPerRelay` for a service is the same regardless of whether the query is archival — but archival-capable nodes may receive more complex (and thus more valuable) relay sessions.
+
+## Adding Archival Detection for New Chains
+
+If you're extending PATH's QoS to support archival detection for a new chain type, see the PATH repository's `qos/` directory. The EVM archival implementation (`qos/evm/`) is the reference example — it queries a known historical block and checks for valid responses.

@@ -1,0 +1,160 @@
+---
+title: "Validator Delegation"
+description: "How to delegate POKT to a validator — choose a validator, delegate your stake, and earn rewards on Pocket Network."
+section: "token"
+persona: ["token-holder", "retail-staker"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/docusaurus/validator-cheatsheet", "zip4/poktroll/docusaurus/validator-walkthrough", "zip4/poktroll/docusaurus/validator-faq", "zip4/poktroll/docusaurus/validator-rewards-playbook"]
+lastUpdated: "2026-04-08"
+---
+
+
+Validator delegation is the simplest way to earn POKT rewards without running infrastructure yourself. You delegate your staked POKT to a validator, they validate blocks on your behalf, and you earn a share of the block rewards proportional to your delegation.
+
+<Callout type="info">
+Pocket Network uses standard Cosmos SDK delegation. If you've delegated on any other Cosmos chain (ATOM, OSMO, etc.), the process is identical.
+</Callout>
+
+## How Delegation Works
+
+Validators on Pocket Network secure the blockchain by proposing and validating blocks. They earn POKT from the Proposer allocation (5% of all minted tokens). When you delegate POKT to a validator, you're adding your stake to theirs — increasing their share of block proposals and splitting the rewards.
+
+**You retain ownership of your tokens.** Delegation does not transfer custody. Your POKT stays in your wallet — you're assigning voting power, not moving funds. You can redelegate or undelegate at any time.
+
+## Choosing a Validator
+
+When selecting a validator, consider:
+
+**Commission rate.** Node operators typically charge a revenue share (revshare) of relay rewards. Rates vary by operator — review the operator's terms before delegating. Lower revshare means more rewards for you, but very low rates may not be sustainable for the validator.
+
+**Uptime.** Validators that miss blocks earn fewer rewards and may face slashing penalties. Check uptime history on [POKTscan](https://poktscan.com).
+
+**Stake size.** Larger validators get selected for more block proposals. However, delegating to smaller validators helps decentralization.
+
+**Community presence.** Active validators that participate in governance and contribute to the ecosystem are generally more reliable long-term.
+
+<Callout type="tip">
+You can query the validator set directly with `pocketd query staking validators` or browse them on POKTscan.
+</Callout>
+
+## Delegating with pocketd
+
+### Prerequisites
+
+- `pocketd` installed ([Installation Guide](/get-started/pocketd-installation))
+- POKT in your account (some for delegation + a small amount for gas fees)
+- A validator address to delegate to
+
+### Step 1: Find Validators
+
+```bash
+# List all active validators
+pocketd query staking validators --node=https://pocket-rpc.publicnode.com:443
+```
+
+### Step 2: Delegate
+
+```bash
+pocketd tx staking delegate <validator_address> <amount>upokt \
+  --from=<your_key_name> \
+  --chain-id=pocket-1 \
+  --node=https://pocket-rpc.publicnode.com:443 \
+  --fees=1000upokt
+```
+
+For example, to delegate 10,000 POKT:
+
+```bash
+pocketd tx staking delegate poktvaloper1abc... 10000000000upokt \
+  --from=my-wallet \
+  --chain-id=pocket-1 \
+  --node=https://pocket-rpc.publicnode.com:443 \
+  --fees=1000upokt
+```
+
+<Callout type="warning">
+POKT amounts are denominated in `upokt` (micro-POKT). 1 POKT = 1,000,000 upokt. Double-check your amounts before submitting.
+</Callout>
+
+### Step 3: Verify
+
+```bash
+# Check your delegations
+pocketd query staking delegations <your_address> \
+  --node=https://pocket-rpc.publicnode.com:443
+```
+
+## Delegating with Keplr Wallet
+
+Keplr supports Pocket Network. You can delegate through the Keplr wallet interface:
+
+1. Add Pocket Network to Keplr (it should appear in the chain list)
+2. Navigate to the Staking section
+3. Browse validators and select one
+4. Enter delegation amount and confirm the transaction
+
+For hardware wallet users, Keplr supports Ledger integration for Pocket Network. See the [Hardware Wallets](/wallets/hardware-wallets) guide for setup.
+
+## Rewards
+
+Delegation rewards accrue automatically. You can claim them at any time:
+
+```bash
+# Check pending rewards
+pocketd query distribution rewards <your_address> \
+  --node=https://pocket-rpc.publicnode.com:443
+
+# Claim all rewards
+pocketd tx distribution withdraw-all-rewards \
+  --from=<your_key_name> \
+  --chain-id=pocket-1 \
+  --node=https://pocket-rpc.publicnode.com:443 \
+  --fees=1000upokt
+```
+
+## Redelegation
+
+You can move your delegation from one validator to another without unstaking:
+
+```bash
+pocketd tx staking redelegate <source_validator> <dest_validator> <amount>upokt \
+  --from=<your_key_name> \
+  --chain-id=pocket-1 \
+  --node=https://pocket-rpc.publicnode.com:443 \
+  --fees=1000upokt
+```
+
+Redelegation is instant — no unbonding period. However, there's a limit on how many times you can redelegate from the same validator in a given period.
+
+## Undelegation
+
+To undelegate and get your POKT back:
+
+```bash
+pocketd tx staking unbond <validator_address> <amount>upokt \
+  --from=<your_key_name> \
+  --chain-id=pocket-1 \
+  --node=https://pocket-rpc.publicnode.com:443 \
+  --fees=1000upokt
+```
+
+<Callout type="danger">
+Unstaking follows the protocol's **21-day unbonding period**. During this time your tokens are locked and do not earn rewards. You cannot cancel an unbonding once initiated. All unstaking on Pocket Network has this 21-day period — no operator offers on-demand withdrawal.
+</Callout>
+
+## Slashing Risks
+
+Delegators share slashing risk with their validator. Slashing occurs when a validator:
+
+- **Double-signs** (signs two different blocks at the same height) — severe penalty
+- **Goes offline** for an extended period — minor penalty (downtime jail)
+
+Choose validators with strong uptime track records to minimize slashing exposure.
+
+## Related Pages
+
+- [Staking](/token/staking) — overview of all POKT staking options
+- [Tokenomics](/token/tokenomics) — how POKT economics work
+- [Hardware Wallets](/wallets/hardware-wallets) — Ledger support via Keplr
+- [POKTscan](/ecosystem/poktscan) — explorer for validator stats

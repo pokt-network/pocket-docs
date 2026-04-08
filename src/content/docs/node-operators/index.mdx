@@ -1,0 +1,40 @@
+---
+title: "Node Operators & Suppliers"
+description: "What Suppliers do on Pocket Network, why it matters, and how to get started running a node."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+sources: ["zip2/06-supplier-staking.md"]
+lastUpdated: "2026-04-07"
+---
+
+Suppliers are the backbone of Pocket Network. They run the infrastructure that serves blockchain data to Applications — and earn POKT rewards for every relay they prove they delivered.
+
+## What Suppliers Do
+
+A Supplier is any entity that stakes POKT and runs a [RelayMiner](/node-operators/relayminer-setup) to serve blockchain data requests. When an Application sends a relay (an API request for blockchain data), the protocol assigns it to a session of Suppliers who compete to serve it. Suppliers that successfully serve relays and submit valid proofs earn POKT rewards.
+
+## Why It Matters
+
+Pocket Network's value proposition — decentralized, redundant, multi-chain RPC access — depends entirely on Suppliers. More Suppliers means more geographic diversity, more chain coverage, and more resilience. The protocol's economics are designed to make running Supplier infrastructure profitable for operators who maintain high quality of service.
+
+## Getting Started
+
+<Callout type="info">
+  Running a Supplier requires a minimum stake of <GovParam module="supplier" param="min_stake" format="pokt" /> native POKT, a reliable server, and basic Linux administration skills. Budget several hours for initial setup.
+</Callout>
+
+1. **Review requirements:** [Hardware & Infrastructure](/node-operators/hardware-requirements) — what specs you need
+2. **Stake as a Supplier:** [Supplier Staking](/node-operators/supplier-staking) — how to stake and configure
+3. **Set up RelayMiner:** [RelayMiner Setup](/node-operators/relayminer-setup) — the relay-serving sidecar
+4. **Configure services:** [Service Management](/node-operators/service-management) — which chains to serve
+5. **Understand rewards:** [Rewards & Economics](/node-operators/rewards-economics) — how you earn
+
+## For Production Operators
+
+- [HA RelayMiner](/node-operators/ha-relayminer) — Redis-backed, horizontally scalable relay mining for production deployments
+- [Monitoring](/node-operators/monitoring) — Prometheus, Grafana, and operational metrics
+- [Upgrades](/node-operators/upgrades) — Cosmovisor, version management, chain halt recovery
+- [F-Chains](/node-operators/f-chains) — earning from PNF-subsidized chain coverage
+- [Troubleshooting](/node-operators/troubleshooting) — common issues and solutions

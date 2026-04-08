@@ -1,0 +1,117 @@
+---
+title: "Self-Custody Best Practices"
+description: "How to hold POKT and wPOKT safely — seed phrase management, backup strategies, multi-sig, and what to do if something goes wrong."
+section: "wallets"
+persona: ["token-holder"]
+tabs: false
+status: "stable"
+sources: ["zip3/self-custody-best-practices.docx"]
+lastUpdated: "2026-04-07"
+---
+
+Self-custody means you hold your own private keys — no exchange, no custodian, no third party standing between you and your funds. That's the promise of crypto self-sovereignty, and it's genuinely powerful. But it shifts all responsibility for security and recovery onto you.
+
+## Why Self-Custody
+
+When you hold POKT or wPOKT on a centralized exchange, the exchange controls the private keys. You have an IOU — a balance in their ledger — not actual on-chain ownership. If the exchange is hacked, goes insolvent, or freezes your account, you may not be able to access your funds.
+
+Self-custody eliminates that counterparty risk. Your tokens are on-chain and controlled exclusively by your private key. No one can freeze, seize, or lose them — except you, if you lose your key.
+
+## Seed Phrase Security — The Most Critical Practice
+
+Your seed phrase (12 or 24 words) encodes your wallet's private key. Anyone with these words can reconstruct your wallet on any device and access all your funds.
+
+A single seed phrase can generate thousands of wallet addresses across multiple blockchains. Losing one seed phrase can mean losing everything derived from it.
+
+### The Non-Negotiable Rules
+
+<Callout type="danger">
+  Never store your seed phrase digitally — not in Google Drive, iCloud, Notes, email, screenshots, or any cloud service. Never share it with anyone. No wallet, protocol, or support team will ever ask for it. Anyone who does is a scammer.
+</Callout>
+
+### Paper Storage
+
+Writing your seed phrase on paper is the baseline — simple, offline, no attack surface.
+
+- Use a dedicated sheet with numbered words (`1. word  2. word  3. word...`)
+- Write clearly — distinguish between easily confused words (e.g. "bear" vs "beer")
+- **Store in two separate locations** — one at home (fireproof safe if possible), one offsite (trusted family member, safe deposit box)
+- Tell someone trusted **where** it is (not the contents) for estate purposes
+
+### Metal Backup
+
+Paper burns, floods, fades. For significant holdings, stamp or engrave your words onto stainless steel plates. Products to research: Cryptosteel Capsule, Bilodal, Blockplate, SEEDPLATE. Verify every word is readable after creating.
+
+### Test Before You Trust
+
+Most people never verify their backup until they need it. Always test:
+
+1. Write down your seed phrase
+2. Delete the wallet (or use a different device)
+3. Restore from your written phrase
+4. Verify addresses match
+
+Do this with small amounts first.
+
+## Private Key Management
+
+Some wallets (like [Soothe Vault](/wallets/soothe-vault)) work with private keys in addition to seed phrases. A private key directly controls a single wallet address.
+
+| | Seed Phrase | Private Key |
+| --- | --- | --- |
+| **Controls** | All addresses derived from it | One specific address |
+| **Format** | 12–24 English words | Long hex or base58 string |
+| **Impact if exposed** | All derived wallets compromised | One wallet compromised |
+| **Impact if lost** | All derived wallets inaccessible | One wallet inaccessible |
+
+Treat private keys with the same care as seed phrases. Export immediately after wallet creation — before sending any funds. Store offline, label clearly with the wallet address (first/last characters).
+
+## Building a Complete Backup Strategy
+
+### What to Back Up
+
+For each wallet: seed phrase or private key, wallet address, which network it's on, which wallet software you use, and any passwords (vault passwords for Soothe Vault, PIN for hardware wallets).
+
+### The 3-2-1 Rule for Crypto
+
+- **3 copies:** Original written copy, one metal backup, one additional paper copy
+- **2 different media:** Paper and metal (or two separate physical formats)
+- **1 offsite:** At minimum one copy outside your home
+
+### Emergency Access — Planning for the Unexpected
+
+Self-custody creates an estate planning problem. If you die or become incapacitated without telling anyone how to access your funds, they may be permanently lost.
+
+- **Document your holdings** — a private document (stored securely, not online) listing which wallets you hold, which addresses, and where recovery info is stored — without seed phrases themselves
+- **Inform a trusted person** where your backups are located (not the contents)
+- **Consider legal documentation** — for larger holdings, include crypto access instructions in your will or an addendum
+
+## Common Mistakes That Cause Permanent Loss
+
+**Storing seed phrase digitally.** Cloud accounts get hacked. Phones get lost. Screenshots sync to iCloud. This is the most common cause of theft.
+
+**Single copy in one location.** House fire, flood, or theft destroys your only copy. Always maintain at least two copies in separate locations.
+
+**Never testing the backup.** You discover your handwriting is illegible or you copied a word wrong — when you need it most.
+
+**Using test keyring with real funds.** The `--keyring-backend=test` option in `pocketd` stores keys unencrypted. Never use this with mainnet POKT.
+
+**Approving unknown transactions.** Malicious dApps can request broad token approvals. Review every transaction carefully. Use [revoke.cash](https://revoke.cash) to audit and revoke unnecessary approvals.
+
+**Phishing sites.** Fake wallet sites, fake support DMs, fake token airdrops. Always navigate directly to official domains. Bookmark them.
+
+## Multi-Sig — When Single-Key Isn't Enough
+
+For organizations or very large holdings, multi-signature wallets require multiple keys to authorize a transaction (e.g. 2-of-3 or 3-of-5). This prevents any single key compromise from resulting in fund loss.
+
+Multi-sig is currently available for wPOKT on Ethereum/Base via Gnosis Safe. Native POKT multi-sig support depends on Cosmos SDK tooling — check the [Pocket Discord](http://discord.gg/pocket-network) for current options.
+
+## Quick Security Checklist
+
+- [ ] Seed phrase written on paper (or metal) — never digital
+- [ ] Two copies in separate physical locations
+- [ ] Backup tested (restored successfully on another device)
+- [ ] Trusted person knows where backups are stored
+- [ ] Hardware wallet for holdings above your personal risk threshold
+- [ ] Production keyring backend (`os` or `file`) for any real POKT
+- [ ] Regular review of token approvals on [revoke.cash](https://revoke.cash)

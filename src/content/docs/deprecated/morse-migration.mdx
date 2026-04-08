@@ -1,0 +1,94 @@
+---
+title: "Morse Migration"
+description: "Archived ETVL migration guide from Morse to Shannon — historical reference for completed migration."
+section: "deprecated"
+persona: ["all"]
+tabs: true
+status: "deprecated"
+sources: ["zip1/12-morse-migration.md", "zip4/poktroll/docusaurus/2_explore/4_morse_migration/"]
+lastUpdated: "2026-04-08"
+---
+
+
+<Callout type="danger">
+**This page describes a completed migration process.** The Morse-to-Shannon migration is finished. This content is preserved for historical reference. For current protocol documentation, see [Shannon Architecture](/protocol/architecture).
+</Callout>
+
+<Tabs>
+<Tab label="Overview">
+
+## What Was the Migration?
+
+The Morse-to-Shannon migration moved Pocket Network from its original protocol implementation (Morse, based on Tendermint + custom application logic) to the current Shannon protocol (Cosmos SDK + CometBFT). This was not a simple upgrade — it was a complete rewrite with new economics, new staking mechanics, and a new application architecture.
+
+## ETVL Migration Process
+
+The migration used an **ETVL (Export-Transform-Validate-Load)** process:
+
+1. **Export** — Morse chain state was exported at a specific block height, capturing all account balances, stakes, and delegation relationships
+2. **Transform** — Morse state was transformed into Shannon-compatible genesis state, mapping Morse actors to their Shannon equivalents
+3. **Validate** — The transformed state was validated against consistency checks to ensure no balances were lost or incorrectly mapped
+4. **Load** — The validated state was loaded as the Shannon genesis, launching the new chain with preserved balances
+
+## What Changed
+
+| Aspect | Morse | Shannon |
+|--------|-------|---------|
+| Consensus | Tendermint (custom fork) | CometBFT v0.38.19 |
+| Framework | Custom application logic | Cosmos SDK v0.53.0 |
+| Node software | pocket-core | poktroll (pocketd) |
+| Access Layer | Custom client libraries | PATH gateway framework |
+| Proof system | Simple relay proofs | Relay Mining (SMST + ClosestMerkleProof) |
+| Economics | Fixed inflation | Token Logic Modules (deflationary design) |
+| Governance | Off-chain proposals | On-chain Cosmos governance |
+| Address format | hex | bech32 (pokt1...) |
+
+## Key Differences for Operators
+
+- **Staking** is now Cosmos-native with validators, delegators, and unbonding periods
+- **Sessions** are deterministically computed rather than randomly assigned
+- **Proofs** use relay mining with difficulty adjustment instead of simple submission
+- **Gateways** are a formal on-chain actor type (not just infrastructure)
+- **Services** are registered on-chain with compute unit pricing
+
+</Tab>
+<Tab label="Advanced">
+
+## Technical Migration Details
+
+### Address Migration
+
+Morse used raw hex addresses. Shannon uses bech32 encoding with the `pokt` prefix. The ETVL process mapped hex addresses to their bech32 equivalents deterministically.
+
+### Stake Mapping
+
+Morse stake types were mapped to Shannon equivalents:
+
+| Morse | Shannon |
+|-------|---------|
+| Node (validator + servicer) | Supplier + optional Validator |
+| Application | Application |
+| — | Gateway (new actor type) |
+
+Nodes in Morse served dual roles (validation + relay servicing). Shannon separates these into distinct actor types with independent stake requirements.
+
+### Genesis Parameters
+
+Shannon genesis parameters were set by governance consensus before migration. Key decisions included session length, claim/proof window timing, minimum stakes, and initial mint allocation percentages.
+
+### The x/migration Module
+
+Shannon includes a dedicated `x/migration` module that handled claim processing during the transition period. This module is now largely inactive but remains in the codebase for historical state queries.
+
+<Callout type="info">
+The poktroll repository's docusaurus section contains ~15 pages and ~9,000 words of detailed migration documentation, covering ETVL procedures, state validation checks, and operator migration guides. This content lives in `docusaurus/2_explore/4_morse_migration/` for anyone needing the full technical record.
+</Callout>
+
+</Tab>
+</Tabs>
+
+## Related Pages
+
+- [Shannon Upgrade](/get-started/shannon-upgrade) — forward-looking "what changed" overview
+- [Shannon Architecture](/protocol/architecture) — current protocol architecture
+- [pocketd Installation](/get-started/pocketd-installation) — current CLI setup

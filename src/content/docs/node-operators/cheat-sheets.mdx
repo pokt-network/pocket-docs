@@ -1,0 +1,180 @@
+---
+title: "Operator Cheat Sheets"
+description: "Quick-reference commands for common Pocket Network operator tasks — staking, services, relaying, and queries."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+sources: ["zip4/poktroll/docusaurus/1_operate/1_cheat_sheets/"]
+lastUpdated: "2026-04-07"
+---
+
+Quick-reference commands for common operator tasks. All commands assume `--network=main` for mainnet. Replace with `--network=beta` for testnet.
+
+## Supplier Operations
+
+### Stake a Supplier
+
+```bash
+pocketd tx supplier stake-supplier \
+  --config supplier-config.yaml \
+  --from mySupplierWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+```
+
+### Check Supplier Status
+
+```bash
+pocketd query supplier show-supplier pokt1yoursupplieraddress --network=main
+```
+
+### List All Suppliers
+
+```bash
+pocketd query supplier list-supplier --network=main
+```
+
+### Unstake a Supplier
+
+```bash
+pocketd tx supplier unstake-supplier \
+  --from mySupplierWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+```
+
+## Gateway Operations
+
+### Stake a Gateway
+
+```bash
+pocketd tx gateway stake-gateway \
+  --config gateway-config.yaml \
+  --from myGatewayWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+```
+
+### Check Gateway Status
+
+```bash
+pocketd query gateway show-gateway pokt1yourgatewayaddress --network=main
+```
+
+## Application Operations
+
+### Stake an Application
+
+```bash
+pocketd tx application stake-application \
+  --config app-config.yaml \
+  --from myAppWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+```
+
+### Delegate to a Gateway
+
+```bash
+pocketd tx application delegate-to-gateway pokt1gatewayaddress \
+  --from myAppWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+```
+
+## Service Operations
+
+### List All Services
+
+```bash
+pocketd query service list-services --network=main
+```
+
+### Create a New Service
+
+```bash
+pocketd tx service add-service \
+  --name "my-service" \
+  --compute-units-per-relay 1 \
+  --from myWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+```
+
+## Balance and Token Operations
+
+### Check Balance
+
+```bash
+pocketd query bank balance pokt1youraddress upokt --network=main
+```
+
+### Send Tokens
+
+```bash
+pocketd tx bank send myWallet pokt1recipient 1000000upokt \
+  --network=main --gas=auto --fees=1upokt
+```
+
+## Query Operations
+
+### Current Block Height
+
+```bash
+pocketd query block --type=height latest --network=main
+```
+
+### Protocol Parameters
+
+```bash
+# All tokenomics params
+pocketd query tokenomics params --network=main
+
+# Session params
+pocketd query session params --network=main
+
+# Proof params
+pocketd query proof params --network=main
+```
+
+### Relay Mining Difficulty
+
+```bash
+# All services
+pocketd query service relay-mining-difficulty-all --network=main
+
+# Specific service
+pocketd query service relay-mining-difficulty eth --network=main
+```
+
+### Claims and Proofs
+
+```bash
+pocketd query proof list-claims --network=main
+pocketd query proof list-proofs --network=main
+```
+
+## Common Patterns
+
+### Fund a New Wallet from Faucet (TestNet)
+
+```bash
+pocketd faucet fund upokt myNewWallet --network=beta
+```
+
+### Verify a Transaction
+
+```bash
+pocketd query tx TXHASH --network=main
+```
+
+### Export Keys for Backup
+
+```bash
+pocketd keys export myWallet --unsafe --unarmored-hex --yes
+```
+
+<Callout type="danger">
+  Handle exported keys with extreme care. Store offline, never commit to version control.
+</Callout>

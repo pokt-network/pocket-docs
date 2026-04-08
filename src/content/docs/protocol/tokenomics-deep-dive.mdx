@@ -1,0 +1,257 @@
+---
+title: "Tokenomics Deep Dive"
+description: "Developer-oriented tokenomics — Token Logic Modules, settlement math, relay mining difficulty, and the path to deflation."
+section: "protocol"
+persona: ["core-developer", "protocol-economist"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/docusaurus/3_protocol/tokenomics/", "zip4/poktroll/.serena/memories/"]
+lastUpdated: "2026-04-08"
+---
+
+
+This page covers the internal economics of Shannon at the protocol level — Token Logic Modules, settlement math, relay mining difficulty, and mint allocation. If you're looking for a token holder overview of POKT economics, see [Tokenomics](/token/tokenomics) instead.
+
+<Callout type="info">
+All tokenomics parameters are governance-controlled and can change via on-chain proposals. The values shown here are defaults — check current chain state with `pocketd query shared params` and `pocketd query tokenomics params`.
+</Callout>
+
+## Token Logic Modules (TLMs)
+
+Shannon implements modular tokenomics through **Token Logic Modules (TLMs)**. Each TLM represents a distinct economic model that can be applied per-service or globally. This modular design lets the protocol evolve its economics without breaking changes.
+
+### Relay Mining Burn (RMB)
+
+The base deflationary model. Applications burn POKT for compute units consumed, and the protocol mints up to (but never more than) the burned amount to reward actors.
+
+```
+burn_amount = compute_units × compute_units_to_tokens_multiplier
+mint_amount = burn_amount × (1 - deflation_rate)
+```
+
+The key property: **burn ≥ mint**. Since the passage of **PIP-41** (January 2026, implemented in v0.1.31), the global mint ratio is set to **0.975** — meaning only 97.5% of burned POKT is minted back. The remaining 2.5% is never created, producing permanent on-chain deflation that scales with network usage.
+
+### Source Boost TLM
+
+Bootstraps rewards for new service owners. Provides additional minting to Source Owners beyond their standard RMB allocation. The boost progressively reduces as relay volume for the service increases — high relay volume means more RMB rewards naturally, so the boost becomes unnecessary. This is designed to attract new services to the network during the growth phase.
+
+### Supplier Boost TLM
+
+Maintains competitive staking APR during low-volume periods. Provides additional minting to Suppliers beyond their RMB allocation, preventing stake exodus during network bootstrapping. The boost distributes evenly across session suppliers and penalizes those serving minimal relays. Like Source Boost, it scales down as the network matures.
+
+## Mint Allocation
+
+When tokens are minted during settlement, they're distributed according to configurable percentages:
+
+| Recipient | Default % | Description |
+|-----------|-----------|-------------|
+| Supplier | 70% | Reward for servicing relays — the primary incentive |
+| Source Owner | 15% | Reward for registering and maintaining the service definition |
+| DAO | 10% | Protocol treasury for ecosystem funding |
+| Proposer | 5% | Block validator reward — standard Cosmos validator incentive |
+| Application | 0% | Applications burn, they don't earn |
+
+These percentages are stored on-chain as `MintAllocationPercentages` in the tokenomics module params and are modifiable through governance.
+
+```protobuf
+message MintAllocationPercentages {
+  double dao = 1;
+  double proposer = 2;
+  double supplier = 3;
+  double source_owner = 4;
+  double application = 5;  // Usually 0
+}
+```
+
+## Settlement Flow
+
+Settlement occurs automatically after the proof window closes for a session. The tokenomics module's `EndBlocker` processes all validated proofs.
+
+### Step 1: Proof Validation
+
+The `x/tokenomics` EndBlocker retrieves all proofs ready for settlement — those where the proof window has closed and the proof passed cryptographic validation in `x/proof`.
+
+### Step 2: Compute Units Extraction
+
+Compute units come from the claim's SMST root. The root hash encodes both the Merkle commitment (proving relay data exists) and the sum (total compute units claimed).
+
+```
+claimed_compute_units = claim.root_hash.sum
+```
+
+### Step 3: Token Conversion
+
+Compute units are converted to token amounts using the `compute_units_to_tokens_multiplier` (CUTTM) parameter from `x/shared`. On mainnet, the initial CUTTM was set to approximately 495 picoPOKT per CU — a governance-adjustable value designed to match relay pricing to real-world demand.
+
+```
+token_amount = claimed_compute_units × CUTTM
+```
+
+TLM modifiers are then applied based on the service and current network state.
+
+### Step 4: Burn from Application
+
+POKT is burned from the Application's staked balance. If the Application's remaining stake falls below the minimum, it enters unbonding.
+
+### Step 5: Mint to Recipients
+
+The final mint amount is split according to `MintAllocationPercentages` and distributed:
+
+- Supplier operator address receives the supplier share
+- Source Owner of the service receives the source owner share
+- DAO reward address receives the DAO share
+- Block proposer receives the proposer share
+
+### Settlement Events
+
+The tokenomics module emits events that operators and indexers can monitor:
+
+- `EventTypeClaimSettled` — a claim was successfully settled with session ID, compute units, and token amounts
+- `EventTypeProofValidated` — a proof passed validation
+- `EventTypeTokensMinted` — POKT was minted to recipients
+- `EventTypeTokensBurned` — POKT was burned from an Application
+- `EventTypeRelayMiningDifficultyAdjusted` — per-service difficulty changed
+
+## Relay Mining Difficulty
+
+Relay mining difficulty controls how many relays become "volume applicable" and thus count toward claims. This keeps on-chain data bounded regardless of total relay throughput.
+
+### How It Works
+
+1. Each completed relay is hashed.
+2. If `relay_hash < target_difficulty`, the relay is **volume applicable** and gets added to the Supplier's SMST.
+3. Only volume-applicable relays count toward claims and settlement.
+4. Difficulty adjusts per-service to maintain a target number of claims per session.
+
+### Difficulty Adjustment
+
+The algorithm uses an **exponential moving average (EMA)** of observed relay volume per service, similar conceptually to Bitcoin's difficulty retargeting:
+
+```
+estimated_relays = EMA(recent_relay_counts_for_service)
+adjustment_ratio = target_claims_per_session / estimated_relays
+new_difficulty = current_difficulty × adjustment_ratio
+```
+
+When relay volume increases, difficulty rises (fewer relays pass the threshold), keeping on-chain claim data constant. When volume decreases, difficulty drops to maintain minimum proof density.
+
+<Callout type="tip">
+Relay mining difficulty is stored per-service in `x/service` as `RelayMiningDifficulty`. You can query it with `pocketd query service relay-mining-difficulty <service_id>`.
+</Callout>
+
+## Deflation Mechanics (PIP-41)
+
+Since v0.1.31 (February 2026), Shannon is **actively deflationary**. PIP-41 set the global mint ratio to 0.975, meaning for every 100 POKT burned by applications, only 97.5 POKT is minted to network participants. The remaining 2.5% is never created.
+
+At current relay volumes, this removes approximately 900,000 POKT from supply annually. At 10x current traffic, that rises to over 9 million POKT per year. The more the network is used, the more deflationary it becomes.
+
+The mint ratio is governance-controlled. The DAO can vote to adjust it — the Foundation has modeled dynamics down to 50%. The 97.5% starting point was chosen to minimize impact on active suppliers (only a 1.24% reduction in rewards) while establishing the deflationary mechanism.
+
+```
+For each relay settlement cycle:
+  burn_amount   = compute_units × CUTTM           (100% burned)
+  mint_amount   = burn_amount × global_mint_ratio  (97.5% minted)
+  deflation     = burn_amount × 0.025              (2.5% permanent removal)
+```
+
+## Key Parameters Reference
+
+### Shared Parameters
+
+```yaml
+shared:
+  num_blocks_per_session: 10
+  grace_period_end_offset_blocks: 1
+  claim_window_open_offset_blocks: 1
+  claim_window_close_offset_blocks: 4
+  proof_window_open_offset_blocks: 0
+  proof_window_close_offset_blocks: 4
+  supplier_unbonding_period_sessions: 1
+  application_unbonding_period_sessions: 1
+  gateway_unbonding_period_sessions: 1
+  compute_units_to_tokens_multiplier: ...  # See note below
+```
+
+<Callout type="warning">
+The `compute_units_to_tokens_multiplier` (CUTTM) is the pricing parameter that converts compute units to POKT. On mainnet, the initial CUTTM was set to 1 CU ≈ 495 picoPOKT (0.000000495 POKT). This value is governance-adjustable. Always query `pocketd query shared params` for the current mainnet value — the value above is illustrative only and differs significantly from test/dev configs.
+</Callout>
+
+### Tokenomics Parameters
+
+```yaml
+tokenomics:
+  mint_equals_burn_claim_distribution:
+    dao: 0.1
+    proposer: 0.05
+    supplier: 0.7
+    source_owner: 0.15
+    application: 0.0
+  global_mint_ratio: 0.975           # PIP-41: 97.5% mint, 2.5% permanent deflation
+  dao_reward_address: "pokt1..."
+```
+
+### Service Parameters
+
+```yaml
+service:
+  compute_units_per_relay: 1        # Base CU — configurable per service
+  relay_mining_difficulty:
+    target_hash: "..."              # Per-service difficulty target
+```
+
+<Callout type="warning">
+These are default values. All parameters are governance-controlled and may differ on the live network. Always query chain state for current values.
+</Callout>
+
+## Debugging Tokenomics
+
+### Settlement Not Occurring
+
+```bash
+# Check if proof window has closed
+pocketd query shared params
+
+# Look for settlement events at recent heights
+pocketd query txs --events 'message.action=/poktroll.tokenomics.MsgSettlement'
+```
+
+### Wrong Mint Amount
+
+```bash
+# Check compute units on the claim
+pocketd query proof show-claim <session_id> <supplier_address>
+
+# Check the token multiplier
+pocketd query shared params | grep compute_units_to_tokens
+
+# Check mint allocation percentages
+pocketd query tokenomics params
+```
+
+### Application Burn Not Happening
+
+```bash
+# Verify the Application has sufficient stake
+pocketd query application show-application <app_address>
+
+# Look for burn events
+pocketd query txs --events 'coin_spent.spender=<app_address>'
+```
+
+## Code Locations
+
+| Component | File Path |
+|-----------|-----------|
+| TLM definitions | `x/tokenomics/types/token_logic_modules.go` |
+| Settlement logic | `x/tokenomics/keeper/settle.go` |
+| Mint allocation | `x/tokenomics/keeper/mint.go` |
+| Difficulty adjustment | `x/tokenomics/keeper/difficulty.go` |
+| Parameters | `proto/poktroll/tokenomics/params.proto` |
+| Events | `proto/poktroll/tokenomics/event.proto` |
+
+## Related Pages
+
+- [Tokenomics](/token/tokenomics) — token holder overview with Overview/Advanced tabs
+- [Shannon Architecture](/protocol/architecture) — module map and actor model
+- [Sessions, Claims & Proofs](/protocol/sessions-claims-proofs) — claim/proof lifecycle detail
+- [Governance Parameters](/governance/parameters) — how parameters are changed

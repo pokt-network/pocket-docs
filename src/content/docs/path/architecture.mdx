@@ -1,0 +1,134 @@
+---
+title: "PATH Architecture"
+description: "How PATH routes requests, scores endpoints, handles sessions, and maintains quality of service."
+section: "path"
+persona: ["gateway-operator", "core-developer"]
+tabs: false
+status: "stable"
+sources: ["zip4/path/docs/REPUTATION_SYSTEM.md", "zip4/path/docs/SESSION_ROLLOVER_DESIGN.md", "zip4/path/docs/RPC_TYPE_FALLBACK_FEATURE.md", "zip4/path/CLAUDE.md"]
+lastUpdated: "2026-04-07"
+---
+
+## Request Data Flow
+
+```
+1. HTTP request arrives at Gateway
+2. Request Parser maps request to appropriate QoS service
+3. QoS service validates request and selects optimal endpoint
+4. Protocol implementation (Shannon) relays to blockchain endpoint
+5. Response processed through QoS validation
+6. Metrics and observations collected throughout pipeline
+```
+
+## Reputation System
+
+PATH's reputation system is the core quality mechanism. It scores each Supplier endpoint based on observed behavior and routes traffic to the best-performing endpoints.
+
+### How Scoring Works
+
+Every endpoint starts with an `initial_score` (default: 80) and is adjusted based on signals:
+
+| Signal | Default Impact | Trigger |
+| --- | --- | --- |
+| `success` | +1 | Successful response |
+| `minor_error` | -3 | Validation issues, unknown errors |
+| `major_error` | -10 | Timeout, connection errors |
+| `critical_error` | -25 | HTTP 5xx errors |
+| `fatal_error` | -50 | Configuration/setup errors |
+| `recovery_success` | +15 | Successful response during probation |
+| `slow_response` | -1 | Response slower than `penalty_threshold` |
+| `very_slow_response` | -3 | Response slower than `severe_threshold` |
+
+### Tiered Selection
+
+Endpoints are grouped into tiers based on their score. PATH tries endpoints from the best tier first:
+
+| Tier | Score Range | Priority |
+| --- | --- | --- |
+| **Tier 1** (Premium) | ≥ 70 | First choice — highest quality |
+| **Tier 2** (Good) | 50–69 | Used if no Tier 1 available |
+| **Tier 3** (Low) | 30–49 | Last resort before probation |
+| **Probation** | < 10 | Limited traffic (10%) to allow recovery |
+
+### Probation and Recovery
+
+Endpoints that fall below the probation threshold receive only 10% of traffic — enough to test whether they've recovered without risking quality for most requests. If they serve successfully during probation, they receive a `recovery_success` boost (default: +15) to climb back into active tiers.
+
+### Storage Backends
+
+| Backend | Use Case |
+| --- | --- |
+| `memory` | Single-instance deployments — data lost on restart |
+| `redis` | Multi-instance production — shared state, persistent |
+
+## QoS Modules
+
+Each blockchain type has its own QoS module that validates responses and detects quality issues:
+
+### EVM QoS
+
+Validates Ethereum-compatible chains. Key capabilities:
+
+- **Block height sync checking** — detects endpoints that are behind the chain tip
+- **Archival detection** — identifies endpoints that can serve historical data (pre-merge blocks, old state)
+- **External block sources** — optional ground-truth validation against public RPC endpoints
+- Supports JSON-RPC and WebSocket
+
+### Solana QoS
+
+Validates Solana endpoints using slot-based sync checking. JSON-RPC only.
+
+### Cosmos QoS
+
+Validates Cosmos SDK chains. Supports three RPC types (JSON-RPC, REST, CometBFT RPC) with automatic RPC type fallback for suppliers with incorrect stakes.
+
+### NoOp QoS
+
+Pass-through for unsupported services — no validation, no scoring adjustments.
+
+## Session Rollover
+
+When a Pocket Network session transitions (new block height boundary), the assigned Supplier set changes. PATH handles this with a configurable grace period (`session_rollover_blocks`) that allows in-flight requests to complete against the old session while new requests use the new session.
+
+## RPC Type Auto-Detection
+
+PATH automatically detects the RPC type from request characteristics:
+
+- **JSON-RPC:** POST with `{"jsonrpc":"2.0",...}` body
+- **REST (Cosmos):** GET/POST to `/cosmos/...` or other Cosmos REST paths
+- **CometBFT:** GET/POST to `/status`, `/block`, etc.
+- **WebSocket:** Connection upgrade requests
+
+### RPC Type Fallback
+
+For Cosmos chains where Suppliers have incorrect RPC type stakes, PATH supports fallback configuration:
+
+```yaml
+rpc_type_fallbacks:
+  comet_bft: json_rpc    # Fall back to json_rpc if comet_bft fails
+  rest: json_rpc
+```
+
+## Observation Pipeline
+
+PATH's async observation pipeline samples a percentage of requests for deep analysis without impacting latency:
+
+```yaml
+observation_pipeline:
+  enabled: true
+  sample_rate: 0.1    # 10% of requests
+  worker_count: 4     # Async worker pool
+  queue_size: 1000    # Max pending before dropping
+```
+
+## Circuit Breaker
+
+PATH includes a domain-level circuit breaker that temporarily stops routing to domains experiencing persistent failures. State is stored both in-memory and in Redis. To clear:
+
+```bash
+curl -X POST http://localhost:3069/admin/circuit-breaker/clear/{serviceId}
+```
+
+<Callout type="warning">
+  Must be called on each pod individually since in-memory state is per-pod. Redis DEL alone is insufficient because `refreshFromRedis` merges local entries back.
+</Callout>

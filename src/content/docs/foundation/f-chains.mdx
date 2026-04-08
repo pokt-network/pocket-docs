@@ -1,0 +1,64 @@
+---
+title: "The F-Chains Program"
+description: "How Pocket Network sustains RPC coverage for long-tail chains — and how chain foundations, dApps, and node operators participate."
+section: "foundation"
+persona: ["all"]
+tabs: false
+status: "stable"
+sources: ["zip3/f-chains-overview.docx"]
+lastUpdated: "2026-04-07"
+---
+
+Most blockchain infrastructure providers only support chains that generate enough volume to be commercially viable. High-traffic chains like Ethereum, Base, and Solana attract node coverage through market incentives alone. But hundreds of other chains — newer networks, niche L2s, Cosmos ecosystems, testnets — don't generate enough relay volume to sustain a competitive market of operators.
+
+The F-Chains program exists to solve this. It's PNF's mechanism for guaranteeing coverage on long-tail chains that market economics wouldn't sustain on their own.
+
+## What F-Chains Is
+
+F-Chains (Foundation Chains) operates on two levels simultaneously:
+
+**Application stake layer:** PNF stakes POKT as Applications on-chain for each supported chain. These stakes generate the relay sessions that create demand for Supplier nodes to serve.
+
+**Operator layer (F-Chains II):** PNF contracts with professional infrastructure providers to run subsidized Supplier nodes on chains where organic operator coverage is insufficient.
+
+Together, these create a closed loop: Application stakes generate demand, and subsidized Supplier nodes fulfill that demand — ensuring every chain in the public portal has live, responsive nodes.
+
+## Program History
+
+### F-Chains I (Original Model)
+
+The original program predated Shannon and made direct payments to node operators who committed to running nodes on low-traffic services. This approach worked short-term but proved unsustainable — ongoing DAO payouts depleted treasury resources, and the fixed-payment structure didn't align incentives with actual performance.
+
+### F-Chains II (Current Model — Launched June 2025)
+
+F-Chains II replaced direct payments with a staking-based model. Instead of spending DAO funds on recurring subsidies, PNF allocates DAO-held POKT as Supplier node stakes — putting treasury assets to work rather than consuming them.
+
+**How it works:**
+
+- PNF stakes POKT as Applications for each supported chain → creates relay sessions
+- PNF stakes POKT on behalf of professional operators as Suppliers → fills sessions
+- Operators run the actual infrastructure (full nodes, RelayMiners)
+- Rewards flow back through the staking mechanism — self-sustaining
+
+Each F-Chains II operator receives a customized package: 3–7 validator nodes and 22–32 Supplier nodes per chain, depending on traffic tier and geographic coverage requirements.
+
+## For Chain Foundations
+
+F-Chains is how chain foundations ensure their network has reliable, decentralized RPC coverage through Pocket's portal. If your chain is supported, it's available at `https://{chain-slug}.api.pocket.network` to every developer using Pocket.
+
+**To get your chain added to F-Chains:**
+
+- Contact [directors@pokt.foundation](mailto:directors@pokt.foundation)
+- PNF evaluates chain compatibility, community demand, and technical requirements
+- PNF provisions Application stakes and coordinates operator coverage
+- Your chain goes live on the public portal
+
+PNF's partnership principle: proportional sponsorship commitment from chain foundations in exchange for dedicated coverage. See [Partnerships](/foundation/partnerships) for the framework.
+
+## For Suppliers
+
+Any Supplier can earn from F-Chains-supported relay sessions by registering for the right services — no special access required. For the full guide, see [F-Chains: How Suppliers Participate](/node-operators/f-chains).
+
+## Current Coverage
+
+The full list of F-Chains-supported services is available at [api.pocket.network](https://api.pocket.network), covering 60+ chains across EVM, Cosmos, Solana, and other ecosystems.

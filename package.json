@@ -1,0 +1,27 @@
+{
+  "name": "pokt-docs",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prefetch": "node scripts/fetch-governance-params.mjs && node scripts/fetch-supported-chains.mjs",
+    "dev": "npm run prefetch && astro dev",
+    "build": "npm run prefetch && astro build",
+    "preview": "npx http-server dist -p 4321"
+  },
+  "dependencies": {
+    "astro": "5.18.1",
+    "@astrojs/mdx": "5.0.3",
+    "@astrojs/sitemap": "3.7.2",
+    "@astrojs/tailwind": "6.0.2",
+    "tailwindcss": "4.2.2",
+    "shiki": "3.4.2",
+    "pagefind": "1.5.0"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

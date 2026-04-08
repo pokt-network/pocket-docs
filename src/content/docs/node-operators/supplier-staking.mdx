@@ -1,0 +1,583 @@
+---
+title: "Supplier Staking"
+description: "Stake POKT as a Supplier — concepts, configuration, and CLI commands."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: true
+status: "stable"
+sources: ["zip1/06-supplier-staking.md", "zip2/06-supplier-staking.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+## What Is a Supplier?
+
+A Supplier is the actor that does the actual work on Pocket Network. When an application (or a Gateway acting on an application's behalf) needs to read data from a blockchain — checking a wallet balance, fetching a smart contract state, querying a transaction — that request ultimately lands on a Supplier. The Supplier runs the infrastructure (nodes, servers, bandwidth) that connects to blockchain data sources and returns the requested information.
+
+If Gateways are the premium on-ramps to the network, **Suppliers are the highway itself**. Without Suppliers, there is no data to serve. Every relay that flows through Pocket Network is fulfilled by a Supplier somewhere in the world.
+
+Suppliers earn POKT rewards for the work they do. The more relays a Supplier processes reliably, the more it earns. This creates a direct economic incentive to run high-quality infrastructure with excellent uptime, low latency, and broad service coverage.
+
+## Prerequisites
+
+To become a Supplier, you need:
+
+- A funded Pocket wallet with enough POKT to cover your stake amount
+- At least one blockchain service to provide (for example, Ethereum RPC, Solana, or any supported chain)
+- A publicly reachable server where your relay infrastructure will accept and process requests
+- The Pocket Network tooling installed and configured (see the technical Getting Started guide for details)
+
+## Owner-Operator Model
+
+One of Pocket Network's most important design decisions is the separation of **ownership** from **operations**. This is the owner-operator model, and it solves a fundamental challenge in decentralized infrastructure: how do you let token holders participate in the network without requiring them to be technical experts?
+
+### The Taxi Medallion Analogy
+
+Think of it like the taxi industry. A **taxi medallion** (the license to operate a cab in a city) is a valuable asset. The person who owns the medallion does not have to drive the taxi. They can hire a skilled driver to operate the vehicle day-to-day, while the medallion owner retains ownership of the asset and earns revenue from the operation.
+
+In Pocket Network:
+
+- The **owner** is like the medallion holder. They put up the POKT stake (the valuable asset), maintain custody of those funds, and receive the staking rewards.
+- The **operator** is like the driver. They run the actual relay infrastructure, sign responses, submit the cryptographic proofs of work, and handle the technical day-to-day operations.
+
+This separation means that someone with capital but limited technical skills can participate in Pocket Network by partnering with a capable infrastructure operator. Conversely, a skilled technical team that lacks the capital for a full stake can offer their services to token holders. Both sides benefit.
+
+### Custodial Staking
+
+In **custodial staking**, the owner and operator are the same person or entity. A single account stakes the POKT, runs the infrastructure, signs relay responses, and collects rewards. This is the simplest setup — there is one key that does everything.
+
+Custodial staking is straightforward and works well for operators who hold their own tokens and want full control. There is no coordination needed between separate parties.
+
+### Non-Custodial Staking
+
+In **non-custodial staking**, the owner and operator are separate accounts controlled by different parties. The owner holds custody of the staked funds while a distinct operator account handles the technical work — running the relay infrastructure, signing responses, and submitting proofs.
+
+This is the **recommended model for production deployments**, and here is why: the operator's key must be online on a server that is connected to the internet 24/7. In non-custodial staking, even if that operator key were compromised, the attacker could not steal the staked funds because the operator key never has control over them. The staked POKT can only be returned to the owner's address.
+
+Think of it as giving your building manager a key to the maintenance closet, but not to the safe. They can do their job effectively without having access to the valuables.
+
+**Important**: the operator address is permanently set when a Supplier first stakes. It cannot be changed later. Choose carefully.
+
+## Staking Configuration
+
+Staking a Supplier involves specifying several pieces of information:
+
+- **Owner address**: The wallet that owns the staked funds and receives rewards by default.
+- **Operator address**: The wallet that runs the infrastructure (defaults to the owner if not specified).
+- **Stake amount**: The amount of POKT to lock up. A single stake covers all the services the Supplier offers.
+- **Services**: The list of blockchain services the Supplier will provide (for example, Ethereum, Solana, or AI inference services).
+- **Revenue sharing**: How rewards are split among participants (see Revenue Sharing below).
+
+For the exact configuration format and technical steps, refer to the developer documentation.
+
+## Staking a Supplier
+
+To become active on the network, a Supplier submits a staking transaction that registers their information on-chain. Once confirmed, the Supplier becomes active at the start of the next session and begins receiving relay traffic.
+
+### Who Can Stake?
+
+Both the owner and the operator can submit the initial staking transaction, but with different permissions:
+
+- **When the operator stakes**: They can set up everything in one step — the stake amount, the services to offer, and the revenue sharing configuration.
+- **When the owner stakes**: They can only set the stake amount. The service and revenue share configuration must be added later by the operator.
+
+This permission structure protects both parties. The owner controls the capital, but the operator controls the technical configuration. Neither can overstep their role.
+
+## Staking Modes
+
+Pocket Network offers flexibility in how Suppliers update their on-chain records. Rather than requiring a full reconfiguration every time something changes, operators can make targeted updates:
+
+- **Stake-only updates**: Change the amount of POKT staked without touching the service configuration. Either the owner or operator can do this.
+- **Services-only updates**: Change which services are offered or update endpoint information without modifying the stake. Only the operator can do this.
+- **Combined updates**: Change both at once (this is the default for initial staking).
+
+This modular approach means an owner can increase their stake commitment without needing the operator's involvement, and an operator can add new services without needing the owner to re-sign anything.
+
+### Permission Rules
+
+| Who | Can Update Stake | Can Update Services | Can Update Revenue Share |
+|-----|------------------|---------------------|--------------------------|
+| Owner | Yes | No | No |
+| Operator | Yes | Yes | Yes |
+
+Service configuration changes take effect at the start of the next session, ensuring that in-progress sessions are not disrupted. This is part of what makes Pocket Network **self-healing** — transitions happen gracefully, without interrupting live traffic.
+
+## Unstaking a Supplier
+
+When a Supplier decides to stop operating, they initiate an unstake. The process is designed to be graceful and protect the network:
+
+1. **Current session completes**: The Supplier continues serving traffic until the current session ends. No requests are dropped mid-session.
+2. **Unbonding phase begins**: In the next session, the Supplier stops participating and enters a cooldown period. During this time, any pending claims for work already done are settled.
+3. **Funds returned**: After the unbonding period elapses, the staked POKT is returned to the owner's wallet.
+
+Either the owner or the operator can initiate the unstake, but the funds always go back to the owner — never the operator. This protects the capital provider's interests regardless of who presses the button.
+
+## Querying Suppliers
+
+The full list of active Suppliers is publicly visible on-chain. Anyone can see which Suppliers are operating, what services they offer, how much they have staked, and their current status. This transparency is essential to the network's permissionless and censorship-resistant design — there are no hidden participants or secret configurations.
+
+You can filter Suppliers by the service they provide, by owner, or by operator. For technical details on querying, refer to the developer documentation.
+
+## Revenue Sharing
+
+Revenue sharing is one of the most powerful features of the Supplier staking model. It allows the rewards earned from relaying to be automatically split among multiple participants, creating flexible business arrangements on-chain.
+
+### How It Works
+
+Every time a Supplier earns POKT rewards for processing relays, those rewards are distributed according to pre-defined percentage splits. These percentages must always add up to exactly 100%.
+
+There are two levels of configuration:
+
+1. **Default revenue share**: Applies to all services the Supplier provides unless a specific service has its own override. If no revenue share is configured at all, 100% of rewards go to the owner.
+2. **Per-service revenue share**: Overrides the default for a specific service. This allows different economic arrangements for different types of work.
+
+### Why Revenue Sharing Matters
+
+Revenue sharing enables a range of business models:
+
+- **Owner-operator partnerships**: A token holder (owner) stakes <GovParam module="supplier" param="min_stake" format="pokt" /> POKT and partners with a technical team (operator) to run the infrastructure. They agree to an 80/20 split — 80% of rewards go to the owner for providing the capital, 20% to the operator for running the servers.
+- **Infrastructure cooperatives**: Multiple parties contribute to a Supplier's operation and share the rewards proportionally.
+- **Service-specific economics**: An operator might run both a standard Ethereum RPC service and a compute-intensive AI inference service. The AI service requires more expensive hardware, so the operator negotiates a larger revenue share (say 50/50) for that service while the Ethereum service uses the default split (80/20).
+- **Third-party referrals or partnerships**: Revenue can be directed to any valid Pocket address, not just the owner or operator. This opens the door for referral arrangements, investment structures, or community fund contributions.
+
+Only the **operator** can update revenue share configurations, which makes sense — the operator is the party who understands the operational costs and is in the best position to negotiate fair splits.
+
+## Supplier Lifecycle Summary
+
+| Phase | What Happens |
+|-------|--------------|
+| Staking Initiation | The Supplier registers on-chain. They are inactive until the next session begins. |
+| Activation | The Supplier becomes active and starts receiving relay traffic from the network. |
+| Active Operation | The Supplier processes relays, earns rewards, and can update their stake or service configuration at any time. |
+| Unstaking Initiation | The Supplier signals they want to exit. They continue serving until the current session ends. |
+| Unbonding | The Supplier is inactive. Any outstanding claims for completed work are settled. |
+| Unbonding Complete | Staked funds return to the owner's wallet. The Supplier's on-chain record is removed. |
+
+## Keeping Your Supplier Healthy
+
+Operating a Supplier is not a set-it-and-forget-it activity. The operator account needs to maintain a small balance of POKT to cover proof submission fees — the small cost of submitting the cryptographic evidence that proves relays were actually served. If the operator runs out of funds for these fees, proof submissions can be missed, which may result in penalties.
+
+For production deployments, it is strongly recommended to set up automated monitoring for operator account balances and to maintain an alert threshold so you can top up the account before it runs dry.
+
+## Why the Network Needs Many Independent Suppliers
+
+This is the heart of what makes Pocket Network **unstoppable**.
+
+### Decentralization Equals Resilience
+
+If all of Pocket Network's relay traffic were served by a handful of large Suppliers, the network would have a critical weakness: take down those few operators, and the whole system fails. By design, Pocket Network incentivizes a large, diverse set of independent Suppliers spread across different geographies, jurisdictions, and infrastructure providers.
+
+This is not decentralization for its own sake — it is a practical engineering strategy for building infrastructure that cannot be shut down.
+
+### Censorship Resistance
+
+When thousands of independent Suppliers serve data across the network, no single entity can decide to block access to specific information. If one Supplier refuses to serve a particular request, the network simply routes around them to another Supplier who will. This makes Pocket Network fundamentally **censorship-resistant** — no government, corporation, or individual actor can control the flow of blockchain data through the network.
+
+### Uptime and Self-Healing
+
+More Suppliers means more redundancy. If a Supplier goes offline (whether due to hardware failure, a natural disaster, or a targeted attack), the network automatically routes traffic to other available Suppliers. Applications experience no interruption. This **self-healing** behavior is automatic — there is no central operations team that needs to notice the outage and manually redirect traffic. The protocol handles it.
+
+### Competition Drives Quality
+
+A diverse Supplier ecosystem creates healthy competition. Suppliers that offer faster response times, better uptime, and broader service coverage earn more relays and more rewards. Suppliers that underperform lose traffic naturally. This market-driven quality mechanism means the network continuously improves without any central authority managing performance standards.
+
+### The Permissionless Invitation
+
+Anyone in the world can become a Supplier on Pocket Network. There is no application process, no approval committee, no geographic restriction. If you can stake the required POKT and run reliable infrastructure, the network welcomes your participation. This **permissionless** design ensures that the Supplier set can grow organically to meet demand, and that no single party controls who gets to participate in serving the world's blockchain data.
+
+</Tab>
+<Tab label="Advanced">
+
+This guide covers how to stake, update, and unstake a Supplier on Pocket Network.
+A staked Supplier earns POKT by providing services through a [RelayMiner](/node-operators/relayminer-setup).
+Before a Supplier can serve traffic, it must be staked on-chain with sufficient
+funds and at least one advertised service endpoint.
+
+## Prerequisites
+
+- A running `pocketd` binary (see [Getting Started](/get-started/pocketd-installation))
+- A funded Pocket account with enough `upokt` for the desired stake amount
+- At least one service to provide (e.g., `anvil`, `ollama`, an Ethereum RPC)
+- A publicly reachable URL where your RelayMiner will accept relay requests
+
+## Owner-Operator Model
+
+Pocket Network supports two staking modes that separate fund custody from
+day-to-day operations.
+
+### Custodial Staking
+
+In custodial staking, the **owner** and **operator** are the same account. The
+single key stakes funds, signs relay responses, submits claims/proofs, and
+receives rewards. This is the simplest setup.
+
+```yaml
+owner_address: pokt1exampleowner...
+operator_address: pokt1exampleowner...   # same as owner
+stake_amount: 60000000000upokt
+```
+
+### Non-Custodial Staking
+
+In non-custodial staking, the **owner** holds custody of the staked funds while
+a separate **operator** account handles signing relay responses and submitting
+claims and proofs. The operator address uniquely identifies the Supplier on the
+network and cannot be changed after initial staking.
+
+This is the recommended model for production deployments because the operator key
+(which must be online on the RelayMiner server) never controls the staked funds
+directly.
+
+```yaml
+owner_address: pokt1exampleowner...
+operator_address: pokt1exampleoperator...   # different from owner
+stake_amount: 60000000000upokt
+```
+
+When unstaking, the staked `upokt` is always returned to the `owner_address`,
+regardless of which account initiates the unstake.
+
+## Staking Configuration File
+
+The `stake-supplier` command requires a YAML configuration file passed with the
+`--config` flag. The file specifies the owner, operator, stake amount, services,
+endpoints, and revenue share settings.
+
+### Full Configuration Example
+
+```yaml
+# Owner address — receives unstaked funds and default revenue share.
+# Required.
+owner_address: pokt19a3t4yunp0dlpfjrp7qwnzwlrzd5fzs2gjaaaj
+
+# Operator address — identifies the Supplier on-chain and signs relay responses.
+# Optional. Defaults to owner_address if omitted (custodial staking).
+operator_address: pokt1mrqt5f7qh8uxs27cjm9t7v9e74a9vvdnq5jva4
+
+# Amount of upokt to stake. Covers all services listed below.
+# Required for initial staking and stake updates.
+stake_amount: 60000000000upokt
+
+# Default revenue share applied to services without their own rev_share_percent.
+# Optional. If omitted, 100% goes to the owner_address.
+# All percentages must sum to exactly 100.
+default_rev_share_percent:
+  pokt1mrqt5f7qh8uxs27cjm9t7v9e74a9vvdnq5jva4: 80
+  pokt1eeeksh2tvkh7wzmfrljnhw4wrhs55lcuvmekkw: 20
+
+# Services the Supplier will advertise on-chain.
+services:
+  - service_id: anvil
+    endpoints:
+      - publicly_exposed_url: http://relayminer1:8545
+        rpc_type: JSON_RPC
+
+  - service_id: ollama
+    # Per-service revenue share overrides the default above.
+    rev_share_percent:
+      pokt1mrqt5f7qh8uxs27cjm9t7v9e74a9vvdnq5jva4: 50
+      pokt1eeeksh2tvkh7wzmfrljnhw4wrhs55lcuvmekkw: 50
+    endpoints:
+      - publicly_exposed_url: http://relayminer1:8545
+        rpc_type: REST
+```
+
+### Configuration Field Reference
+
+**`owner_address`** (required) — The bech32-encoded `pokt1...` address that owns
+the Supplier's staked funds. The same owner can stake multiple Suppliers.
+
+**`operator_address`** (optional) — The bech32-encoded `pokt1...` address that
+operates the Supplier. If omitted, defaults to the `owner_address`. The operator
+address is immutable after the initial stake.
+
+**`stake_amount`** (required for initial stake) — The amount of `upokt` to stake.
+Must use the `upokt` denomination (e.g., `<GovParam module="supplier" param="min_stake" format="upokt" />`). This single stake
+covers all services listed in the configuration.
+
+**`default_rev_share_percent`** (optional) — A map of `address: percentage` pairs
+defining the default revenue share for all services that do not specify their own
+`rev_share_percent`. If omitted entirely, 100% of revenue goes to the
+`owner_address`. All percentages must sum to exactly 100.
+
+**`services`** (required for initial operator stake) — A list of services the
+Supplier will provide. Each service requires:
+
+- `service_id` — A string identifier, 8 characters or fewer, matching the regex
+  `^[a-zA-Z0-9_-]{1,8}$`.
+- `endpoints` — At least one endpoint with:
+  - `publicly_exposed_url` — The URL where Gateways and Applications send relay
+    requests (must be publicly reachable).
+  - `rpc_type` — One of `JSON_RPC`, `REST`, or `WEBSOCKET`.
+- `rev_share_percent` (optional) — Per-service revenue share override.
+
+## Staking a Supplier
+
+### Initial Stake (Operator Signs)
+
+When the operator stakes the Supplier, both the stake amount and service
+configurations can be provided in a single transaction:
+
+```bash
+pocketd tx supplier stake-supplier \
+  --config ./supplier_stake_config.yaml \
+  --from pokt1operatoraddress... \
+  --keyring-backend test \
+  --network pocket-lego-testnet
+```
+
+### Initial Stake (Owner Signs)
+
+When the owner stakes, the services section must be empty. The owner can only
+set the stake amount. Service configurations must be added later by the operator.
+
+```yaml
+# stake_only_config.yaml
+owner_address: pokt1owneraddress...
+stake_amount: 60000000000upokt
+```
+
+```bash
+pocketd tx supplier stake-supplier \
+  --config ./stake_only_config.yaml \
+  --from pokt1owneraddress... \
+  --keyring-backend test \
+  --network pocket-lego-testnet
+```
+
+## Staking Modes
+
+> **New in v0.1.31:** The `--stake-only` and `--services-only` flags enable
+> partial updates to a Supplier's on-chain record without requiring a full
+> configuration file each time.
+
+The `stake-supplier` command supports three modes of operation via the `--stake-only`
+and `--services-only` flags. These flags are mutually exclusive.
+
+### Stake-Only Updates (`--stake-only`)
+
+Update only the stake amount without modifying service configurations. The
+config file must contain `stake_amount` and the `services` section must be empty.
+Can be signed by either the owner or the operator.
+
+```yaml
+# upstake_config.yaml
+owner_address: pokt1owneraddress...
+operator_address: pokt1operatoraddress...
+stake_amount: 75000000000upokt
+```
+
+```bash
+pocketd tx supplier stake-supplier \
+  --config ./upstake_config.yaml \
+  --stake-only \
+  --from pokt1owneraddress... \
+  --keyring-backend test \
+  --network pocket-lego-testnet
+```
+
+### Services-Only Updates (`--services-only`)
+
+Update only service configurations without changing the stake amount. The config
+file must contain the `services` section and `stake_amount` must be empty.
+Must be signed by the **operator**.
+
+```yaml
+# services_update_config.yaml
+owner_address: pokt1owneraddress...
+operator_address: pokt1operatoraddress...
+services:
+  - service_id: anvil
+    endpoints:
+      - publicly_exposed_url: http://relayminer1:8545
+        rpc_type: JSON_RPC
+  - service_id: ollama
+    endpoints:
+      - publicly_exposed_url: http://relayminer1:8545
+        rpc_type: REST
+```
+
+```bash
+pocketd tx supplier stake-supplier \
+  --config ./services_update_config.yaml \
+  --services-only \
+  --from pokt1operatoraddress... \
+  --keyring-backend test \
+  --network pocket-lego-testnet
+```
+
+### Combined Stake and Service Updates (Default)
+
+Without either flag, both `stake_amount` and `services` are required. This is
+the default mode used for initial staking and full updates.
+
+```bash
+pocketd tx supplier stake-supplier \
+  --config ./full_supplier_config.yaml \
+  --from pokt1operatoraddress... \
+  --keyring-backend test \
+  --network pocket-lego-testnet
+```
+
+### Permission Rules
+
+| Signer   | Can Update Stake | Can Update Services | Can Update Rev Share |
+|----------|------------------|---------------------|----------------------|
+| Owner    | Yes              | No                  | No                   |
+| Operator | Yes              | Yes                 | Yes                  |
+
+Service configuration changes take effect at the start of the next session to
+ensure current sessions remain stable.
+
+## Unstaking a Supplier
+
+To unstake a Supplier, use the `unstake-supplier` command with the operator
+address as the positional argument. Either the owner or operator can initiate
+the unstake.
+
+```bash
+# Unstake as the owner
+pocketd tx supplier unstake-supplier pokt1operatoraddress... \
+  --from pokt1owneraddress... \
+  --keyring-backend test \
+  --network pocket-lego-testnet
+
+# Unstake as the operator
+pocketd tx supplier unstake-supplier pokt1operatoraddress... \
+  --from pokt1operatoraddress... \
+  --keyring-backend test \
+  --network pocket-lego-testnet
+```
+
+When a Supplier is unstaked:
+
+1. It continues serving traffic until the end of the current session.
+2. In the next session it enters the **unbonding phase** and stops participating
+   in sessions.
+3. After the unbonding period (governed by on-chain parameters), staked funds are
+   returned to the `owner_address`.
+
+## Querying Suppliers
+
+### List All Suppliers
+
+```bash
+pocketd query supplier list-suppliers
+```
+
+> **New in v0.1.31:** The `--owner-address`, `--operator-address`, and
+> `--dehydrated` flags are now available for filtering and reducing response
+> payload size.
+
+Filter by service, owner, or operator:
+
+```bash
+# Filter by service
+pocketd query supplier list-suppliers --service-id anvil
+
+# Filter by owner
+pocketd query supplier list-suppliers --owner-address pokt1owneraddress...
+
+# Filter by operator
+pocketd query supplier list-suppliers --operator-address pokt1operatoraddress...
+
+# Combine filters
+pocketd query supplier list-suppliers --service-id anvil --owner-address pokt1owneraddress...
+
+# Compact output (omits service_config_history and rev_share details)
+pocketd query supplier list-suppliers --dehydrated
+
+# Pagination
+pocketd query supplier list-suppliers --page 2 --limit 50
+```
+
+### Show a Specific Supplier
+
+```bash
+pocketd query supplier show-supplier pokt1operatoraddress...
+
+# Compact output
+pocketd query supplier show-supplier pokt1operatoraddress... --dehydrated
+
+# JSON output
+pocketd query supplier show-supplier pokt1operatoraddress... --output json
+```
+
+## Revenue Sharing
+
+Revenue share defines how minting rewards for a Supplier are distributed among
+one or more addresses. Revenue share percentages must sum to exactly 100 for
+each service (or the default).
+
+There are two levels of revenue share configuration:
+
+1. **`default_rev_share_percent`** — Applied to all services unless overridden.
+   If omitted, the owner receives 100%.
+2. **`rev_share_percent`** (per service) — Overrides the default for a specific
+   service.
+
+Revenue share can only be updated by the **operator** account.
+
+### Example: Split Revenue Between Owner and a Third Party
+
+```yaml
+default_rev_share_percent:
+  pokt1owneraddress...: 70
+  pokt1thirdparty...: 30
+```
+
+### Example: Per-Service Overrides
+
+```yaml
+default_rev_share_percent:
+  pokt1owneraddress...: 100
+
+services:
+  - service_id: anvil
+    endpoints:
+      - publicly_exposed_url: http://relayminer1:8545
+        rpc_type: JSON_RPC
+    # This service splits revenue 60/40
+    rev_share_percent:
+      pokt1owneraddress...: 60
+      pokt1operatoraddress...: 40
+
+  - service_id: ollama
+    endpoints:
+      - publicly_exposed_url: http://relayminer1:8545
+        rpc_type: REST
+    # This service uses the default (100% to owner)
+```
+
+## Supplier Lifecycle Summary
+
+| Phase                 | Description                                                     |
+|-----------------------|-----------------------------------------------------------------|
+| Staking Initiation    | `MsgStakeSupplier` sent. Supplier is inactive until next session.|
+| Activation            | Supplier becomes active at the next session boundary.           |
+| Unstaking Initiation  | `MsgUnstakeSupplier` sent. Supplier serves until session ends.  |
+| Unbonding             | Supplier is inactive. Pending claims are settled.               |
+| Unbonding Complete    | Staked funds return to `owner_address`. Record removed.         |
+
+## Checking Your Supplier's Balance
+
+Ensure the operator account has sufficient funds for proof submission fees. Proof
+submissions require a fee defined by the `proof_submission_fee` governance parameter.
+
+```bash
+# Check operator balance
+pocketd query bank balance pokt1operatoraddress... upokt \
+  --network pocket-lego-testnet
+
+# Check current proof submission fee
+pocketd query proof params --network pocket-lego-testnet
+```
+
+Insufficient funds for proof submission fees can lead to missed submissions and
+potential slashing. Set up automated monitoring for operator account balances in
+production environments.
+
+</Tab>
+</Tabs>

@@ -1,0 +1,59 @@
+/*
+ * POKT Docs — Global Stylesheet
+ *
+ * This file is the SINGLE entry point imported in the base layout.
+ * It combines the design token system (from the component reference)
+ * with the article prose styles (for MDX content rendering).
+ *
+ * DO NOT write component styles inline or in Astro <style> blocks.
+ * All visual styling lives in these two files.
+ */
+
+@import './tokens-and-components.css';
+@import './prose.css';
+
+/*
+ * FIX 3: Shiki dual-theme wiring
+ *
+ * When defaultColor: false is set, Shiki emits CSS variables per-token
+ * (--shiki-light / --shiki-dark) and Astro generates a @media block for
+ * dark mode. We override that to use our [data-theme] attribute instead,
+ * so the theme toggle drives syntax-highlight colors (not prefers-color-scheme).
+ *
+ * Background is always forced to our --bg-code design token so Shiki's
+ * per-block inline background variables never win.
+ */
+
+/* Light mode token colors (default) */
+.astro-code,
+.astro-code span {
+  color: var(--shiki-light) !important;
+  font-style: var(--shiki-light-font-style) !important;
+  font-weight: var(--shiki-light-font-weight) !important;
+  text-decoration: var(--shiki-light-text-decoration) !important;
+}
+
+/* Dark mode token colors — driven by [data-theme] not media query */
+[data-theme="dark"] .astro-code,
+[data-theme="dark"] .astro-code span {
+  color: var(--shiki-dark) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+  text-decoration: var(--shiki-dark-text-decoration) !important;
+}
+
+/* Background always uses our design token — overrides Shiki inline styles */
+.astro-code {
+  background-color: var(--bg-code) !important;
+}
+
+/* Shiki also applies .astro-code to code blocks not inside .code-block;
+   the .code-block pre rule in tokens-and-components.css handles that
+   wrapper case, but this covers bare pre output in prose too. */
+.article-content pre[style] {
+  background-color: var(--bg-code) !important;
+}
+
+.article-content pre[style] code {
+  background: none !important;
+}

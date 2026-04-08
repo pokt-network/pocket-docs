@@ -1,0 +1,49 @@
+---
+title: "Public API Portal — Available Networks"
+description: "Blockchain networks available on the Pocket Network public API portal — free, keyless access with no account required."
+section: "developers"
+persona: ["developer", "node-operator"]
+tabs: false
+status: "draft"
+sources: ["https://raw.githubusercontent.com/pokt-network/public-rpc/refs/heads/main/supported-chains.json"]
+lastUpdated: "2026-04-08"
+---
+
+The public API portal at [api.pocket.network](https://api.pocket.network) provides free, keyless access to 60+ blockchain networks. No account, no API key, no rate-limit tiers to manage.
+
+**Rate limits:**
+- 2,000 requests per IP per minute
+- 10,000 requests per second total per endpoint
+
+## Using an Endpoint
+
+Every network is accessible at `https://{chain-slug}.api.pocket.network`:
+
+```bash
+# Ethereum mainnet
+curl -X POST https://eth.api.pocket.network \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+```
+
+The slug is the service ID — see the table below for the full list.
+
+## Available Networks
+
+<SupportedChains />
+
+## Beyond Blockchain — 100+ On-Chain Services
+
+The table above covers what's on the public API portal. The Pocket Network protocol itself supports far more. Over 100 services are registered on-chain — visible at [poktscan.com/services](https://poktscan.com/services) — including non-blockchain services like LLM inference endpoints, TOR relay nodes, and messaging services.
+
+Under Shannon, **anyone can register a new service permissionlessly**. There is no whitelist or approval process. If you want to register a service on Pocket Network, see the [Service Management](/node-operators/service-management) docs for the registration process.
+
+## Checking Status
+
+- **Network analytics and relay data:** [poktscan.com](https://poktscan.com)
+- **On-chain service registry:** [poktscan.com/services](https://poktscan.com/services)
+- **On-chain query:** `pocketd query service list-services --network=main`
+
+## Adding a New Chain to the Portal
+
+If you're a chain foundation wanting public portal coverage, see the [F-Chains program](/foundation/f-chains) or contact [directors@pokt.foundation](mailto:directors@pokt.foundation).

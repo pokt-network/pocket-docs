@@ -1,0 +1,455 @@
+---
+title: "Application-Gateway Delegation"
+description: "How Applications delegate to Gateways and how the delegation model works."
+section: "gateways"
+persona: ["gateway-operator", "developer"]
+tabs: true
+status: "stable"
+sources: ["zip1/04-application-gateway-delegation.md", "zip2/04-application-gateway-delegation.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+## What Is Delegation?
+
+In Pocket Network, an **Application** has the right to consume data services because it has staked POKT tokens. But having the right to access data and actually managing the logistics of data requests are two different things.
+
+**Delegation** is the act of authorizing a Gateway to handle data requests on your behalf. Think of it like giving a power of attorney to a specialist. You still own your stake, you still own your Application, and you still control who has authority — but the day-to-day work of sending, routing, and managing requests is handled by the Gateway.
+
+When you delegate, you are not handing over your tokens or your Application. You are granting signing authority: the ability for a Gateway to say "I am acting on behalf of this Application" when it sends requests to Suppliers.
+
+## Why Delegate to a Gateway?
+
+You might wonder: why not just send requests directly? You can. Applications are fully capable of interacting with the network on their own. But Gateways exist because many participants prefer to have an intermediary handle the complexity. Here is why delegation is valuable:
+
+### Convenience and Operational Simplicity
+
+Running your own relay infrastructure means maintaining uptime, handling failovers, managing connections to multiple Suppliers, and staying current with protocol changes. A Gateway operator handles all of this for you. You delegate, point your application at the Gateway's endpoint, and the Gateway takes care of the rest.
+
+This is especially attractive for businesses that want reliable blockchain data access without becoming infrastructure operators themselves.
+
+### Quality of Service
+
+Gateway operators specialize in optimizing request routing, load balancing, and response times. They often provide features like caching, analytics dashboards, and SLA guarantees. By delegating to a well-run Gateway, your Application benefits from enterprise-grade quality of service without building that infrastructure yourself.
+
+### Multiple Access Points
+
+The protocol allows you to delegate to multiple Gateways simultaneously (up to the `max_delegated_gateways` limit, which defaults to 7). This gives you redundancy: if one Gateway goes down, your requests can flow through another. It also lets you use different Gateways for different use cases — perhaps one that optimizes for speed and another that optimizes for cost.
+
+### Separation of Concerns
+
+Delegation cleanly separates **who owns the network access** (the Application staker) from **who operates the data pipeline** (the Gateway). A company might have its treasury team manage the POKT stake while its engineering team works with a Gateway operator for actual data access. This separation makes organizational management much simpler.
+
+## How Delegation Works
+
+The delegation process is straightforward:
+
+1. **You identify a Gateway** that is staked and active on the network. Gateway operators typically publish their addresses and service offerings.
+2. **You submit a delegation transaction** that tells the protocol: "I authorize this Gateway to sign requests on my behalf."
+3. **The delegation takes effect** once the transaction is confirmed. From that point forward, the Gateway can submit relay requests in your name during sessions.
+
+That is it. The Gateway does not need to accept the delegation — the authorization is one-directional. You grant it, and the Gateway can use it.
+
+### Delegation Rules
+
+- Your Application must be staked before you can delegate.
+- The Gateway you are delegating to must be staked and active (not in the process of leaving the network).
+- You cannot delegate to the same Gateway twice.
+- You cannot exceed the `max_delegated_gateways` limit (default: 7). If you are already at the maximum, you must undelegate from one Gateway before adding another.
+
+## Undelegating from a Gateway
+
+If you want to revoke a Gateway's authority — perhaps you are switching providers, or the Gateway's service quality has declined — you **undelegate**.
+
+Undelegation removes the Gateway's signing authority, but it does not happen instantaneously. There is a brief **pending period** while the undelegation takes effect.
+
+### Why Is There a Pending Period?
+
+The pending period exists to protect the integrity of in-progress sessions. Here is the scenario it addresses:
+
+Imagine your Application is in the middle of a session, and the Gateway is actively handling requests with Suppliers. If undelegation were instant, the Gateway's authority would vanish mid-session. Suppliers who already started processing requests signed by that Gateway would find those signatures suddenly invalid. Legitimate work would go uncompensated, and the session's accounting would break.
+
+To avoid this, the protocol records the undelegation as "pending" until the current session concludes. During this grace period:
+
+- The Gateway can still complete any work it started during the current session.
+- Suppliers who received requests signed by the Gateway during this session are still compensated normally.
+- Once the session ends and settlement is finalized, the pending undelegation clears automatically.
+
+This is another example of Pocket Network's self-healing design: even when participants change their relationships mid-stream, the protocol ensures that no legitimate work is lost and all parties are treated fairly.
+
+### Re-Delegating After Undelegation
+
+If you change your mind and re-delegate to the same Gateway before the pending undelegation clears, the protocol simply cancels the pending undelegation. It is as if the undelegation never happened. This makes it safe to experiment with your Gateway configuration without worrying about irreversible consequences.
+
+## Transferring an Application
+
+Sometimes you need to move your entire Application — stake, service configuration, gateway delegations, and all — to a different address. This might happen when:
+
+- An organization restructures and the Application needs to sit under a different wallet.
+- You are selling or handing off your network access rights to another party.
+- You set up the Application under a temporary address and want to move it to a permanent one.
+
+**Application transfer** lets you do this without unstaking and re-staking. This is important because unstaking triggers an unbonding period where your tokens are locked and your Application is inactive. A transfer avoids that downtime entirely.
+
+### How Transfers Work
+
+The transfer process has two phases:
+
+**Phase 1 — You initiate the transfer.** You submit a transaction specifying the source address (your current Application) and the destination address (where you want the Application to go). The protocol records this as a pending transfer. Your Application remains active and can still be used during the current session.
+
+**Phase 2 — The protocol completes the transfer automatically.** At the end of the transfer period (which aligns with session boundaries), the protocol moves your Application's entire state — stake amount, service configuration, gateway delegations, pending undelegations — to the new address. The old address is removed from the network.
+
+You do not need to do anything for Phase 2. The protocol handles it automatically as part of its end-of-session processing.
+
+### Transfer Rules
+
+- The source Application must be staked and active. You cannot transfer an Application that is in the process of unstaking.
+- The destination address must not already have a staked Application. The protocol does not allow merging two existing Applications. (If a destination Application comes into existence between initiation and completion due to unusual timing, the protocol does handle this gracefully by merging the states, but this is an edge case rather than standard behavior.)
+- The source and destination addresses must be different.
+- While a transfer is pending, you cannot unstake the Application. You must wait for the transfer to finish first.
+
+### Why Is There a Transfer Period?
+
+The transfer does not happen instantly for two important reasons:
+
+1. **Clean accounting.** By aligning the transfer with session boundaries, the protocol avoids the complexity of mid-session ownership changes. All the session's work, claims, and settlements are cleanly attributed to one owner.
+
+2. **Safety against manipulation.** The delay prevents a scenario where someone could transfer an Application and then quickly unstake it at the new address before the network has had a chance to settle outstanding claims. This protects Suppliers from losing compensation for work they already performed.
+
+### Recovering from a Mistaken Transfer
+
+If you accidentally transfer your Application to the wrong address, recovery is possible as long as you control the destination address. The process involves unstaking at the wrong destination, waiting for the unbonding period, and then re-staking at the correct address. For step-by-step recovery instructions, refer to the [technical documentation](/gateways/delegation).
+
+## Governance Parameters
+
+Several governance parameters shape how delegation and transfers behave. These can be adjusted by the Pocket Network community through on-chain governance proposals.
+
+### max_delegated_gateways
+
+**Default: 7**
+
+The maximum number of Gateways a single Application can delegate to at the same time. This cap balances flexibility (you want multiple Gateways for redundancy) with network manageability (the protocol needs to track and validate every delegation relationship).
+
+Seven is a generous default that supports diverse multi-Gateway strategies. If the community determines that Applications need more (or fewer) Gateway relationships, this parameter can be changed.
+
+### min_stake
+
+**Default: <GovParam module="application" param="min_stake" format="pokt" /> POKT**
+
+The minimum stake required to register an Application. This is relevant to transfers because the destination address receives the full stake from the source — there is no risk of ending up below the minimum through a transfer.
+
+### application_unbonding_period_sessions
+
+**Defined in the shared module**
+
+The number of sessions you must wait after unstaking before tokens are returned. This parameter is relevant if you need to recover from a mistaken transfer (since recovery involves unstaking at the wrong destination). It is also relevant to the transfer period itself, since transfer completion is tied to session timing.
+
+## How Delegation Makes the Network Unstoppable
+
+Delegation and Gateway architecture are central to Pocket Network's vision of censorship-resistant, permissionless data access:
+
+- **No single point of failure.** By delegating to multiple Gateways, your Application's data access survives the failure of any individual Gateway. If one goes down, others continue serving your requests.
+- **Permissionless participation.** Anyone can run a Gateway. There is no central authority deciding who gets to operate one. This means the intermediary layer is just as decentralized as the rest of the network.
+- **Portable access rights.** Application transfers mean your network access is not locked to a single address forever. You can move it, hand it off, or restructure your setup without losing your position in the network.
+- **Graceful transitions.** The pending undelegation and transfer periods ensure that changes never disrupt in-progress work. The protocol self-heals around participant changes, keeping service continuous even as the network's relationships evolve.
+
+For technical implementation details — including the specific transactions, CLI flags, and on-chain queries — refer to the [technical Application Gateway Delegation documentation](/gateways/delegation).
+
+</Tab>
+<Tab label="Advanced">
+
+This guide covers how to delegate and undelegate an Application to/from Gateways, and how to transfer application ownership to a different address. Delegation allows Gateways to sign relay requests on behalf of an Application, enabling enterprise-grade quality-of-service and access management.
+
+## Overview
+
+An Application can delegate authority to one or more staked Gateways. When delegated, the Gateway can sign relay requests on the Application's behalf during a session. This is useful for:
+
+- Offloading relay management to a dedicated Gateway operator.
+- Enabling multiple access points (up to `max_delegated_gateways`, default 7) for the same Application.
+- Separating Application ownership from day-to-day relay operations.
+
+Delegation does not transfer ownership or control of the Application's stake. It only grants signing authority for relay requests.
+
+## Delegating to a Gateway
+
+To delegate an Application to a Gateway, the Gateway must already be staked and active on the network.
+
+```bash
+pocketd tx application delegate-to-gateway <gateway_address> \
+  --from my_app_key \
+  --keyring-backend test \
+  --network=pocket-lego-testnet \
+  --home ~/.pocket
+```
+
+### Example
+
+```bash
+pocketd tx application delegate-to-gateway pokt1gwaddr789xyz456abc123def000aaa111bbb222 \
+  --from my_app_key \
+  --keyring-backend test \
+  --network=pocket-lego-testnet
+```
+
+### Delegation Rules
+
+- The Application must be staked before it can delegate.
+- The Gateway must be staked and active (not unbonding).
+- An Application can delegate to at most `max_delegated_gateways` Gateways (default: 7). Attempting to exceed this limit returns an error.
+- An Application cannot delegate to the same Gateway twice.
+
+Query the maximum allowed delegations:
+
+```bash
+pocketd query application params -o json | jq .params.max_delegated_gateways
+```
+
+### Verifying Delegation
+
+After delegating, confirm the delegation by querying the Application:
+
+```bash
+pocketd query application show-application pokt1yourappaddress123 \
+  --network=pocket-lego-testnet
+```
+
+The `delegatee_gateway_addresses` field will list all Gateways the Application is delegated to:
+
+```yaml
+application:
+  address: pokt1yourappaddress123
+  delegatee_gateway_addresses:
+    - pokt1gwaddr789xyz456abc123def000aaa111bbb222
+  pending_transfer: null
+  pending_undelegations: {}
+  service_configs:
+    - service_id: anvil
+  stake:
+    amount: "5000000"
+    denom: upokt
+  unstake_session_end_height: "0"
+```
+
+## Undelegating from a Gateway
+
+Undelegating revokes a Gateway's authority to sign relay requests on behalf of the Application. The undelegation is recorded as a "pending undelegation" tied to the current session's end height.
+
+```bash
+pocketd tx application undelegate-from-gateway <gateway_address> \
+  --from my_app_key \
+  --keyring-backend test \
+  --network=pocket-lego-testnet \
+  --home ~/.pocket
+```
+
+### Example
+
+```bash
+pocketd tx application undelegate-from-gateway pokt1gwaddr789xyz456abc123def000aaa111bbb222 \
+  --from my_app_key \
+  --keyring-backend test \
+  --network=pocket-lego-testnet
+```
+
+### Undelegation Behavior
+
+- The Application must currently be delegated to the specified Gateway. Otherwise, the transaction fails.
+- Undelegation creates a pending undelegation record keyed by the session end height. This record is used by the protocol to ensure that in-flight sessions that began before the undelegation can still complete normally.
+- If you re-delegate to the same Gateway before the pending undelegation clears, the pending undelegation record is removed.
+
+### Pending Undelegations
+
+Pending undelegations are visible in the Application's on-chain state. They are mapped by session end height to a list of gateway addresses:
+
+```yaml
+pending_undelegations:
+  "1200":
+    gateway_addresses:
+      - pokt1gwaddr789xyz456abc123def000aaa111bbb222
+```
+
+These records are automatically cleaned up by the protocol after the relevant session settles.
+
+## Transferring an Application
+
+Application transfer moves the entire Application (stake, service configs, gateway delegations, and pending undelegations) from a source address to a destination address. This is useful for migrating ownership without unstaking and re-staking.
+
+### Transfer Command
+
+```bash
+pocketd tx application transfer <source_app_address> <destination_app_address> \
+  --from <source_key_name> \
+  --keyring-backend test \
+  --network=pocket-lego-testnet \
+  --home ~/.pocket
+```
+
+### Example
+
+```bash
+pocketd tx application transfer \
+  pokt1sourceapp111aaa222bbb333ccc444ddd555eee \
+  pokt1destapp666fff777ggg888hhh999iii000jjj111 \
+  --from source_app_key \
+  --keyring-backend test \
+  --network=pocket-lego-testnet
+```
+
+### Transfer Rules
+
+- The source application must exist and be staked.
+- The source application must not be unbonding (unstaking).
+- The destination application must not already exist on-chain. If a destination application already exists, the transfer will fail with a duplicate address error.
+- The source and destination addresses must be different.
+- Both addresses must be valid bech32 addresses with the `pokt` prefix.
+- An application with a pending transfer cannot be unstaked.
+
+### How Transfer Works
+
+The transfer process has two phases:
+
+**Phase 1 — Initiation:**
+When you submit the transfer transaction, the source application's `pending_transfer` field is set with the destination address and the current session's end height. The application remains active during this session.
+
+**Phase 2 — Completion:**
+At the end of the transfer period (which spans from the session end to the settlement of that session), the protocol's EndBlocker automatically:
+
+1. Copies the source application's state (stake, service configs, delegations, pending undelegations) to a new application at the destination address.
+2. Removes the source application from the store.
+
+If the destination application somehow came into existence between initiation and completion, the protocol merges the two applications by:
+
+- Summing the stake amounts.
+- Taking the union of delegated gateways.
+- Taking the union of service configs.
+- Merging pending undelegations (destination's records take precedence at conflicting heights).
+
+### Monitoring Transfer Status
+
+After initiating a transfer, check the source application's status:
+
+```bash
+pocketd query application show-application pokt1sourceapp111aaa222bbb333ccc444ddd555eee \
+  --network=pocket-lego-testnet
+```
+
+You will see a `pending_transfer` field:
+
+```yaml
+application:
+  address: pokt1sourceapp111aaa222bbb333ccc444ddd555eee
+  pending_transfer:
+    destination_address: pokt1destapp666fff777ggg888hhh999iii000jjj111
+    session_end_height: "1200"
+  service_configs:
+    - service_id: anvil
+  stake:
+    amount: "5000000"
+    denom: upokt
+```
+
+Once the transfer completes, the source address will no longer appear in the application store, and querying the destination address will show the transferred application.
+
+### Why Is There a Transfer Period?
+
+The transfer period exists for two reasons:
+
+1. **Settlement simplification** — By delaying the transfer to a session boundary, the protocol avoids complexities around mid-session accounting and settlement.
+2. **Weak subjectivity protection** — A delay prevents adversarial behavior where an actor could transfer and then quickly unstake before settlement can account for their activity.
+
+## Recovering from a Wrong Transfer
+
+If you accidentally transferred an Application to the wrong destination address, recovery is possible as long as you control the destination address.
+
+### Step 1: Note the Destination Application's Configuration
+
+```bash
+pocketd query application show-application <wrong_destination_address> \
+  --network=pocket-lego-testnet
+```
+
+### Step 2: Unstake the Destination Application
+
+```bash
+pocketd tx application unstake-application \
+  --from <wrong_destination_key> \
+  --keyring-backend test \
+  --network=pocket-lego-testnet
+```
+
+### Step 3: Wait for the Unbonding Period
+
+Check the unbonding period parameter:
+
+```bash
+pocketd query shared params -o json | jq .params.application_unbonding_period_sessions
+```
+
+Monitor the current block height:
+
+```bash
+pocketd query block -o json | tail -n -1 | jq .header.height
+```
+
+Wait until the unbonding period elapses after the session end height in which the unstake occurred.
+
+### Step 4: Re-stake the Wrong Destination (if needed)
+
+If the wrong destination address had its own previous configuration you want to restore:
+
+```bash
+pocketd tx application stake-application \
+  --config ./wrong_dest_restore_config.yaml \
+  --from <wrong_destination_key> \
+  --keyring-backend test \
+  --network=pocket-lego-testnet
+```
+
+### Step 5: Stake the Correct Destination
+
+Create a config file matching the transferred application's original configuration, then stake it at the intended address:
+
+```bash
+pocketd tx application stake-application \
+  --config ./correct_destination_config.yaml \
+  --from <correct_destination_key> \
+  --keyring-backend test \
+  --network=pocket-lego-testnet
+```
+
+## Quick Reference
+
+### All Application Transaction Commands
+
+| Command | Description |
+|---|---|
+| `pocketd tx application stake-application --config <file>` | Stake or upstake an application. |
+| `pocketd tx application unstake-application` | Begin unstaking an application. |
+| `pocketd tx application delegate-to-gateway <gw_addr>` | Delegate to a staked gateway. |
+| `pocketd tx application undelegate-from-gateway <gw_addr>` | Remove delegation from a gateway. |
+| `pocketd tx application transfer <src_addr> <dst_addr>` | Transfer an application to a new address. |
+
+### All Application Query Commands
+
+| Command | Description |
+|---|---|
+| `pocketd query application list-application` | List all staked applications. |
+| `pocketd query application show-application <addr>` | Show a specific application's details. |
+| `pocketd query application params` | Show application module governance parameters. |
+
+### Related Governance Parameters
+
+| Parameter | Module | Default | Description |
+|---|---|---|---|
+| `max_delegated_gateways` | `application` | 7 | Max gateways an app can delegate to. |
+| `min_stake` | `application` | <GovParam module="application" param="min_stake" format="upokt" /> | Minimum stake to register an app. |
+| `application_unbonding_period_sessions` | `shared` | (governance-set) | Sessions to wait after unstaking. |
+
+> **New in v0.1.31:** Historical parameter tracking was introduced in the v0.1.31 upgrade handler. Session-level parameter snapshots are now preserved, which affects how settlement and unbonding calculations reference parameters that may have changed mid-lifecycle.
+
+For more context on staking configuration, see [Application Staking](/developers/application-staking). For an introduction to the network, see [Getting Started](/get-started/pocketd-installation).
+
+</Tab>
+</Tabs>

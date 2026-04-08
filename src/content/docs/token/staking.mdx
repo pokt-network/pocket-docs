@@ -1,0 +1,103 @@
+---
+title: "Staking POKT"
+description: "All retail staking options — pools, node operators, and running your own node — with guidance on rewards, lock-ups, and risks."
+section: "token"
+persona: ["token-holder"]
+tabs: false
+status: "stable"
+sources: ["zip3/staking-pokt-retail-guide.docx"]
+lastUpdated: "2026-04-07"
+---
+
+Staking means locking POKT into the Pocket Network to help it run — and earning rewards in return. Unlike just holding, staking puts your tokens to active use: they secure the network, support relay infrastructure, and generate yield proportional to network activity.
+
+There is no single "staking" button. The right path depends on how much POKT you hold, your technical comfort level, and how much control you want.
+
+## Which Staking Path Is Right for You?
+
+| | Staking Pool | Node Runner | Own Node |
+| --- | --- | --- | --- |
+| **Minimum POKT** | None | <GovParam module="supplier" param="min_stake" format="pokt" /> | <GovParam module="supplier" param="min_stake" format="pokt" /> |
+| **Technical skill** | None | None | Linux CLI, server admin |
+| **Custody** | Pool holds funds | You hold funds | You hold funds |
+| **Operator fee** | Varies by pool | Varies by operator | None |
+| **Best for** | Beginners, small holders | Intermediate holders | Technical operators |
+
+## Option 1: Join a Staking Pool (Beginner-Friendly)
+
+A staking pool lets you earn rewards without meeting the 60,000 POKT minimum or running any infrastructure. The pool operator aggregates POKT from many participants, runs the node, and distributes rewards proportionally.
+
+### How It Works
+
+1. **Find a pool.** Browse active staking pools — linked from the [Pocket Network Discord](http://discord.gg/pocket-network) and [POKTscan](https://poktscan.com). Compare fee structures and track records.
+2. **Deposit your POKT.** Each pool has its own deposit process — typically sending native POKT to the pool's address. Use the verified pool address from the official list.
+3. **Earn rewards.** The pool earns relay rewards and distributes them periodically (weekly or monthly is common), minus the operator's fee.
+4. **Withdraw when ready.** All unstaking on Pocket Network has a 21-day unbonding period — this is a protocol requirement, not a pool choice. Check each pool's specific terms for any additional notice or withdrawal process on top of the standard unbonding.
+
+### What to Look For
+
+- **Operator fee:** Node operators charge a revenue share (revshare) of relay rewards. Rates vary by operator — review each pool's terms. Lower isn't always better — a pool with higher uptime may earn more even at a higher rate.
+- **Track record:** Check node performance on POKTscan. Look for consistent relay volume and minimal downtime.
+- **Withdrawal terms:** Understand how and when you can exit before depositing.
+- **Communication:** Active pools publish updates on Discord or their own channels. Silence is a warning sign.
+
+## Option 2: Pay a Node Runner (Intermediate)
+
+If you hold <GovParam module="supplier" param="min_stake" format="pokt" /> POKT or more but don't want to manage infrastructure, you can contract a professional node operator. They run the node using your stake, and you share the rewards. You retain custody of your POKT throughout.
+
+1. **Find a node operator** via the Pocket Network forum or Discord.
+2. **Agree on terms** — service fee (percentage or flat rate), node configuration, reward distribution.
+3. **Stake your POKT** to the node the operator runs. Your stake stays under your wallet's control.
+4. **Monitor performance** on [POKTscan](https://poktscan.com).
+
+## Option 3: Run Your Own Node (Advanced)
+
+Running your own Supplier node gives you full control and the maximum share of rewards — no operator fee, no custodial risk. The tradeoff is meaningful technical overhead.
+
+**Requirements:** Minimum <GovParam module="supplier" param="min_stake" format="pokt" /> native POKT stake, a reliable VPS or dedicated server, Linux CLI skills, and ongoing time for upgrades and monitoring.
+
+For full setup instructions, see [Supplier Staking](/node-operators/supplier-staking) and [RelayMiner Setup](/node-operators/relayminer-setup).
+
+## Understanding Staking Rewards
+
+### How Rewards Are Calculated
+
+Staking rewards are not a fixed APR — they are dynamic, proportional to relay volume:
+
+- 85% of all newly minted POKT goes to Suppliers. The other 15% goes to the DAO Treasury (10%) and Sequencers (5%).
+- Minting is relay-proportional: more relays = more POKT minted. Your share depends on the relays your node serves.
+- Burn offsets mint: relay fees are burned on-chain. As of April 2026, burn and mint are approximately balanced at ~38,000 POKT/day, meaning net inflation is near zero.
+- Programmatic deflation: [PIP-41](/token/pip-41) embedded a 2.5% deflation rate — at growing relay volumes, total burn outpaces mint.
+
+<Callout type="info">
+  There is no fixed annual yield to quote. Reward rates depend on total network relay volume, competing nodes, and POKT/USD price. Published APR estimates from third parties are indicative only — verify against current POKTscan data.
+</Callout>
+
+### Reward Frequency
+
+- **Own node:** Rewards accrue per session (approximately every few hours) and appear in your wallet on a rolling basis.
+- **Node runner:** Depends on your agreement — typically weekly or monthly settlements.
+- **Staking pool:** Varies by pool — weekly or monthly distributions are most common.
+
+### Lock-up Periods and Unstaking
+
+Once POKT is staked, it is locked — you cannot transfer or sell it until you unstake. The unbonding period is currently **21 days** for Suppliers. During this period, your tokens are not earning rewards and cannot be moved.
+
+## Risks to Understand
+
+**Market price risk:** Rewards are paid in POKT. If the POKT/USD price falls while your stake is locked, the USD value of your rewards and principal decreases. The 21-day unstaking period means you cannot react quickly to price movements.
+
+**Relay volume risk:** Rewards are proportional to relay volume. If network usage declines, fewer relays are served, less POKT is minted, and rewards fall.
+
+**Operator risk (pools and node runners):** You're exposed to the operator's performance and honesty. Mitigate by using operators with verifiable on-chain track records.
+
+**Protocol upgrade risk:** Major upgrades occasionally require node operators to act quickly. If you run your own node and miss an upgrade, it may fall out of sync until updated.
+
+**Smart contract risk (pools only):** Some pools use smart contracts. Bugs can put deposited funds at risk. Use pools with audited contracts and never deposit more than you can afford to lose.
+
+## Getting Started
+
+1. [Buy POKT](/token/how-to-buy) on a CEX or DEX
+2. [Bridge to native POKT](/token/bridge) if needed
+3. Choose your staking path above
+4. [Set up a wallet](/wallets/) if you haven't already

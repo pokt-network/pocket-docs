@@ -1,0 +1,228 @@
+---
+title: "Governance Internals"
+description: "Technical governance mechanics — how on-chain parameters are stored, updated, authorized, and enforced across Shannon modules."
+section: "protocol"
+persona: ["core-developer", "governance"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/docusaurus/3_protocol/governance/"]
+lastUpdated: "2026-04-08"
+---
+
+
+This page covers the technical implementation of governance in Shannon — how parameters are stored on-chain, how updates are authorized, and how module permissions work. For a governance participant's guide to proposals and voting, see [Governance](/governance/) instead.
+
+<Callout type="info">
+Shannon governance uses Cosmos SDK's built-in parameter management with custom authorization layers. Understanding these mechanics is essential for contributing to governance tooling or proposing parameter changes.
+</Callout>
+
+## Parameter Architecture
+
+Every Shannon module defines its own parameters in Protocol Buffers. Parameters are:
+
+- **Stored on-chain** in each module's parameter store
+- **Queryable** via module-specific query endpoints
+- **Updatable** through authorized governance transactions
+- **Validated** at both the proto level (types) and the keeper level (business logic)
+
+### Parameter Definition Pattern
+
+Each module follows a consistent pattern. Parameters are defined in `proto/poktroll/{module}/params.proto`:
+
+```protobuf
+message Params {
+  option (amino.name) = "poktroll/{module}/Params";
+  
+  uint64 some_parameter = 1;
+  string some_address = 2;
+  // ...
+}
+```
+
+The corresponding keeper exposes `GetParams()` and `SetParams()` methods, and a `MsgUpdateParams` message allows authorized accounts to modify them.
+
+### Where Parameters Live
+
+| Module | Key Parameters | Governs |
+|--------|---------------|---------|
+| `x/shared` | `num_blocks_per_session`, claim/proof window offsets, unbonding periods, `compute_units_to_tokens_multiplier` | Session timing, economic conversion rates |
+| `x/tokenomics` | `MintAllocationPercentages`, DAO reward address | How minted POKT is distributed |
+| `x/proof` | Proof requirements, validation thresholds | What constitutes a valid proof |
+| `x/application` | Min stake, max delegated gateways | Application staking rules |
+| `x/supplier` | Min stake | Supplier staking rules |
+| `x/gateway` | Min stake | Gateway staking rules |
+| `x/service` | `compute_units_per_relay`, add service fee | Service pricing and registration |
+
+## Authorization Model
+
+Shannon uses a layered authorization model for parameter updates. Not all parameters can be changed by the same authority, and some require multi-sig or governance proposals.
+
+### Module Authority
+
+Each module has an `authority` field that specifies which account can send `MsgUpdateParams`. In Shannon, this is typically set to the governance module account (`x/gov`), meaning parameter changes require a governance proposal to pass.
+
+```go
+// In module keeper initialization
+func NewKeeper(
+    authority string,  // Usually the gov module address
+    // ...
+) Keeper {
+    return Keeper{
+        authority: authority,
+    }
+}
+```
+
+### MsgUpdateParams Pattern
+
+Every module implements a `MsgUpdateParams` message handler:
+
+```go
+func (k msgServer) UpdateParams(
+    goCtx context.Context,
+    msg *types.MsgUpdateParams,
+) (*types.MsgUpdateParamsResponse, error) {
+    // 1. Verify sender is authorized
+    if msg.Authority != k.authority {
+        return nil, govtypes.ErrInvalidSigner
+    }
+    
+    // 2. Validate new params
+    if err := msg.Params.Validate(); err != nil {
+        return nil, err
+    }
+    
+    // 3. Apply
+    ctx := sdk.UnwrapSDKContext(goCtx)
+    k.SetParams(ctx, msg.Params)
+    
+    return &types.MsgUpdateParamsResponse{}, nil
+}
+```
+
+### Individual Parameter Updates
+
+Some modules also support updating individual parameters rather than replacing the entire params set. This is useful for targeted governance proposals:
+
+```protobuf
+message MsgUpdateParam {
+  string authority = 1;
+  string name = 2;
+  
+  oneof as_type {
+    uint64 as_uint64 = 3;
+    string as_string = 4;
+    bytes as_bytes = 5;
+    cosmos.base.v1beta1.Coin as_coin = 6;
+  }
+}
+```
+
+This pattern lets a governance proposal change a single parameter (e.g., `num_blocks_per_session`) without touching everything else.
+
+## Parameter Validation
+
+Parameters go through multiple validation layers:
+
+### Proto-Level Validation
+
+Type constraints are enforced at the protobuf level — uint64 can't be negative, addresses must be valid bech32, etc.
+
+### Params.Validate()
+
+Each module implements a `Validate()` method on its `Params` struct that enforces business logic constraints:
+
+```go
+func (p Params) Validate() error {
+    if p.NumBlocksPerSession < 1 {
+        return ErrInvalidNumBlocksPerSession
+    }
+    if p.ClaimWindowOpenOffsetBlocks >= p.ClaimWindowCloseOffsetBlocks {
+        return ErrInvalidClaimWindow
+    }
+    // Cross-field validation
+    return nil
+}
+```
+
+### Keeper-Level Validation
+
+Some constraints can only be checked with chain state context — for example, verifying that a new minimum stake doesn't orphan existing stakers. These checks happen in the message handler.
+
+<Callout type="warning">
+Parameter changes take effect immediately upon the governance proposal passing. There's no delay or phased rollout — operators should monitor governance proposals and prepare for parameter changes before they land.
+</Callout>
+
+## Governance Proposal Flow
+
+For a parameter change to reach the chain:
+
+1. **Draft proposal** — author writes a `MsgUpdateParams` or `MsgUpdateParam` with the proposed values
+2. **Submit proposal** — proposal is submitted on-chain with a deposit
+3. **Deposit period** — community deposits meet the minimum threshold
+4. **Voting period** — validators and delegators vote
+5. **Execution** — if passed, the message is executed by the governance module, which has the `authority` to call `MsgUpdateParams`
+
+### CLI Example
+
+```bash
+# Query current shared params
+pocketd query shared params
+
+# Submit a parameter update proposal (example)
+pocketd tx gov submit-proposal \
+  --type=msg-update-params \
+  --deposit=1000000upokt \
+  --title="Increase session length" \
+  --description="Increase num_blocks_per_session from 10 to 15" \
+  --from=<proposer_address>
+```
+
+## Auto-Generated Governance Params Page
+
+The poktroll repository includes a make target that auto-generates a governance parameters reference page from the proto definitions:
+
+```bash
+make docusaurus_update_gov_params_page
+```
+
+This ensures the documentation stays in sync with the actual proto definitions. The generated page lists every parameter across all modules with its type, default value, and description.
+
+<Callout type="tip">
+When contributing new parameters, always update the proto comments — these feed into the auto-generated governance page and serve as the canonical parameter documentation.
+</Callout>
+
+## Module Authorizations
+
+Beyond parameter updates, Shannon modules define specific authorization scopes for different operations:
+
+### Service Registration
+
+Adding a new service to the registry requires a fee payment (`add_service_fee` parameter) and creates a Source Owner relationship. The registering account becomes the service's Source Owner and earns the source owner share of settlement.
+
+### Stake Operations
+
+Staking operations (application, supplier, gateway) are self-authorized — the signer must be the staking account or its designated operator. Unstaking enforces unbonding periods defined in `x/shared` params.
+
+### Migration Authority
+
+The `x/migration` module has its own authority for Morse-to-Shannon migration operations. This is a restricted set of accounts authorized to process migration claims.
+
+## Extending Governance
+
+When adding a new governance-controlled parameter:
+
+1. Add the field to the module's `params.proto`
+2. Run `make proto_regen`
+3. Add validation logic in `Params.Validate()`
+4. Add default value in `DefaultParams()`
+5. Handle the parameter in `MsgUpdateParam` if supporting individual updates
+6. Update proto comments for the auto-generated docs page
+7. Write tests covering valid and invalid parameter values
+
+## Related Pages
+
+- [Governance](/governance/) — participant guide to proposals and voting
+- [Governance Parameters](/governance/parameters) — full parameter reference with current values
+- [Shannon Architecture](/protocol/architecture) — module overview
+- [Contributing](/protocol/contributing) — code review and contribution guidelines

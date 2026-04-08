@@ -1,0 +1,102 @@
+---
+title: "Soothe Vault Setup Guide"
+description: "Install, set up, and use the Soothe Vault wallet — covering new accounts, wallet import, wPOKT support, backup, and troubleshooting."
+section: "wallets"
+persona: ["token-holder"]
+tabs: false
+status: "stable"
+sources: ["zip3/soothe-vault-setup-guide.docx"]
+lastUpdated: "2026-04-07"
+---
+
+[Soothe Vault](https://trustsoothe.io) is a browser extension wallet built specifically for the Pocket Network ecosystem. It's the only wallet that manages both native POKT on Pocket mainnet and wPOKT on EVM chains (Ethereum, Base) in a single interface.
+
+**Before you start:** Chrome, Brave, or Firefox. About 5 minutes for a fresh install. If importing, have your seed phrase, private key, or JSON keyfile ready.
+
+## Part 1: Install Soothe Vault
+
+1. Go to [trustsoothe.io](https://trustsoothe.io) and click "Download Soothe Vault"
+2. Click "Add to Chrome" (or "Add to Firefox") and confirm the installation
+3. Click the Soothe Vault icon in your browser toolbar (pin it for quick access)
+
+## Part 2: Create Your Vault and First Wallet
+
+Your vault is the encrypted container that holds all your wallet accounts, protected by a password you set.
+
+1. **Create your vault password.** Click "Let's Get Started" and set a strong password. This encrypts all wallet data stored locally.
+2. **Create a new wallet.** Choose "New Account", select the network — "Pocket (Shannon Mainnet)" for native POKT, or "Ethereum" for wPOKT. Name it and click "Create".
+3. **Save your private key immediately.** Click the three-dot menu → "Export Private Key". Copy it and write it down offline.
+4. **Note your wallet address.** Pocket mainnet addresses start with `pokt1...`, Ethereum addresses with `0x...`.
+
+<Callout type="danger">
+  Back up your private key or seed phrase immediately after creation. Your vault password cannot be recovered if lost. Without a backup, your funds are gone permanently.
+</Callout>
+
+## Part 3: Import an Existing Wallet
+
+### Import via Seed Phrase
+
+Open Soothe Vault → account selector → "Import Account" → "Seed Phrase" → enter your 12 or 24-word phrase → select network → name the account → "Import".
+
+### Import via Private Key
+
+"Import Account" → "Private Key" → paste the full key → select network → "Import".
+
+### Import via JSON Keyfile
+
+"Import Account" → "Portable Wallet File" → upload your JSON keyfile → enter the encryption password → "Import".
+
+## Part 4: Using Soothe Vault with wPOKT
+
+Soothe Vault supports wPOKT on Ethereum and Base in the same interface as native POKT.
+
+**Switching networks:** Use the network selector (top left) to switch between Pocket mainnet, Ethereum, and Base.
+
+**Adding wPOKT:** Switch to Ethereum or Base → "Add Token" → paste the verified wPOKT contract address from [CoinGecko](https://coingecko.com/en/coins/pocket-network) → confirm.
+
+**Sending wPOKT:** Ensure you're on the correct network → "Send" → enter recipient and amount → review gas fees (you need ETH for gas) → confirm.
+
+**Connecting to DEXs:** Navigate to the DEX (Aerodrome, Uniswap, etc.) → "Connect Wallet" → select "Browser Extension Wallet" → approve in Soothe Vault.
+
+## Part 5: Managing Native POKT
+
+**Sending:** Switch to "Pocket (Shannon Mainnet)" → "Send" → enter the `pokt1...` recipient address and amount → review and confirm.
+
+**Receiving:** Click "Receive" to see your `pokt1...` address and QR code. Use this for bridging from wPOKT, receiving staking rewards, or transfers.
+
+**Verifying on-chain:** Search your `pokt1...` address on [POKTscan](https://poktscan.com) to independently verify balance and transaction history.
+
+## Part 6: Backup and Export
+
+<Callout type="warning">
+  Use both backup methods — per-account key export AND full vault backup.
+</Callout>
+
+**Export private key (per account):** Select account → three-dot menu → "Export Private Key" → enter vault password → write it on paper, store offline.
+
+**Export seed phrase:** If you created the wallet via seed phrase generation, three-dot menu → "Export Seed Phrase" → write it down in order.
+
+**Backup entire vault:** Top-level three-dot menu → "Backup Vault" → save the encrypted file to an external drive (not cloud storage). The file is encrypted with your vault password.
+
+**Restore from backup:** Fresh Soothe Vault install → "Restore from Backup" → upload file → enter vault password → all accounts restored.
+
+## Part 7: Shannon Migration (Morse → Shannon)
+
+If you held native POKT before the Shannon upgrade (June 2025):
+
+1. **Import your Morse wallet** — select "Pocket (Morse Mainnet)" as the network
+2. **Create a Shannon wallet** — "New Account" → "Pocket (Shannon Mainnet)"
+3. **Instantiate** — Go to [faucet.pocket.network](https://faucet.pocket.network), paste your Shannon address, send 1 MACT (free, registers your wallet on-chain)
+4. **Migrate** — Select your Morse wallet → "Migrate" → confirm both accounts → complete the claim
+
+## Part 8: Troubleshooting
+
+**Forgot vault password:** If you have a backup file, reinstall and restore. If you have private keys or seed phrases, reinstall and import from scratch. Without either, funds cannot be recovered.
+
+**Balance not showing:** Check you're on the correct network. For wPOKT, manually add the token. Verify on-chain via POKTscan (native) or Etherscan (wPOKT).
+
+**Sent POKT to wrong network:** wPOKT sent to a `pokt1...` address remains on Ethereum — search the transaction on Etherscan. Native POKT sent to an `0x...` address — contact [Pocket Discord](http://discord.gg/pocket-network) #support.
+
+**Transaction stuck:** On Ethereum, look for "Speed Up" or "Cancel" options. On Pocket mainnet and Base, transactions typically confirm within seconds.
+
+**DEX connection not working:** Make sure the DEX page is loaded, select "Injected Provider" when prompted, and verify Soothe Vault is on the correct network for that DEX.

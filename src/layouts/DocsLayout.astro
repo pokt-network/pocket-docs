@@ -1,0 +1,300 @@
+---
+/**
+ * DocsLayout — Standard docs page layout.
+ * 
+ * Implements the three-column layout from the design spec:
+ *   Sidebar (280px) | Content (720px max) | TOC (220px)
+ * 
+ * Responsive:
+ *   >1280px: full layout
+ *   1024-1280: TOC collapses
+ *   <1024: sidebar → hamburger overlay
+ * 
+ * ALL styling uses classes from global.css (tokens-and-components.css + prose.css).
+ * DO NOT add <style> blocks here — keep styles in the CSS files.
+ */
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  section?: string;
+  breadcrumbs?: Array<{ label: string; href?: string }>;
+}
+
+const { title, description = '', section = '', breadcrumbs = [] } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title} — Pocket Network Docs</title>
+  <meta name="description" content={description} />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- Skip to content (a11y) -->
+  <a href="#main-content" class="skip-link">Skip to content</a>
+
+  <!-- ═══ HEADER ═══ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="header-logo">
+        <div class="logo-mark">P</div>
+        Pocket <span class="docs-badge">Docs</span>
+      </a>
+      <div class="search-input-wrapper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="search" class="search-input" placeholder="Search docs…" aria-label="Search documentation" />
+        <span class="search-kbd">⌘K</span>
+      </div>
+      <nav class="header-nav">
+        <a href="https://github.com/pokt-network" target="_blank" rel="noopener">GitHub</a>
+        <a href="http://discord.gg/pocket-network" target="_blank" rel="noopener">Discord</a>
+        <div class="theme-toggle" id="theme-toggle">
+          <button id="theme-light-btn" aria-pressed="false">☀ Light</button>
+          <button id="theme-dark-btn" aria-pressed="false">☽ Dark</button>
+        </div>
+      </nav>
+      <button class="mobile-menu-btn" aria-label="Open navigation" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+          <path d="M3 12h18M3 6h18M3 18h18"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ PAGE LAYOUT ═══ -->
+  <div class="page-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <nav aria-label="Documentation navigation">
+        <slot name="sidebar" />
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main id="main-content" class="main-content">
+      {breadcrumbs.length > 0 && (
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          {breadcrumbs.map((crumb, i) => (
+            <>
+              {i > 0 && <span class="separator">›</span>}
+              {crumb.href
+                ? <a href={crumb.href}>{crumb.label}</a>
+                : <span class="current">{crumb.label}</span>
+              }
+            </>
+          ))}
+        </nav>
+      )}
+
+      <article class="article-content">
+        <h1>{title}</h1>
+        <slot />
+      </article>
+    </main>
+
+    <!-- Table of Contents (right rail) -->
+    <aside class="toc-rail" id="toc">
+      <slot name="toc" />
+    </aside>
+  </div>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>© {new Date().getFullYear()} Pocket Network Foundation</p>
+      <nav>
+        <a href="https://pocket.network" target="_blank" rel="noopener">pocket.network</a>
+        <a href="https://github.com/pokt-network" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+
+  <!-- Theme toggle script -->
+  <script is:inline>
+    // Check saved preference or system preference
+    const stored = localStorage.getItem('theme');
+    const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', stored || preferred);
+  </script>
+  <script is:inline>
+    (function () {
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        var lightBtn = document.getElementById('theme-light-btn');
+        var darkBtn = document.getElementById('theme-dark-btn');
+        if (lightBtn && darkBtn) {
+          lightBtn.classList.toggle('active', theme === 'light');
+          darkBtn.classList.toggle('active', theme === 'dark');
+          lightBtn.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+          darkBtn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        var theme = document.documentElement.getAttribute('data-theme') || 'light';
+        applyTheme(theme);
+
+        var lightBtn = document.getElementById('theme-light-btn');
+        var darkBtn = document.getElementById('theme-dark-btn');
+        if (lightBtn) lightBtn.addEventListener('click', function () { applyTheme('light'); });
+        if (darkBtn) darkBtn.addEventListener('click', function () { applyTheme('dark'); });
+      });
+    })();
+  </script>
+
+  <!-- FIX 5: TOC scroll-spy — highlights active heading link as user scrolls -->
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', function () {
+      var links = document.querySelectorAll('.toc-link');
+      if (!links.length) return;
+
+      var headingEls = Array.from(links).map(function (link) {
+        var id = link.getAttribute('href');
+        return id ? document.querySelector(id) : null;
+      }).filter(Boolean);
+
+      if (!headingEls.length) return;
+
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            links.forEach(function (l) { l.classList.remove('active'); });
+            var active = document.querySelector('.toc-link[href="#' + entry.target.id + '"]');
+            if (active) active.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-80px 0px -70% 0px', threshold: 0 });
+
+      headingEls.forEach(function (h) { observer.observe(h); });
+    });
+  </script>
+</body>
+</html>
+
+<style>
+  /* Layout-specific styles — these are structural, not visual.
+     Visual tokens (colors, fonts, spacing) come from global.css. */
+  
+  .skip-link {
+    position: absolute;
+    top: -100%;
+    left: var(--space-4);
+    background: var(--brand-blue);
+    color: white;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md);
+    z-index: 1000;
+    font-size: var(--text-sm);
+  }
+  .skip-link:focus { top: var(--space-2); }
+
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--header-height);
+    background: var(--bg-header);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-primary);
+  }
+
+  .header-inner {
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: 0 var(--space-5);
+  }
+
+  .header-inner .search-input-wrapper {
+    flex: 1;
+    max-width: 360px;
+    margin: 0 var(--space-4);
+  }
+
+  .mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .page-layout {
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr var(--toc-width);
+    min-height: calc(100vh - var(--header-height));
+  }
+
+  .sidebar {
+    padding: var(--space-6) 0;
+    border-right: 1px solid var(--border-secondary);
+    background: var(--bg-sidebar);
+  }
+
+  .main-content {
+    padding: var(--space-8) var(--space-10);
+    min-width: 0; /* prevent grid blowout */
+  }
+
+  .toc-rail {
+    padding: var(--space-6) var(--space-5);
+    border-left: 1px solid var(--border-secondary);
+  }
+
+  .site-footer {
+    border-top: 1px solid var(--border-primary);
+    padding: var(--space-8) var(--space-5);
+  }
+
+  .footer-inner {
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+  }
+
+  .footer-inner nav {
+    display: flex;
+    gap: var(--space-5);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 1280px) {
+    .page-layout { grid-template-columns: var(--sidebar-width) 1fr; }
+    .toc-rail { display: none; }
+  }
+
+  @media (max-width: 1024px) {
+    .page-layout { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed;
+      left: -100%;
+      top: var(--header-height);
+      width: var(--sidebar-width);
+      z-index: 40;
+      transition: left var(--transition-slow);
+      border-right: 1px solid var(--border-primary);
+      box-shadow: var(--shadow-lg);
+    }
+    .sidebar.open { left: 0; }
+    .mobile-menu-btn { display: block; }
+    .header-inner .search-input-wrapper { display: none; }
+    .main-content { padding: var(--space-6) var(--space-4); }
+  }
+</style>

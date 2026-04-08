@@ -1,0 +1,765 @@
+---
+title: "Troubleshooting & FAQ"
+description: "Common issues and solutions for Suppliers, Gateways, Applications, and general pocketd usage."
+section: "node-operators"
+persona: ["node-operator", "gateway-operator", "developer"]
+tabs: true
+status: "stable"
+sources: ["zip1/15-troubleshooting-faq.md", "zip2/15-troubleshooting-faq.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+## General / Full Node FAQ
+
+### How do I check my node version?
+
+You can check which version of the Pocket Network software your node is running by querying it directly. This is important because protocol upgrades happen periodically, and your node must be on the correct version to stay compatible with the rest of the network. See the technical docs for the exact command.
+
+### How do I check the latest block height?
+
+The block height tells you how far along the blockchain has progressed. You can query your node to see the latest block it has processed. If your node's block height is significantly behind the network's latest block, it means your node is still catching up (synchronizing). The technical docs cover several ways to check this.
+
+### How do I view node status and logs?
+
+Your node runs as a background service on your server. You can check whether the service is running, view its real-time logs to see what it is doing, and start, stop, or restart it as needed. Logs are especially useful when diagnosing problems — they show you exactly what your node is doing moment by moment. Refer to the technical documentation for the specific commands.
+
+### How do I check if my node is accessible from another machine?
+
+You can test whether your node's peer-to-peer port is reachable from another computer on the internet. This is important because if other nodes cannot reach yours, your node cannot participate fully in the network. The technical docs explain how to run a simple connectivity test.
+
+### How do I check if my node is fully synchronized?
+
+When you first start a node, it needs to download and validate all the blockchain data from the network. This can take some time. You can check your node's status to see whether it is still catching up or has finished synchronizing. Your node must be fully synchronized before you can create a Validator, stake tokens, or perform other onchain operations.
+
+### How do I access my node's query endpoint from outside the server?
+
+By default, your node only accepts queries from the server it is running on. If you need other machines (like your Gateway or RelayMiner on a different server) to query your node, you need to open the appropriate port and update the configuration. Be cautious about exposing this publicly, as malicious actors may try to overwhelm your node with requests. The technical docs walk through this configuration.
+
+### How do I check if an upgrade is available?
+
+Protocol upgrades are managed through a tool called Cosmovisor, which automatically downloads and applies new software versions at the right time. You can inspect your node's upgrade directory to see if any upgrades are pending or have been applied. The technical docs show how to check this.
+
+### How do I check for applied upgrades?
+
+You can query the network to confirm whether a specific upgrade has been applied and at which block height it took effect. This is useful for verifying that your node is on the expected version after an upgrade.
+
+### How do I view my node configuration?
+
+Your node's behavior is controlled by configuration files stored on your server. You can view these files to confirm settings like pruning mode, network peers, and port assignments. The technical documentation explains where these files are located and how to read them.
+
+### Where do I find information about protocol upgrades?
+
+Protocol upgrades are tracked on the Pocket Network developer site at dev.poktroll.com and on the GitHub releases page. These are the official sources for upgrade announcements and release notes.
+
+### Should I run my own query endpoint?
+
+Yes. While public endpoints exist, they are shared by the entire community and have no guarantees around availability or speed. If you operate a Supplier, Gateway, or any service that depends on reliable blockchain queries, running your own Full Node as a dedicated query endpoint is strongly recommended.
+
+### What should I know about early Beta TestNet blocks?
+
+Some of the earliest blocks on the Beta TestNet were created during stress tests and may take a long time to validate — potentially hours. If you are syncing from the very beginning (genesis), be prepared for this delay, or use a snapshot to skip ahead to a more recent point.
+
+## Validator FAQ
+
+### How many validators can be active?
+
+Any number of Validators can stake POKT, but only a limited number are in the "active set" at any given time. The active set is determined by stake weight: the Validators with the most POKT staked (including tokens delegated to them by others) fill the available slots. This limit is controlled by a network parameter called `max_validators`, which can be changed through governance. Think of it like seats at a table — there are only so many chairs, and the biggest stakeholders get priority.
+
+### How do I check the max_validators parameter?
+
+You can query the staking parameters on the network to see the current value. The technical docs provide the exact command.
+
+### How do I query the active set of validators?
+
+You can query the network to see the full list of active Validators, including their stake amounts and status. This helps you understand where you stand relative to other Validators.
+
+### How do I become an active validator?
+
+Active Validators are selected purely by stake weight. If you stake more POKT than the Validator currently holding the last active slot, you enter the active set and that Validator becomes inactive. Inactive Validators are not penalized or deleted — they remain candidates and can still receive delegations. They simply do not earn block rewards until they re-enter the active set.
+
+### How do I delegate additional tokens to my validator?
+
+You can send a delegation transaction to increase your Validator's total stake. Higher stake improves your chances of staying in (or entering) the active set. The technical docs cover the exact transaction format.
+
+### How do I unbond (undelegate) tokens from my validator?
+
+You can withdraw staked tokens, but there is a mandatory waiting period (called the unbonding period) before the tokens become available for transfer. During this time, the tokens are locked and cannot be used. You can check the current unbonding duration by querying the network's staking parameters.
+
+### How does reward share work for validators?
+
+Validators earn rewards from two sources: block production rewards and transaction fee commissions. If other token holders have delegated POKT to your Validator, they receive a proportional share of the rewards, minus the commission rate you set. This follows the standard Cosmos SDK staking model.
+
+### How do I view my validator's accumulated rewards?
+
+You can query the network to see your Validator's outstanding rewards, accumulated commission, and overall distribution information. The technical docs provide the specific queries.
+
+### How do I withdraw validator commission rewards?
+
+You can submit a transaction to withdraw your accumulated rewards and commission at any time. The technical docs explain the exact command.
+
+### What keys do I need to back up?
+
+This is critical. You must back up three things immediately after setting up your Validator:
+
+1. **Your Validator account key** — the address you used to stake.
+2. **Your block-signing key** — used to sign blocks during consensus.
+3. **Your node networking key** — used for peer-to-peer communication.
+
+Losing any of these can result in penalties (slashing) or permanent loss of access to your staked tokens. Store them securely and offline.
+
+### What security practices should I follow?
+
+- Never share or expose your private keys or recovery phrases.
+- Store keys and recovery phrases in secure, offline locations.
+- Monitor your Validator status regularly — extended downtime can result in "jailing" (temporary suspension from the active set).
+- Keep enough POKT in your account to cover transaction fees.
+- When setting your commission rate, use the correct format (for example, 0.1 means 10%).
+
+## Supplier FAQ
+
+### What Supplier operations are available?
+
+Suppliers have a range of onchain operations available, including staking, unstaking, and querying. You can explore the full list of available commands by consulting the technical documentation.
+
+### What Supplier queries are available?
+
+You can query the network for information about Suppliers, including listing all registered Suppliers, filtering by owner or operator address, and viewing lightweight (summary) records. The technical docs cover all query options.
+
+### How do I query all onchain Suppliers?
+
+You can query the network to get a complete list of all registered Suppliers, including their staked amounts, services offered, and endpoint information. Recent updates also allow filtering by owner address, operator address, or requesting lightweight records for faster results.
+
+### What is the difference between a RelayMiner and a Supplier?
+
+This is a common point of confusion. A **Supplier** is your onchain identity — a record on the blockchain showing that you have staked POKT and registered to provide certain services. A **RelayMiner** is the actual software running on your server that does the work of processing relay requests.
+
+Think of it this way: the Supplier is your business license posted on the wall. The RelayMiner is you, actually doing the work behind the counter. You need both: the onchain registration (Supplier) and the running software (RelayMiner) to earn rewards.
+
+### How do I configure gRPC endpoints for the RelayMiner?
+
+Your RelayMiner needs to connect to a Full Node to stay informed about the state of the blockchain. This connection uses a protocol called gRPC. The configuration depends on whether your Full Node uses encryption (TLS) or not. The technical docs explain the configuration details and how to verify your connection.
+
+## Application FAQ
+
+### What onchain operations are available for Applications?
+
+Applications can stake, unstake, delegate to Gateways, and query their status on the network. The technical documentation lists all available operations.
+
+### How do I update the services staked on my Application?
+
+If you want to change which services your Application can access, you re-submit your staking configuration with the updated list of services. The staked amount must be equal to or greater than what you currently have staked. This effectively updates your service subscriptions without requiring you to unstake and re-stake from scratch.
+
+## Gateway FAQ
+
+### What onchain operations are available for Gateways?
+
+Gateways have their own set of staking and query operations. The technical documentation covers the full range of available commands.
+
+## Service FAQ
+
+### How do I query all onchain Services?
+
+You can query the network to see every registered Service, including its name, compute cost, and owner. This is useful for discovering what services are available on the network.
+
+### How do I add a new Service?
+
+Registering a new Service on the network requires a transaction that includes the service ID, a human-readable name, and the compute cost per relay. The technical docs walk through the process.
+
+### I am getting "out of gas" when adding a service with large metadata
+
+When you register a Service with a large metadata file (up to 256 KB is supported), the transaction may require more processing resources ("gas") than the default allowance. The solution is to let the network automatically estimate the gas needed rather than using a fixed amount. See the technical docs for the exact approach.
+
+## Migration FAQ (Morse to Shannon)
+
+### What happens to a Morse node that is both a Validator and a Supplier?
+
+During the migration from the old Morse protocol to the new Shannon protocol, nodes that served both roles are migrated only as Suppliers. The Validator role does not carry over automatically. If you want to be a Validator on Shannon, you need to set that up separately.
+
+### What is changing with the migration?
+
+Several important things change:
+
+- **New key format** — Shannon uses a different cryptographic key system (Cosmos-based). You will need new wallets.
+- **Manual token claim** — Your tokens do not transfer automatically. You must claim them on the new network.
+- **Token minting stops on Morse** — After the migration snapshot, no new tokens are created on the old chain.
+- **Exchange updates required** — Exchanges and custodians must update their integrations for the new chain format.
+
+### What is NOT changing?
+
+- The network is still called Pocket Network.
+- The token ticker remains POKT.
+- All state (balances, staking records, etc.) migrates one-to-one from Morse to Shannon.
+
+### How do exchanges prepare?
+
+Exchanges need to create new Cosmos-compatible wallets, integrate with Shannon Full Nodes or use Foundation-provided endpoints, and claim tokens on the new network after the migration window opens. An emergency recovery mechanism is available for accounts that encounter issues during migration.
+
+## Disk Utilization Troubleshooting
+
+### My node disk is filling up. What should I check?
+
+Start by checking the size of each database on your node. Then review your pruning configuration to make sure old data is being cleaned up properly. Also check your indexing configuration — if you do not need the transaction index, turning it off can save significant space.
+
+If your state database exceeds 1 GB on a non-archival node, pruning is almost certainly misconfigured. See the Hardware and Infrastructure section for guidance.
+
+### How do I recover from an oversized database?
+
+The most effective approach is to restore from a snapshot: stop your node, back up your keys, replace the old data with a clean snapshot, and restart. This gets you back to a healthy state without having to re-sync from the beginning. Always back up your validator keys before deleting any data. The technical docs provide step-by-step instructions.
+
+### Can I selectively reset a single database?
+
+Yes. If only one database is causing problems (for example, the transaction index has grown too large), you can stop your node, delete just that database, adjust the configuration if needed, and restart. The node will rebuild or skip that database depending on your settings.
+
+## Common Errors and Solutions
+
+### "Out of gas" errors on transactions
+
+When a transaction fails with an "out of gas" error, it means the transaction needed more processing resources than you allocated. The fix is to use automatic gas estimation, which lets the network calculate the right amount for you. The technical docs explain the exact flags to use.
+
+### Node not connecting to peers
+
+If your node cannot find or connect to other nodes on the network, check three things:
+
+1. **Firewall** — Make sure the peer-to-peer port is open and accessible from the outside.
+2. **Peer configuration** — Verify that your node's configuration includes the correct seed nodes and persistent peers.
+3. **External address** — Confirm that your node's external IP address is correctly set in the configuration.
+
+### Cosmovisor not auto-upgrading
+
+Cosmovisor is the tool that handles automatic software upgrades. If it is not applying upgrades correctly, check that it is configured properly with the right environment variables and directory structure. Review the service logs for error messages. The technical docs cover all the configuration details.
+
+### Validator is jailed
+
+A Validator can be "jailed" — temporarily suspended from the active set — if it misses too many blocks (downtime) or signs conflicting blocks (double-signing). Jailing is a protective mechanism that keeps unreliable Validators from harming the network.
+
+To get un-jailed, you submit a special transaction after resolving the underlying issue. You can also query the current slashing parameters to understand the thresholds that trigger jailing. The technical docs provide the commands for both actions.
+
+Note: The testnet chain ID was recently renamed from `pocket-beta` to `pocket-lego-testnet`. If you have scripts or configurations referencing the old name, update them accordingly.
+
+</Tab>
+<Tab label="Advanced">
+
+This document consolidates frequently asked questions and troubleshooting guidance for all Pocket Network actors. It is organized by actor type for quick reference.
+
+## General / Full Node FAQ
+
+### How do I check my node version?
+
+```bash
+pocketd version
+```
+
+To check the version of a remote Full Node via its RPC endpoint:
+
+```bash
+curl -s https://your-rpc-endpoint:26657/abci_info | jq '.result.response.version'
+```
+
+### How do I check the latest block height?
+
+Using `pocketd`:
+
+```bash
+pocketd query block --type=height --network=mainnet
+```
+
+Using `curl` against the local CometBFT RPC:
+
+```bash
+curl -X GET http://localhost:26657/block | jq '.result.block.header.height'
+```
+
+### How do I view node status and logs?
+
+```bash
+# Check service status
+sudo systemctl status cosmovisor.service
+
+# View live logs
+sudo journalctl -u cosmovisor.service -f
+
+# Stop the node
+sudo systemctl stop cosmovisor.service
+
+# Start the node
+sudo systemctl start cosmovisor.service
+
+# Restart the node
+sudo systemctl restart cosmovisor.service
+```
+
+### How do I check if my node is accessible from another machine?
+
+```bash
+nc -vz <EXTERNAL_IP> 26656
+```
+
+### How do I check if my node is fully synchronized?
+
+```bash
+pocketd status
+```
+
+Verify that the `sync_info.catching_up` field is `false`. Your Full Node must be fully synchronized before creating a Validator or performing onchain operations.
+
+### How do I access my CometBFT endpoint externally?
+
+The default CometBFT RPC port is `26657`. To expose it:
+
+```bash
+# Open the port in the firewall
+sudo ufw allow 26657/tcp
+
+# Update CometBFT config to listen on all interfaces
+sed -i 's|laddr = "tcp://127.0.0.1:26657"|laddr = "tcp://0.0.0.0:26657"|' ~/.pocket/config/config.toml
+sed -i 's|cors_allowed_origins = \[\]|cors_allowed_origins = ["*"]|' ~/.pocket/config/config.toml
+
+# Restart the service
+sudo systemctl restart cosmovisor.service
+
+# Test the connection
+nc -vz <EXTERNAL_IP> 26657
+```
+
+Be careful exposing this publicly, as adversarial actors may attempt to overload your node.
+
+### How do I check if an upgrade is available?
+
+```bash
+ls -la ~/.pocket/cosmovisor/upgrades/
+```
+
+### How do I check for applied upgrades?
+
+```bash
+pocketd query upgrade applied v0.1.33
+```
+
+This returns the block height at which the specified upgrade was applied.
+
+### How do I view my node configuration?
+
+```bash
+cat ~/.pocket/config/config.toml
+```
+
+### Where do I find information about protocol upgrades?
+
+Protocol upgrades are tracked at [dev.poktroll.com/develop/upgrades/upgrade_list](https://dev.poktroll.com/develop/upgrades/upgrade_list). The source of truth for releases is the [GitHub releases page](https://github.com/pokt-network/poktroll/releases).
+
+### Should I run my own RPC endpoint?
+
+Yes. While public RPC endpoints exist, running your own is recommended, especially if you operate a Supplier, Gateway, or indexer. Public endpoints have no guarantees around availability or throughput for all community traffic.
+
+### What should I know about early Beta TestNet blocks?
+
+Early blocks on Beta TestNet may take extended time to validate (potentially hours) due to historical load tests. Use a snapshot or wait for validation to complete if syncing from genesis.
+
+### How do I check the Cosmovisor directory structure?
+
+```bash
+ls -la ~/.pocket/cosmovisor/
+```
+
+## Validator FAQ
+
+### How many validators can be active?
+
+An unlimited number of validators can stake, but only the top `max_validators` by total stake are in the active set and produce blocks. The active set is recalculated at the end of each block.
+
+### How do I check the max_validators parameter?
+
+```bash
+pocketd query staking params
+```
+
+### How do I query the active set of validators?
+
+```bash
+pocketd query staking validators
+```
+
+### How do I become an active validator?
+
+Active validators are determined by stake weight. Only the top N validators (where N is `max_validators`) are eligible to produce blocks. If a new validator stakes more than the lowest-ranked active validator, the new validator enters the active set and the lower-staked validator becomes inactive.
+
+Inactive validators are not slashed or deleted — they remain candidates and can still receive delegations.
+
+### How do I delegate additional tokens to my validator?
+
+```bash
+pocketd tx staking \
+  delegate <validator-operator-address> 1000000upokt \
+  --from my-account \
+  --fees 200000upokt \
+  --network=mainnet
+```
+
+### How do I unbond (undelegate) tokens from my validator?
+
+```bash
+pocketd tx staking \
+  unbond <validator-operator-address> 500000upokt \
+  --from my-account \
+  --fees 200000upokt \
+  --network=mainnet
+```
+
+Unbonding initiates a lock period during which tokens cannot be transferred. Check the unbonding duration with:
+
+```bash
+pocketd query staking params -o json | jq '.params.unbonding_time'
+```
+
+### How does reward share work for validators?
+
+Shannon uses standard Cosmos SDK staking and delegation mechanics. Validators earn block rewards and transaction fee commissions. Delegators receive a proportional share of rewards minus the validator's commission rate.
+
+See the [Cosmos staking documentation](https://docs.cosmos.network/main/build/modules/staking) for details.
+
+### How do I view my validator's accumulated rewards?
+
+```bash
+export VALIDATOR_ADDR="poktvaloper1..."
+
+# View un-withdrawn rewards
+pocketd query distribution validator-outstanding-rewards $VALIDATOR_ADDR --network=mainnet -o json | jq
+
+# View accumulated commission
+pocketd query distribution commission $VALIDATOR_ADDR --network=mainnet -o json | jq
+
+# View all distribution info
+pocketd query distribution validator-distribution-info $VALIDATOR_ADDR --network=mainnet -o json | jq
+```
+
+### How do I withdraw validator commission rewards?
+
+```bash
+pocketd tx distribution withdraw-all-rewards \
+  --from <your-account-address> \
+  --network=mainnet --gas=auto --fees=10upokt
+```
+
+### What keys do I need to back up?
+
+Back up these files immediately after setting up your validator. Losing them can result in slashing or permanent loss of access:
+
+- Your validator account key (the address you staked from)
+- `~/.pocket/config/priv_validator_key.json` — used to sign blocks
+- `~/.pocket/config/node_key.json` — used for P2P networking
+
+### What security practices should I follow?
+
+- Never share or expose mnemonic phrases or private keys.
+- Store keys and mnemonics in secure, offline locations.
+- Monitor your validator status regularly to prevent jailing from downtime.
+- When configuring validator commission rates, use decimal format (e.g., `0.1` for 10%).
+- Ensure sufficient balance for staking amounts and transaction fees.
+
+## Supplier FAQ
+
+### What Supplier operations are available?
+
+```bash
+pocketd tx supplier -h
+```
+
+### What Supplier queries are available?
+
+```bash
+pocketd query supplier -h
+```
+
+### How do I query all onchain Suppliers?
+
+```bash
+pocketd query supplier list-suppliers --network=mainnet --output json | jq
+```
+
+> **New in v0.1.31:** You can filter suppliers using `--owner`, `--operator`, or `--dehydrated` flags for more targeted queries.
+
+```bash
+# Filter by owner address
+pocketd query supplier list-suppliers --owner pokt1abc123... --network=mainnet --output json | jq
+
+# Filter by operator address
+pocketd query supplier list-suppliers --operator pokt1def456... --network=mainnet --output json | jq
+
+# Return dehydrated (lightweight) supplier records
+pocketd query supplier list-suppliers --dehydrated --network=mainnet --output json | jq
+```
+
+### What is the difference between a RelayMiner and a Supplier?
+
+A **Supplier** is an onchain actor — a record on the blockchain representing a staked service provider with an address, stake amount, and list of services. A **RelayMiner** is the offchain process that actually proxies relay requests between PATH Gateways and the backend service being supplied. Every Supplier needs a running RelayMiner to earn rewards.
+
+### How do I configure gRPC endpoints for the RelayMiner?
+
+In the RelayMiner configuration file, the `query_node_grpc_url` specifies how the RelayMiner connects to a Full Node's gRPC endpoint.
+
+If `grpc-insecure=true`, use an HTTP (non-TLS) endpoint:
+
+```bash
+# Validate a plaintext gRPC endpoint
+grpcurl -plaintext <host>:<port> list
+```
+
+If `grpc-insecure=false`, use an HTTPS (TLS-terminated) endpoint:
+
+```bash
+# Validate a TLS gRPC endpoint
+grpcurl <host>:<port> list
+```
+
+Note: Do not pass the `-plaintext` flag when connecting to a TLS-terminated endpoint.
+
+> **New in v0.1.31:** Supplier staking now supports `--stake-only` and `--services-only` modes for partial updates without modifying the entire staking configuration.
+
+## Application FAQ
+
+### What onchain operations are available for Applications?
+
+```bash
+# Query help
+pocketd query application --help
+
+# Transaction help
+pocketd tx application --help
+```
+
+### How do I update the services staked on my Application?
+
+Re-run the staking command with an updated configuration. The staked amount in the config must be equal to or exceed the current staked amount:
+
+```bash
+cat <<EOF > /tmp/stake_app_config.yaml
+stake_amount: 1000000000upokt
+service_ids:
+  - anvil
+  - eth
+EOF
+
+pocketd tx application stake-application \
+  --config=/tmp/stake_app_config.yaml \
+  --from <app-address> \
+  --fees 200000upokt \
+  --network=mainnet
+```
+
+## Gateway FAQ
+
+### What onchain operations are available for Gateways?
+
+```bash
+# Query help
+pocketd query gateway --help
+
+# Transaction help
+pocketd tx gateway --help
+```
+
+## Service FAQ
+
+### How do I query all onchain Services?
+
+```bash
+pocketd query service all-services --network=mainnet --output json | jq
+```
+
+### How do I add a new Service?
+
+```bash
+pocketd tx service add-service my-service "My Service Name" 1000 \
+  --from <owner-address> \
+  --fees 200000upokt \
+  --network=mainnet -y
+```
+
+> **New in v0.1.31:** Use `pocketd tx service edit-service` to batch-update service fields without re-creating the service.
+
+```bash
+pocketd tx service edit-service my-service \
+  --name "Updated Service Name" \
+  --compute-units-per-relay 2000 \
+  --from <owner-address> \
+  --fees 200000upokt \
+  --network=mainnet -y
+```
+
+### I am getting "out of gas" when adding a service with large metadata
+
+When adding a service with a large metadata file (up to 256 KiB is supported), you may hit gas limits:
+
+```
+Error: out of gas in location: txSize; gasWanted: 200000, gasUsed: 1910452: out
+```
+
+Replace `--fees=100upokt` with automatic gas estimation:
+
+```bash
+pocketd tx service add-service my-service "My Service" 1000 \
+  --from <owner-address> \
+  --gas auto --gas-prices 1upokt --gas-adjustment 1.5 \
+  --experimental-metadata-file=metadata.json \
+  --network=mainnet -y
+```
+
+## Migration FAQ (Morse to Shannon)
+
+### What happens to a Morse node that is both a Validator and a Supplier?
+
+During the Shannon migration, the node is claimed only as a **Supplier** (equivalent to a Servicer in Morse). The Validator role does not carry over. Validators must be set up separately on Shannon.
+
+### What is changing with the migration?
+
+- Shannon uses the Cosmos cryptographic key scheme. New wallets are required.
+- Tokens must be claimed manually on the new network.
+- Token minting on Morse stops at the snapshot block.
+- Exchanges and custodians must update their integrations.
+
+### What is NOT changing?
+
+- Network name remains Pocket Network.
+- Ticker remains POKT.
+- All state migrates 1:1 from Morse to Shannon.
+
+### How do exchanges prepare?
+
+1. Create a new Cosmos-based wallet using `pocketd keys add` or a compatible wallet (Keplr, Soothe Vault).
+2. Integrate with the Shannon Full Node or use a Foundation-sponsored RPC endpoint.
+3. Claim tokens on the new network after the migration window.
+
+> **New in v0.1.31:** `MsgAdminRecoverMorseAccount` is available for emergency recovery of Morse accounts that encounter issues during migration.
+
+## Disk Utilization Troubleshooting
+
+### My node disk is filling up. What should I check?
+
+1. **Check database sizes:**
+
+   ```bash
+   du -sh ~/.pocket/data/*.db
+   ```
+
+2. **Review pruning configuration:**
+
+   ```bash
+   grep -A 10 "pruning" ~/.pocket/config/app.toml
+   grep "min-retain-blocks" ~/.pocket/config/app.toml
+   ```
+
+3. **Check indexing configuration:**
+
+   ```bash
+   grep -A 5 "tx_index" ~/.pocket/config/config.toml
+   ```
+
+If `state.db` exceeds 1 GB on a non-archival node, pruning is likely misconfigured. See the [Hardware and Infrastructure](/node-operators/hardware-requirements) guide for pruning configuration details.
+
+### How do I recover from an oversized database?
+
+The most efficient approach is snapshot-based recovery:
+
+```bash
+# Stop your node
+sudo systemctl stop cosmovisor.service
+
+# Back up validator keys
+cp ~/.pocket/config/priv_validator_key.json ~/backup/
+cp ~/.pocket/config/node_key.json ~/backup/
+
+# Remove old data
+rm -rf ~/.pocket/data
+
+# Download and extract a snapshot
+wget <snapshot-url>
+tar -xzf poktroll-latest.tar.gz -C ~/.pocket/data/
+
+# Restart
+sudo systemctl start cosmovisor.service
+```
+
+### Can I selectively reset a single database?
+
+Yes. For example, to reset an oversized `tx_index.db`:
+
+```bash
+sudo systemctl stop cosmovisor.service
+rm -rf ~/.pocket/data/tx_index.db
+
+# Disable indexing if not needed (edit config.toml)
+# Set: indexer = "null"
+
+sudo systemctl start cosmovisor.service
+```
+
+## Common Errors and Solutions
+
+### "out of gas" errors on transactions
+
+Use automatic gas estimation instead of fixed fees:
+
+```bash
+pocketd tx <subcommand> ... \
+  --gas auto --gas-prices 1upokt --gas-adjustment 1.5 \
+  --network=mainnet
+```
+
+### Node not connecting to peers
+
+1. Verify the P2P port is open:
+
+   ```bash
+   sudo ufw allow 26656/tcp
+   nc -vz <EXTERNAL_IP> 26656
+   ```
+
+2. Check that seeds and persistent peers are configured in `~/.pocket/config/config.toml`.
+
+3. Verify your node's external address is correctly set in `config.toml`.
+
+### Cosmovisor not auto-upgrading
+
+1. Check that Cosmovisor environment variables are set:
+
+   ```bash
+   echo $DAEMON_NAME    # should be "pocketd"
+   echo $DAEMON_HOME    # should be "~/.pocket"
+   ```
+
+2. Verify the upgrades directory:
+
+   ```bash
+   ls -la ~/.pocket/cosmovisor/upgrades/
+   ```
+
+3. Cosmovisor downloads new binaries automatically. If an upgrade binary is missing, check service logs:
+
+   ```bash
+   sudo journalctl -u cosmovisor.service -f
+   ```
+
+### Validator is jailed
+
+A validator can be jailed for downtime or double-signing. To unjail:
+
+```bash
+pocketd tx slashing unjail \
+  --from <validator-account> \
+  --fees 200000upokt \
+  --network=mainnet
+```
+
+Check current slashing parameters:
+
+```bash
+pocketd query slashing params --network=mainnet
+```
+
+> **New in v0.1.31:** The chain ID for the testnet has been renamed from `pocket-beta` to `pocket-lego-testnet`. Update any scripts or configurations that reference the old chain ID.
+
+</Tab>
+</Tabs>

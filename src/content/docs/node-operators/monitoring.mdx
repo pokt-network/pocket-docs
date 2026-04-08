@@ -1,0 +1,98 @@
+---
+title: "Monitoring"
+description: "Prometheus metrics, Grafana dashboards, and operational monitoring for Pocket Network node operators."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+sources: ["zip4/poktroll/localnet/grafana-dashboards/", "zip4/pocket-relay-miner/CLAUDE.md", "zip4/path/CLAUDE.md"]
+lastUpdated: "2026-04-07"
+---
+
+Every Pocket Network service exposes Prometheus metrics. This guide covers what to monitor and where to find it.
+
+## Metrics Endpoints by Service
+
+| Service | Metrics Port | Key Metrics |
+| --- | --- | --- |
+| **poktroll (full node)** | 26660 (CometBFT) | Block height, peers, consensus state |
+| **RelayMiner (standard)** | 80 (HTTP) | Relay count, latency, session activity |
+| **HA RelayMiner (relayer)** | 9090 | requests_total, relay_duration, connection pool |
+| **HA RelayMiner (miner)** | 9092 | claims_submitted, proofs_submitted, SMST ops |
+| **PATH** | 9090 | requests_total, relay_duration, reputation_score |
+
+## What to Monitor
+
+### Critical Alerts (Set These First)
+
+| Condition | Severity | Action |
+| --- | --- | --- |
+| Expired proofs > 0 | **Critical** | RelayMiner failing to submit proofs — lost rewards. Check logs, wallet balance. |
+| Node wallet balance < 1 POKT | **Warning** | May not have enough for claim/proof tx fees. Top up immediately. |
+| Block height stale > 5 min | **Critical** | Node out of sync — not earning. Check full node and peers. |
+| Claims >> Proofs | **Warning** | Gap means some proofs failing. Check proof submission logs. |
+
+### Operational Metrics
+
+**Relay throughput:** `requests_total` or relay counters — track over time to understand volume trends and capacity utilization.
+
+**Latency:** `relay_duration_seconds` histogram — monitor p50, p95, p99. Degraded latency affects QoS score and session selection.
+
+**Error rate:** 5xx responses, timeout counts. High error rates trigger reputation penalties in PATH.
+
+**Session participation:** Track how many sessions your node is selected for vs. total available sessions.
+
+## POKTscan Operator Tool
+
+The easiest monitoring option for most operators. [poktscan.com/tools/operator](https://poktscan.com/tools/operator) — add your Supplier addresses and track:
+
+- **Rewards over time** — per address or aggregated
+- **Claim/Proof comparison** — the most important operational metric
+- **Rewards by service** — which chains earn most
+- **Expired proofs** — should always be zero
+
+## Prometheus + Grafana Setup
+
+### Quick Start
+
+The poktroll repository includes pre-built Grafana dashboards in `localnet/grafana-dashboards/`. For production:
+
+1. Run Prometheus pointing at your service metrics endpoints
+2. Import the poktroll Grafana dashboards as a starting point
+3. Add alerts for the critical conditions listed above
+
+### Example Prometheus Config
+
+```yaml
+scrape_configs:
+  - job_name: 'poktroll'
+    static_configs:
+      - targets: ['localhost:26660']
+  - job_name: 'relayminer'
+    static_configs:
+      - targets: ['localhost:9090']
+  - job_name: 'miner'
+    static_configs:
+      - targets: ['localhost:9092']
+```
+
+## HA RelayMiner-Specific Monitoring
+
+The HA RelayMiner exposes additional operational metrics:
+
+- **Leader election status** — which instance is the active Miner
+- **Redis connection pool** — utilization and errors
+- **SMST tree operations** — throughput and latency
+- **Submission tracking** — claim/proof tx hashes, success/failure, timing
+
+Debug Redis state with: `redis-cli` (connect to your Redis instance, inspect `ha:*` keys).
+
+## Key Performance Baselines
+
+| Metric | Healthy Range |
+| --- | --- |
+| Relay latency (p95) | < 500ms for most EVM chains |
+| Expired proofs | 0 (any non-zero = lost rewards) |
+| Claim/Proof ratio | ≈ 1.0 |
+| Block height lag | < 2 blocks behind network |
+| Wallet balance | > 10 POKT (comfortable buffer for tx fees) |

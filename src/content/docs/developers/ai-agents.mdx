@@ -1,0 +1,84 @@
+---
+title: "AI Agents & MCP Integration"
+description: "Use Pocket Network as the decentralized data layer for AI agents — MCP servers, LangChain, x402 payments, and multi-chain queries."
+section: "developers"
+persona: ["developer", "ai-builder"]
+tabs: false
+status: "stable"
+sources: ["zip3/agentic-ai-mcp-guide.docx"]
+lastUpdated: "2026-04-07"
+---
+
+AI agents need data — blockchain state, wallet balances, transaction histories, DeFi prices, on-chain governance data. This data has to come from somewhere reliable, fast, and uncensorable.
+
+Pocket Network is that layer. With 60+ chains accessible through a single JSON-RPC endpoint, and support for any HTTP service as a data Source since the Shannon upgrade, Pocket is the natural data infrastructure for AI agents.
+
+## What Is MCP?
+
+MCP (Model Context Protocol) is the open standard for connecting AI models to external tools and data sources. Build one MCP server, and any MCP-compatible AI client (Claude, GPT-4, Gemini, open-source models) can use it.
+
+## BlockchainQuery — Pocket's MCP Server
+
+[BlockchainQuery](https://github.com/pokt-network/blockchain-query-mcp) is Pocket Network's MCP server and Claude Desktop extension. It exposes 37 read-only blockchain query tools across 63 chains and 7 protocol families (EVM, Solana, Cosmos, Near, Sui, Radix, Tron).
+
+**What it exposes as MCP tools:**
+
+- **Blockchain state queries:** `get_balance`, `get_block`, `get_transaction`, `eth_call`, `eth_getLogs` — standard JSON-RPC methods routed through Pocket's decentralized supplier pool
+- **Multi-chain queries:** Query any supported chain through the same server — the AI model specifies the chain, the server routes to the correct Pocket endpoint
+- **DeFi data:** Contract calls for DEX prices, liquidity pools, lending rates, oracle feeds
+- **Cross-protocol:** EVM, Cosmos, Solana, Near, Sui, and Radix from a single interface
+
+### Quickstart: Claude Desktop
+
+BlockchainQuery is available as a `.mcpb` extension file, following Anthropic's standard extension installation format. Download the `.mcpb` file from the [GitHub repository](https://github.com/pokt-network/blockchain-query-mcp) and install it using Claude's extension installer. A listing in Anthropic's MCP directory is pending.
+
+Once installed, Claude can query live blockchain data: wallet balances, recent transactions, token info, governance proposals, and more — across 63 chains.
+
+## Integration with Agent Frameworks
+
+### LangChain / LangGraph
+
+LangChain natively supports JSON-RPC tool calls. Use Pocket's endpoint as the provider URL for any ethers.js or web3.py-based LangChain tool:
+
+```python
+from langchain.tools import Tool
+from web3 import Web3
+
+w3 = Web3(Web3.HTTPProvider("https://eth.api.pocket.network"))
+
+def get_balance(address: str) -> str:
+    balance = w3.eth.get_balance(address)
+    return str(w3.from_wei(balance, 'ether')) + " ETH"
+
+tool = Tool(name="get_eth_balance", func=get_balance, description="Get ETH balance")
+```
+
+### OpenAgents / CrewAI
+
+Both frameworks support custom tool definitions. Pocket Network endpoints work as standard HTTP tools — no library-specific wrapper needed.
+
+## x402 — Autonomous Agent Payments
+
+x402 is the HTTP-native payment protocol that lets AI agents pay for data access autonomously — without human-in-the-loop billing. An agent sends an HTTP request; if the resource requires payment, the server returns HTTP 402; the agent pays in USDC stablecoin and retries.
+
+<Callout type="info">
+  PNF's 2026 roadmap includes native x402 compatibility as a P1 initiative (Q2-26). This will allow AI agents to access Pocket's endpoints autonomously using x402 micropayments — bypassing the need to hold or stake POKT directly.
+</Callout>
+
+## Why Pocket Network Over Centralized Alternatives?
+
+- **No API keys or accounts** — permissionless access to 60+ chains
+- **Decentralized** — no single point of failure, no vendor lock-in
+- **Multi-chain** — one endpoint pattern for every supported chain
+- **Censorship-resistant** — no rate limiting by content, no geographic restrictions
+- **Open source** — all infrastructure is auditable and forkable
+
+## Getting Started — Quick Paths
+
+| I want to... | Do this |
+| --- | --- |
+| Query a chain from my agent | Point at `https://{chain-slug}.api.pocket.network` — no account needed |
+| Give Claude blockchain access | Add [BlockchainQuery](https://github.com/pokt-network/blockchain-query-mcp) to Claude Desktop |
+| High-throughput agent access | Apply for the Foundation Partnership program or stake an Application via the [application staking docs](/developers/application-staking) |
+| Build an AI product on Pocket | Register your service as a Pocket Source — earn a share of relay rewards proportional to usage |
+| Track MCP/x402 progress | Watch [github.com/pokt-network/poktroll](https://github.com/pokt-network/poktroll) and [Discord](http://discord.gg/pocket-network) #agentic-ai |

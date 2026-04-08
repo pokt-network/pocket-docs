@@ -1,0 +1,96 @@
+---
+title: "Node Upgrades"
+description: "Cosmovisor setup, version management, chain halt recovery, and upgrade procedures for Pocket Network operators."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+sources: ["zip4/poktroll/docusaurus/4_develop/upgrades/"]
+lastUpdated: "2026-04-07"
+---
+
+Pocket Network ships protocol upgrades regularly. As an operator, you need to handle these cleanly to avoid missing sessions and losing rewards.
+
+## Cosmovisor (Recommended)
+
+Cosmovisor is the standard Cosmos SDK tool for automatic binary upgrades. It watches for on-chain upgrade proposals and swaps the binary at the specified block height — no manual intervention needed.
+
+### Setup
+
+```bash
+# Install cosmovisor
+go install cosmossdk.io/tools/cosmovisor/cmd/cosmovisor@latest
+
+# Set environment variables
+export DAEMON_NAME=pocketd
+export DAEMON_HOME=$HOME/.pocket
+export DAEMON_ALLOW_DOWNLOAD_BINARIES=true
+
+# Initialize
+cosmovisor init $(which pocketd)
+```
+
+### How It Works
+
+1. A governance proposal specifies an upgrade name and block height
+2. At the specified height, the chain halts
+3. Cosmovisor downloads (or switches to) the new binary
+4. The chain resumes with the new version
+
+### Preparing for an Upgrade
+
+```bash
+# Check for pending upgrades
+pocketd query upgrade plan --network=main
+
+# Pre-download the new binary (optional — cosmovisor can auto-download)
+cosmovisor add-upgrade v0.1.32 /path/to/new/pocketd
+```
+
+## Manual Upgrades
+
+If not using Cosmovisor:
+
+1. **Watch for upgrade announcements** on [Discord](http://discord.gg/pocket-network) and [forum.pokt.network](https://forum.pokt.network)
+2. **Download the new binary** before the upgrade height
+3. **Stop your node** at the halt height (it will stop automatically)
+4. **Replace the binary** with the new version
+5. **Restart** — the node resumes from the halt height
+
+<Callout type="warning">
+  If you miss an upgrade window, your node falls out of sync and stops earning rewards until updated. Use Cosmovisor to avoid this.
+</Callout>
+
+## Chain Halt Recovery
+
+If the chain halts unexpectedly (bug, consensus failure):
+
+1. **Check Discord** `#node-operators` for official guidance
+2. **Do not restart** until official instructions are provided
+3. **Follow the recovery procedure** — typically involves downloading a patched binary and restarting
+4. **Verify sync** — check your node's block height against [POKTscan](https://poktscan.com)
+
+### Common Halt Causes
+
+- **Upgrade handler failure** — the upgrade binary has a bug. Wait for a patched release.
+- **Consensus failure** — validators disagree on state. Requires coordinated restart.
+- **Out of memory** — node process killed. Increase server resources and restart.
+
+## Version Management
+
+```bash
+# Check current version
+pocketd version
+
+# Check network's expected version
+pocketd query upgrade plan --network=main
+
+# List available releases
+# Visit: https://github.com/pokt-network/poktroll/releases
+```
+
+## Upgrade History
+
+Track past upgrades and their effects at [poktscan.com/params](https://poktscan.com/params) — parameter changes are recorded on-chain with the block height where they took effect.
+
+Subscribe to governance notifications on [forum.pokt.network](https://forum.pokt.network) to be notified of upcoming upgrades before they happen.

@@ -1,0 +1,92 @@
+---
+title: "BlockchainQuery"
+description: "BlockchainQuery MCP — multi-chain blockchain querying tool powered by Pocket Network, available as a Claude extension (.mcpb format)."
+section: "ecosystem"
+persona: ["developer", "ai-developer"]
+tabs: false
+status: "draft"
+sources: ["zip4/blockchain-query-mcp"]
+lastUpdated: "2026-04-08"
+---
+
+
+BlockchainQuery is a Model Context Protocol (MCP) server that provides read-only blockchain querying across 63 chains and 7 protocol families. It's built by PNF and powered by Pocket Network's decentralized RPC infrastructure. Available as a Claude extension in `.mcpb` format, it lets AI assistants query live blockchain data directly.
+
+## What It Does
+
+BlockchainQuery exposes 37 tools for querying blockchain state:
+
+- **Balances** — native token and ERC-20/SPL token balances
+- **Transactions** — transaction details, receipts, and signatures
+- **Blocks** — block data by height, hash, or latest
+- **Tokens** — ERC-20 metadata, multi-token price lookups
+- **Staking** — delegations, rewards, and validator info (Cosmos chains)
+- **Governance** — proposals and voting state (Cosmos chains)
+- **Smart contracts** — read-only contract calls (`eth_call`)
+- **Event logs** — filtered event log retrieval
+- **Cross-chain** — compare balances across multiple EVM chains simultaneously
+
+## Supported Chains
+
+BlockchainQuery covers 7 protocol families:
+
+| Protocol | Chains | Example Queries |
+|----------|--------|----------------|
+| **EVM** | Ethereum, Polygon, Arbitrum, Base, Optimism, BSC, Avalanche, and many more | Balances, transactions, blocks, logs, contract calls, gas estimation |
+| **Solana** | Solana mainnet | Account info, balances, transactions, block data, token accounts |
+| **Cosmos** | Pocket Network, Cosmos Hub, Osmosis, and others | Balances, staking, governance, validators, blocks, transactions |
+| **NEAR** | NEAR Protocol | Account queries, transactions, blocks, contract views |
+| **Radix** | Radix mainnet | Balances, network status, consensus state, transactions |
+| **Sui** | Sui mainnet | Object queries, balances, coin details, transactions |
+| **Tron** | Tron mainnet | Balances, transactions, blocks |
+
+Use `list_chains` to see all available chains and their chain IDs.
+
+## How to Use
+
+### As a Claude Extension
+
+BlockchainQuery is available as a `.mcpb` extension file, following Anthropic's standard extension installation format. Download the `.mcpb` file from the [GitHub repository](https://github.com/pokt-network/blockchain-query-mcp) and install it using Claude's extension installer. A listing in Anthropic's MCP directory is pending.
+
+Once installed, Claude can query blockchain data directly in conversation:
+
+> "What's the ETH balance of vitalik.eth?"
+> "Show me the latest block on Pocket Network"
+> "Compare my token balances across Ethereum, Polygon, and Arbitrum"
+
+### As an MCP Server
+
+Developers can integrate BlockchainQuery into any MCP-compatible client:
+
+```
+Repository: github.com/pokt-network/blockchain-query-mcp
+```
+
+All 37 tools are annotated with `readOnlyHint: true` — BlockchainQuery never modifies chain state or submits transactions.
+
+## Key Tools
+
+| Tool | Description |
+|------|-------------|
+| `list_chains` | List all 63 supported chains |
+| `evm_get_balance` | Native coin balance for any EVM chain |
+| `evm_get_token_info` | ERC-20 metadata (name, symbol, decimals, supply) |
+| `evm_get_transaction` | Transaction details by hash |
+| `evm_get_logs` | Filtered event logs |
+| `evm_call_contract` | Read-only smart contract calls |
+| `compare_balances` | Cross-chain balance comparison |
+| `solana_get_balance` | SOL balance |
+| `cosmos_get_balance` | Native/all token balances on Cosmos chains |
+| `cosmos_get_staking` | Delegation and reward info |
+| `resolve_domain` | ENS and Unstoppable Domains resolution |
+| `convert_units` | Unit conversion (e.g., upokt → POKT, wei → ETH) |
+
+## Privacy
+
+BlockchainQuery queries only public blockchain data. It does not store queries, results, or user data. All operations are read-only. See the [privacy policy](https://pocket.network/blockchainquery-privacy-policy/) for details.
+
+## Related Pages
+
+- [AI Agents](/developers/ai-agents) — using Pocket as an AI agent data layer
+- [Supported Chains](/developers/supported-chains) — full chain coverage list
+- [API Portal](/foundation/api-portal) — the RPC infrastructure powering BlockchainQuery

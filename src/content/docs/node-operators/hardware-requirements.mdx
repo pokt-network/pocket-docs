@@ -1,0 +1,538 @@
+---
+title: "Hardware & Infrastructure Requirements"
+description: "Server specifications, recommended configurations, and infrastructure considerations for Pocket Network operators."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: true
+status: "stable"
+sources: ["zip1/14-hardware-and-infra.md", "zip2/14-hardware-and-infra.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+## Recommended Environment
+
+Every participant in Pocket Network runs software on a server — either a physical machine you own or a virtual server rented from a cloud provider like Vultr, AWS, or Hetzner. The software runs on Linux, and you need administrative access to set it up.
+
+Think of it like renting an apartment: you can choose any building (any cloud provider or your own hardware), but the rooms inside need to meet certain standards.
+
+## Hardware Specifications by Component
+
+Different roles in Pocket Network have different computing needs. Here is a plain-language breakdown of what each role requires.
+
+### Validator / Full Node
+
+A Validator or Full Node is the heaviest participant in terms of hardware. You need roughly the power of a modern gaming PC: a multi-core processor, 16 to 32 GB of memory, and a fast solid-state drive (SSD) with at least 200 GB of space, ideally more.
+
+If your Full Node also serves as the backbone connection for Gateways and RelayMiners handling heavy traffic, you should plan for even more resources. Many operators run multiple Full Nodes behind a traffic distributor (called a load balancer) so that if one goes down, the others keep serving requests. This kind of redundancy is what makes the network resilient and self-healing.
+
+### RelayMiner
+
+A RelayMiner is much lighter. At minimum, it can run on something as modest as a single-core processor with 1 GB of memory and very little disk space. For production use under real traffic, aim for 4 cores and 16 GB of memory.
+
+The key thing to understand is that RelayMiner resource needs grow with how much work it does. The more services it handles and the more relay traffic it processes, the more computing power and memory it needs. Think of it like a delivery driver: one driver can handle a few packages, but a busy route needs a bigger truck or more drivers.
+
+### PATH Gateway
+
+A PATH Gateway has similar resource needs to a RelayMiner. It starts light, but as request volume grows, you should scale up to the recommended 4 cores and 16 GB of memory.
+
+## Disk Utilization and Management
+
+Your node stores blockchain data on disk in several databases. Over time, these databases grow as new blocks and transactions are added to the chain. Understanding this growth helps you plan ahead so you do not run out of disk space.
+
+### Database Overview
+
+Your node maintains four main databases, each serving a different purpose:
+
+- **Block storage** — Stores the actual blocks, transactions, and their results. Grows based on how many transactions the network processes.
+- **Transaction index** — A lookup table that helps find specific transactions quickly. Can be turned off if you do not need to search for individual transactions.
+- **State data** — Tracks the validator set and other metadata. Grows slowly over the life of the chain.
+- **Application data** — Stores all module-level state (account balances, staking records, service registrations). Grows based on how active the network is.
+
+### Pruning Configuration
+
+Pruning is like cleaning up old files to save space. Your node does not need to keep every piece of data from the beginning of time — it only needs recent data to function properly. By enabling pruning, you tell your node to discard old data it no longer needs, keeping your disk usage manageable.
+
+Most Full Nodes and Validators should enable aggressive pruning, which keeps only the most recent data (roughly the last thousand blocks). You can also turn off the transaction index entirely if your node does not need to answer historical lookup queries. For details on how to configure this, see the technical documentation.
+
+### Archival Nodes
+
+An Archival Node is the exception. Its entire purpose is to keep everything — every block, every transaction, from the very first one. Archival nodes are used by researchers, indexers, and anyone who needs access to the full history of the chain. Because they never delete anything, they require significantly more disk space and that space grows continuously over time.
+
+Think of an Archival Node as a library that never throws away any book. A regular Full Node, by contrast, is more like a newsstand that only keeps this week's papers.
+
+### Database Size Warning Signs
+
+For nodes that use pruning, certain databases should stay relatively small. If you notice a database growing much larger than expected, it usually means pruning is not configured correctly. For example, your state database should generally stay under 1 GB on a pruned node. If it exceeds that, something likely needs attention.
+
+### Snapshot-Based Recovery
+
+If your databases have grown too large and pruning alone cannot fix the situation, you can restore your node from a snapshot. A snapshot is a compressed copy of a healthy node's data at a recent point in time. By replacing your oversized databases with a clean snapshot, you can get back to a healthy state quickly.
+
+Before doing this, always back up your validator keys first — losing those keys can have serious consequences including loss of staked tokens. The technical documentation provides step-by-step instructions for this process.
+
+### Diagnostic Tools
+
+The Pocket Network repository includes tools for inspecting database health and diagnosing unusual growth. These tools let operators check database sizes, look for unusually large entries, and review the state of the chain at specific points in time. Refer to the technical documentation for the exact commands.
+
+## Deploying Your Infrastructure
+
+You can deploy Pocket Network nodes on any cloud provider or on your own hardware. The technical documentation includes a detailed walkthrough for deploying on Vultr as one example, but the same general approach works with any provider.
+
+The key steps are:
+
+1. **Provision a server** that meets the hardware requirements for your role.
+2. **Install the Pocket Network software** using the provided installation scripts.
+3. **Set up your keys** — either import existing keys or create new ones.
+4. **Run the node** and wait for it to synchronize with the rest of the network.
+5. **Secure your server** by configuring firewall rules and restricting access.
+
+## Monitoring and Operational Best Practices
+
+Running a node is not a "set it and forget it" operation. You need to keep an eye on your node's health, much like monitoring the dashboard gauges in a car.
+
+### Node Health Checks
+
+Regularly check that your node is:
+
+- **Synchronized** — Your node should be caught up with the latest block on the network. If it falls behind, it cannot participate effectively.
+- **Running the correct version** — Protocol upgrades happen periodically. Your node needs to be running the right software version to stay compatible.
+- **Healthy on disk** — Monitor how much disk space is being used and whether it is growing unexpectedly.
+
+The technical documentation covers the specific commands for each of these checks.
+
+### Firewall and Network Configuration
+
+Your node needs certain network ports open to communicate with other nodes on the network. The peer-to-peer port (used for gossip between nodes) must be accessible. If your node also serves queries for other participants, you may need to open an additional port.
+
+Be cautious about which ports you expose publicly. Opening unnecessary ports can make your node a target for malicious actors trying to overload it.
+
+### Disk Space Alerts
+
+Set up automated monitoring that warns you when disk space is running low. A simple alert that triggers when disk usage exceeds 85% gives you time to react before things go wrong.
+
+### Scalability Considerations
+
+As the network grows and relay volume increases, you may need to scale your infrastructure:
+
+- **Scale up** by adding more CPU and memory to existing machines.
+- **Scale out** by running multiple instances behind a load balancer.
+- **Separate concerns** by running dedicated machines for different roles (for example, keeping your Validator separate from your RPC node).
+
+This separation improves reliability and ensures that heavy query traffic does not interfere with your Validator's consensus duties.
+
+## Why Diverse Infrastructure Matters
+
+Pocket Network is designed to be unstoppable and censorship-resistant. A critical part of that design is geographic distribution — nodes spread across different countries, different cloud providers, and different hardware. If all nodes ran on the same provider in the same data center, a single outage could take down the whole network.
+
+By encouraging operators to use diverse infrastructure, the network becomes self-healing. If nodes in one region go offline, nodes everywhere else continue serving traffic without interruption. This is what makes Pocket Network's decentralized infrastructure genuinely resilient.
+
+</Tab>
+<Tab label="Advanced">
+
+This document covers the hardware specifications, infrastructure recommendations, disk management strategies, and a Vultr deployment playbook for running Pocket Network nodes and services.
+
+## Recommended Environment
+
+All Pocket Network components require:
+
+1. **Linux-based system** — Debian-based distributions (Ubuntu 22.04+, Debian 12) are preferred and best tested.
+2. **Architecture** — Both x86_64 (amd64) and ARM64 are supported.
+3. **Root or sudo access** — Administrative privileges are required for service management.
+4. **Dedicated server or virtual machine** — Any cloud provider or bare-metal host is acceptable. See the [Vultr Deployment Playbook](#vultr-deployment-playbook) section below for a step-by-step example.
+
+## Hardware Specifications by Component
+
+### Validator / Full Node
+
+| Component    | Minimum | Recommended |
+|------------- |---------|-------------|
+| (v)CPU Cores | 4       | 6           |
+| RAM          | 16 GB   | 32 GB       |
+| SSD Storage  | 200 GB  | 420 GB      |
+
+Full Nodes that serve as RPC endpoints for Gateways and RelayMiners under high load should be provisioned with additional resources. Consider deploying multiple Full Nodes behind a load balancer for continuous service availability.
+
+### RelayMiner
+
+| Component    | Minimum | Recommended |
+|------------- |---------|-------------|
+| CPU Cores    | 1       | 4           |
+| RAM          | 1 GB    | 16 GB       |
+| SSD Storage  | 5 GB    | 5 GB        |
+
+Resource requirements for RelayMiner scale linearly with load:
+
+- More suppliers served by a single RelayMiner means higher resource consumption.
+- More relays processed means higher CPU and memory usage.
+
+### PATH Gateway
+
+| Component    | Minimum | Recommended |
+|------------- |---------|-------------|
+| CPU Cores    | 1       | 4           |
+| RAM          | 1 GB    | 16 GB       |
+| SSD Storage  | 5 GB    | 5 GB        |
+
+PATH Gateway resource needs grow with request throughput. For production deployments handling significant traffic, use the recommended specs or higher.
+
+## Disk Utilization and Management
+
+A `pocketd` node uses four main LevelDB databases on disk. Understanding their growth patterns helps with capacity planning.
+
+### Database Overview
+
+| Path                  | Owner      | Purpose                              | Growth Driver                 |
+|-----------------------|------------|--------------------------------------|-------------------------------|
+| `data/blockstore.db`  | CometBFT   | Full blocks, transactions, results   | Tx volume, event verbosity    |
+| `data/tx_index.db`    | CometBFT   | Event attribute to tx index          | Number of indexed events      |
+| `data/state.db`       | CometBFT   | App hash, validator sets, metadata   | Chain age                     |
+| `data/application.db` | Cosmos SDK | Module state (IAVL-backed store)     | State size, write volume      |
+
+### Pruning Configuration
+
+For **Full Nodes and Validators** (non-archival), enable pruning to keep disk usage bounded:
+
+```toml
+# In app.toml
+pruning = "everything"
+min-retain-blocks = 1000
+```
+
+To disable transaction indexing on non-querying nodes, set the following in `config.toml`:
+
+```toml
+[tx_index]
+indexer = "null"
+```
+
+To limit indexing to specific events only:
+
+```toml
+[tx_index]
+indexer = "kv"
+index_events = ["message.sender", "transfer.amount"]
+```
+
+### Checking Current Configuration
+
+```bash
+# Review pruning configuration
+grep -A 10 "pruning" ~/.pocket/config/app.toml
+
+# Check min-retain-blocks setting
+grep "min-retain-blocks" ~/.pocket/config/app.toml
+
+# Verify indexing configuration
+grep -A 5 "tx_index" ~/.pocket/config/config.toml
+```
+
+### Archival Nodes
+
+Archival nodes intentionally retain all historical data. For these nodes:
+
+- Keep `pruning = "nothing"` (correct for archival purposes).
+- Keep `min-retain-blocks = 0` to retain all historical data.
+- Focus on monitoring individual block sizes and optimizing event emissions rather than pruning.
+- Multi-GB growth in `state.db` is expected over time.
+
+### Database Size Warning Signs
+
+For **pruning nodes** (Full Nodes / Validators):
+
+| Database         | Normal Size                          | Warning Sign                          |
+|------------------|--------------------------------------|---------------------------------------|
+| `application.db` | Varies with chain activity           | Growth matches network usage          |
+| `blockstore.db`  | Linear with chain age (with pruning) | Sudden spikes indicate verbose events |
+| `tx_index.db`    | 0 (if disabled) to moderate          | Should be 0 if `indexer = "null"`     |
+| `state.db`       | Less than 100 MB                     | Greater than 1 GB indicates issues    |
+
+### Snapshot-Based Recovery
+
+If databases have grown too large, restore from a snapshot:
+
+```bash
+# Stop the node
+sudo systemctl stop cosmovisor.service
+
+# Back up validator keys (if applicable)
+cp ~/.pocket/config/priv_validator_key.json ~/backup/
+cp ~/.pocket/config/node_key.json ~/backup/
+
+# Remove old data (keep config)
+rm -rf ~/.pocket/data
+
+# Download and extract a recent snapshot
+# Replace URL with the actual snapshot source for your network
+wget https://snapshots.example.com/poktroll-latest.tar.gz
+tar -xzf poktroll-latest.tar.gz -C ~/.pocket/data/
+
+# Restart with proper pruning configuration
+sudo systemctl start cosmovisor.service
+```
+
+### Diagnostic Tools
+
+The poktroll repository includes a LevelDB inspector for analyzing database contents:
+
+```bash
+cd ~/.pocket/data
+
+# Get database statistics
+leveldb-inspector stats -d state.db
+leveldb-inspector size -d state.db
+
+# Check for abnormally large ABCI responses
+leveldb-inspector keys -d state.db | grep "abciResponsesKey" | tail -10
+```
+
+To review IAVL tree state and consensus parameters:
+
+```bash
+# Query current consensus parameters
+pocketd query consensus params
+
+# Review validator set history at a specific height
+pocketd query staking validators --height 50000
+```
+
+## Vultr Deployment Playbook
+
+This section walks through deploying a Pocket Network node on [Vultr](https://www.vultr.com/) using their API.
+
+### Prerequisites
+
+**Whitelist your IP address:**
+
+1. Go to the [Vultr Settings API dashboard](https://my.vultr.com/settings/#settingsapi).
+2. Retrieve your IPv4 address:
+
+   ```bash
+   curl ifconfig.me
+   ```
+
+3. Add your IP with a `/32` mask to the Access Control list and click Add.
+
+**Set your API key:**
+
+```bash
+export VULTR_API_KEY="your-api-key-here"
+```
+
+Obtain your key from [my.vultr.com/settings/#settingsapi](https://my.vultr.com/settings/#settingsapi).
+
+### Create an Instance
+
+Create a Vultr instance sized for a Full Node / Validator:
+
+- **Plan**: `vc2-6c-16gb` — 6 vCPUs, 16 GB RAM, 320 GB SSD
+- **OS**: `2136` — Debian 12 x64
+- **Region**: `sea` — Seattle (change as needed)
+
+```bash
+curl "https://api.vultr.com/v2/instances" \
+  -X POST \
+  -H "Authorization: Bearer ${VULTR_API_KEY}" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "region" : "sea",
+    "plan" : "vc2-6c-16gb",
+    "label" : "pocket-fullnode-01",
+    "os_id" : 2136,
+    "backups" : "disabled",
+    "hostname": "pocket-fullnode-01",
+    "tags": ["pocket", "fullnode"]
+  }' \
+  > vultr_create.json
+```
+
+### Retrieve Instance Details
+
+```bash
+export VULTR_INSTANCE_ID=$(cat vultr_create.json | jq -r '.instance.id')
+
+curl "https://api.vultr.com/v2/instances/${VULTR_INSTANCE_ID}" \
+  -X GET \
+  -H "Authorization: Bearer ${VULTR_API_KEY}" \
+  > vultr_get.json
+```
+
+### Set Up Environment Variables
+
+```bash
+export VULTR_INSTANCE_ID=$(cat vultr_create.json | jq -r '.instance.id')
+export VULTR_INSTANCE_IP=$(cat vultr_get.json | jq -r '.instance.main_ip')
+export VULTR_PASSWORD=$(cat vultr_create.json | jq -r '.instance.default_password')
+```
+
+### Connect to the Instance
+
+```bash
+ssh root@$VULTR_INSTANCE_IP
+```
+
+The password is stored in `vultr_create.json` under `instance.default_password`. To copy it to your clipboard:
+
+```bash
+cat vultr_create.json | jq -r '.instance.default_password' | pbcopy
+```
+
+For passwordless SSH, run from your local machine:
+
+```bash
+ssh-copy-id root@$VULTR_INSTANCE_IP
+```
+
+### Install pocketd on the Instance
+
+After connecting to your Vultr instance via SSH:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/pokt-network/poktroll/main/tools/scripts/pocketd-install.sh | bash -s -- --tag v0.1.33 --upgrade
+```
+
+### Import or Create an Account
+
+Export a key from your local machine:
+
+```bash
+pocketd keys export my-key-name --unsafe --unarmored-hex --yes
+```
+
+Import it on the instance:
+
+```bash
+pocketd keys import my-key-name <hex-priv-key>
+```
+
+Or create a new key on the instance:
+
+```bash
+pocketd keys add my-key-name
+```
+
+### Run a Full Node
+
+Use the automated full node setup script:
+
+```bash
+curl -O https://raw.githubusercontent.com/pokt-network/poktroll/main/tools/scripts/full-node.sh
+sudo bash full-node.sh
+```
+
+The script will prompt you to:
+
+- Choose a network: `testnet-beta` or `mainnet`
+- Set a username (default: `pocket`)
+- Set a node moniker (default: hostname)
+- Confirm or enter your external IP
+
+After installation, verify the node is running:
+
+```bash
+curl -X GET http://localhost:26657/block | jq '.result.block.header.height'
+```
+
+### Delete an Instance
+
+When you no longer need the instance:
+
+```bash
+curl "https://api.vultr.com/v2/instances/${VULTR_INSTANCE_ID}" \
+  -X DELETE \
+  -H "Authorization: Bearer ${VULTR_API_KEY}"
+```
+
+### Explore Available Plans
+
+To see all available Vultr plans and choose one that fits your needs:
+
+```bash
+curl "https://api.vultr.com/v2/plans" \
+  -X GET \
+  -H "Authorization: Bearer ${VULTR_API_KEY}" \
+  | jq '.plans[] | {id, vcpu_count, ram, disk, monthly_cost, type}'
+```
+
+## Monitoring and Operational Best Practices
+
+### Node Health Checks
+
+Monitor your node with these commands:
+
+```bash
+# Check node synchronization status
+pocketd status
+
+# View service logs
+sudo journalctl -u cosmovisor.service -f
+
+# Query the latest block height
+pocketd query block --type=height --network=mainnet
+
+# Check the installed pocketd version
+pocketd version
+
+# Check Cosmovisor directory structure
+ls -la ~/.pocket/cosmovisor/
+
+# Check if an upgrade is available
+ls -la ~/.pocket/cosmovisor/upgrades/
+```
+
+### Firewall Configuration
+
+Open the P2P port (required) and optionally the CometBFT RPC port:
+
+```bash
+# P2P port (required for all nodes)
+sudo ufw allow 26656/tcp
+
+# CometBFT RPC port (optional, for nodes serving RPC queries)
+sudo ufw allow 26657/tcp
+```
+
+If using `iptables` instead of `ufw`:
+
+```bash
+sudo iptables -A INPUT -p tcp --dport 26656 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 26657 -j ACCEPT
+```
+
+### Exposing the CometBFT Endpoint Externally
+
+To make the RPC endpoint accessible from outside the server:
+
+```bash
+sed -i 's|laddr = "tcp://127.0.0.1:26657"|laddr = "tcp://0.0.0.0:26657"|' ~/.pocket/config/config.toml
+sed -i 's|cors_allowed_origins = \[\]|cors_allowed_origins = ["*"]|' ~/.pocket/config/config.toml
+
+sudo systemctl restart cosmovisor.service
+
+# Verify external access
+nc -vz <EXTERNAL_IP> 26657
+```
+
+Be cautious about exposing RPC endpoints publicly, as adversarial actors may attempt to overload your node.
+
+### Disk Space Alerts
+
+Set up automated disk space monitoring. A simple cron-based alert:
+
+```bash
+# Add to crontab (crontab -e)
+# Check disk usage every hour, alert if above 85%
+0 * * * * df -h / | awk 'NR==2 {gsub(/%/,"",$5); if($5 > 85) print "DISK WARNING: "$5"% used"}' | mail -s "Disk Alert" admin@example.com
+```
+
+### Scalability Considerations
+
+- As relay volume grows, scale RelayMiner resources vertically (more CPU/RAM) or horizontally (multiple instances).
+- For high-availability setups, deploy multiple Full Nodes behind a load balancer.
+- Use dedicated RPC nodes separate from your validator to isolate consensus workloads.
+- Implement redundant systems for critical operations to ensure high availability.
+
+</Tab>
+</Tabs>

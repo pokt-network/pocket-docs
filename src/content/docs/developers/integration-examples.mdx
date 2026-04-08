@@ -1,0 +1,158 @@
+---
+title: "Integration Examples"
+description: "Drop-in code examples for using Pocket Network endpoints with ethers.js, viem, web3.py, wagmi, and curl."
+section: "developers"
+persona: ["developer"]
+tabs: false
+status: "draft"
+sources: ["public-rpc/supported-chains.json"]
+lastUpdated: "2026-04-08"
+---
+
+
+Pocket Network endpoints are standard JSON-RPC. They work as drop-in replacements for Alchemy, Infura, QuickNode, or any other RPC provider — swap the URL and you're done.
+
+All examples below use the public portal endpoint for Ethereum. Replace the URL slug with any chain from the [Supported Chains](/developers/supported-chains) list. The full chain index is at [supported-chains.json](https://github.com/pokt-network/public-rpc/blob/main/supported-chains.json).
+
+## curl
+
+```bash
+curl -X POST https://eth.api.pocket.network \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "eth_blockNumber",
+    "params": [],
+    "id": 1
+  }'
+```
+
+## ethers.js (v6)
+
+```javascript
+import { JsonRpcProvider } from "ethers";
+
+const provider = new JsonRpcProvider(
+  "https://eth.api.pocket.network"
+);
+
+const blockNumber = await provider.getBlockNumber();
+console.log("Current block:", blockNumber);
+
+// Get balance
+const balance = await provider.getBalance("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045");
+console.log("Balance:", balance.toString());
+```
+
+## viem
+
+```typescript
+import { createPublicClient, http } from "viem";
+import { mainnet } from "viem/chains";
+
+const client = createPublicClient({
+  chain: mainnet,
+  transport: http("https://eth.api.pocket.network"),
+});
+
+const blockNumber = await client.getBlockNumber();
+console.log("Current block:", blockNumber);
+
+const balance = await client.getBalance({
+  address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+});
+console.log("Balance:", balance);
+```
+
+## wagmi (React)
+
+```typescript
+import { http, createConfig } from "wagmi";
+import { mainnet, polygon, arbitrum } from "wagmi/chains";
+
+export const config = createConfig({
+  chains: [mainnet, polygon, arbitrum],
+  transports: {
+    [mainnet.id]: http("https://eth.api.pocket.network"),
+    [polygon.id]: http("https://poly.api.pocket.network"),
+    [arbitrum.id]: http("https://arb-one.api.pocket.network"),
+  },
+});
+```
+
+Then use wagmi hooks as normal — `useBalance`, `useReadContract`, etc. The Pocket endpoints are transparent to the wagmi layer.
+
+## web3.py
+
+```python
+from web3 import Web3
+
+w3 = Web3(Web3.HTTPProvider("https://eth.api.pocket.network"))
+
+print("Connected:", w3.is_connected())
+print("Block number:", w3.eth.block_number)
+
+balance = w3.eth.get_balance("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")
+print("Balance (wei):", balance)
+```
+
+## Solana (web3.js)
+
+```javascript
+import { Connection, PublicKey } from "@solana/web3.js";
+
+const connection = new Connection(
+  "https://solana.api.pocket.network"
+);
+
+const slot = await connection.getSlot();
+console.log("Current slot:", slot);
+
+const balance = await connection.getBalance(
+  new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+);
+console.log("Balance (lamports):", balance);
+```
+
+<Callout type="info">
+Solana SPL token balance lookups via `getTokenAccountsByOwner` may be unreliable through the Pocket portal. For SPL token balances, use [Solscan](https://solscan.io) or a dedicated Solana RPC provider as a fallback.
+</Callout>
+
+## Multi-Chain Setup
+
+For applications that need multiple chains, configure all your RPC endpoints to use Pocket:
+
+```typescript
+const RPC_ENDPOINTS = {
+  ethereum: "https://eth.api.pocket.network",
+  polygon: "https://poly.api.pocket.network",
+  arbitrum: "https://arb-one.api.pocket.network",
+  base: "https://base.api.pocket.network",
+  optimism: "https://op.api.pocket.network",
+  bsc: "https://bsc.api.pocket.network",
+  avalanche: "https://avax.api.pocket.network",
+  solana: "https://solana.api.pocket.network",
+};
+```
+
+## Resilience Pattern
+
+For production applications, use Pocket as one of multiple RPC sources in a fallback chain:
+
+```typescript
+import { FallbackProvider, JsonRpcProvider } from "ethers";
+
+const provider = new FallbackProvider([
+  { provider: new JsonRpcProvider("https://eth.api.pocket.network"), priority: 1 },
+  { provider: new JsonRpcProvider("https://your-backup-rpc.com"), priority: 2 },
+]);
+```
+
+This gives you the resilience of decentralized infrastructure as your primary source, with a centralized backup if needed.
+
+## Related Pages
+
+- [API Portal](/foundation/api-portal) — portal details and endpoint format
+- [Supported Chains](/developers/supported-chains) — full chain list
+- [Application Staking](/developers/application-staking) — dedicated access via staking
+- [Building with PATH](/developers/building-with-path) — for developers building custom access points

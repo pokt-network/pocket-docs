@@ -1,0 +1,334 @@
+---
+title: "Networks"
+description: "Pocket Network environments — MainNet, Beta TestNet, and LocalNet — with endpoints, chain IDs, explorers, and connection instructions."
+section: "get-started"
+persona: ["node-operator", "developer", "gateway-operator"]
+tabs: true
+status: "stable"
+sources: ["zip1/02-networks.md", "zip2/02-networks.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+Pocket Network runs several separate environments — distinct copies of the entire system, each serving a different purpose. This is similar to how a software company might have production, staging, and local development environments.
+
+Each network is completely independent. Tokens on one network have no value or meaning on another. An account can exist on multiple networks, but its balance and activity are separate on each.
+
+## Network Overview
+
+| | MainNet | Beta TestNet | LocalNet |
+| --- | --- | --- | --- |
+| **Purpose** | Live production network | Testing and experimentation | Local development |
+| **Tokens have real value?** | Yes | No | No |
+| **Who uses it?** | All participants with real stakes | Developers, testers, newcomers learning the system | Developers building on the protocol |
+| **Block time** | ~1 minute | ~5 minutes | Varies |
+| **Open to everyone?** | Yes — permissionless | Yes — permissionless | Runs privately on your machine |
+
+## MainNet
+
+MainNet is the live, production network. This is where real economic activity happens — real POKT tokens are staked, real data requests are served, and real rewards are earned.
+
+**When to use:** When you are ready to participate for real — staking tokens, serving data, or accessing blockchain services in production.
+
+**Key facts:** Chain ID is `pocket`, block time is approximately 1 minute, and tokens have real economic value.
+
+### Explorers
+
+Block explorers let you browse blockchain activity in a user-friendly way — look up any account's balance, view transactions, see who is staked:
+
+- [StakeNodes Explorer](https://explorer.pocket.network/pocket)
+- [Soothe Explorer](https://shannon-mainnet.trustsoothe.io)
+- [Blockval Explorer](https://explorer.blockval.io/pocket)
+
+A [GraphQL playground](https://shannon-mainnet-api.trustsoothe.io) is also available for advanced queries.
+
+### Faucet
+
+The MainNet faucet distributes MACT (Migration Account Claim Tokens) for participants migrating from Morse. Available at [faucet.pocket.network](https://faucet.pocket.network) or through `pocketd`.
+
+## Beta TestNet
+
+A fully functional copy of Pocket Network that uses worthless test tokens. Think of it as a flight simulator — everything works the same as MainNet, but nothing is at stake. Ideal for:
+
+- **Learning the protocol** before committing real tokens
+- **Testing configurations** for Suppliers, Gateways, or Applications
+- **Experimenting with new features** as they are released
+- **Debugging issues** in a safe environment
+
+**Key facts:** Chain ID is `pocket-lego-testnet` (renamed from `pocket-beta` in v0.1.31), block time is approximately 5 minutes.
+
+### Explorers
+
+- [StakeNodes Explorer](https://explorer.pocket.network/pocket-beta)
+- [Soothe Explorer](https://shannon-beta.trustsoothe.io)
+
+A [GraphQL playground](https://shannon-beta-api.trustsoothe.io/) is available.
+
+### Faucets
+
+TestNet tokens are free — anyone can request them:
+
+- **POKT:** [faucet.beta.testnet.pokt.network/pokt/](https://faucet.beta.testnet.pokt.network/pokt/)
+- **MACT:** [faucet.beta.testnet.pokt.network/mact/](https://faucet.beta.testnet.pokt.network/mact/)
+
+## LocalNet
+
+A miniature Pocket Network that runs on a single computer. You have full control — start, stop, reset, and configure it however you like. Primarily used by developers building on the protocol or testing complex multi-actor scenarios.
+
+**Key facts:** Chain ID is `pocket`, runs entirely on your machine, pre-funded test accounts available automatically.
+
+## Connecting to a Network
+
+### What Are RPC Endpoints?
+
+To interact with any blockchain, your software needs a connection point. An **RPC endpoint** is a network address that accepts requests and returns responses — like a phone number for the network.
+
+Pocket Network provides three types of endpoints, all accessing the same blockchain data:
+
+- **RPC** — The standard way to send transactions and query the chain. Most tools use this by default.
+- **gRPC** — A high-performance alternative used by backend systems and infrastructure operators.
+- **REST** — A web-friendly interface accessible from any HTTP client or browser.
+
+### Automatic Connection
+
+The `pocketd` CLI simplifies connections with a `--network` flag. Instead of specifying endpoint URLs and chain IDs manually, just tell it which network: `main`, `beta`, or `local`. Browser wallets like Keplr and Soothe Vault handle connections through their own interfaces.
+
+## Token Denominations
+
+| Unit | Value | Analogy |
+| --- | --- | --- |
+| **1 POKT** | 1,000,000 upokt | Like 1 dollar |
+| **1 upokt** | 0.000001 POKT | Like a fraction of a cent |
+
+**upokt** is the base unit the blockchain uses internally. Most user-facing tools display balances in POKT for readability, but staking configs and on-chain parameters are often expressed in upokt.
+
+## Choosing the Right Network
+
+| I want to... | Use this network |
+| --- | --- |
+| Stake real POKT and earn real rewards | **MainNet** |
+| Access blockchain data for a production application | **MainNet** |
+| Learn how the protocol works without risk | **Beta TestNet** |
+| Test my Supplier or Gateway configuration | **Beta TestNet** |
+| Develop tools or integrations for Pocket | **Beta TestNet** or **LocalNet** |
+| Work on the protocol itself | **LocalNet** |
+| Migrate my Morse account to Shannon | **MainNet** (with MACT tokens) |
+
+</Tab>
+<Tab label="Advanced">
+
+## Network Overview
+
+| Property | MainNet | Beta TestNet |
+| --- | --- | --- |
+| **Chain ID** | `pocket` | `pocket-lego-testnet` |
+| **--network flag** | `main` | `beta` |
+| **Block time** | ~1 minute | ~5 minutes |
+| **Status** | Production | Active testing |
+
+<Callout type="info">
+  As of v0.1.31, the Beta TestNet chain ID was renamed from `pocket-beta` to `pocket-lego-testnet`. Update any configuration files or scripts that reference the old chain ID.
+</Callout>
+
+## MainNet
+
+### Endpoints
+
+| Protocol | URL |
+| --- | --- |
+| RPC | `https://sauron-rpc.infra.pocket.network` |
+| RPC | `https://rpc-pocket.blockval.io` |
+| gRPC | `https://sauron-grpc.infra.pocket.network` |
+| REST | `https://sauron-api.infra.pocket.network` |
+| REST | `https://api-pocket.blockval.io` |
+
+### Explorers
+
+- [StakeNodes](https://explorer.pocket.network/pocket) · [Soothe](https://shannon-mainnet.trustsoothe.io) · [Blockval](https://explorer.blockval.io/pocket)
+- [Soothe GraphQL Playground](https://shannon-mainnet-api.trustsoothe.io)
+
+### Faucet (MACT)
+
+- **Web:** [faucet.pocket.network](https://faucet.pocket.network)
+- **CLI:**
+
+```bash
+pocketd faucet fund mact myWallet --network=main
+```
+
+### Connecting to MainNet
+
+Using the `--network` flag:
+
+```bash
+pocketd query bank balance pokt1youraddress upokt --network=main
+```
+
+Query a specific block:
+
+```bash
+pocketd query block --type=height 69 --network=main
+```
+
+Using curl directly:
+
+```bash
+curl -X POST https://sauron-rpc.infra.pocket.network/block
+```
+
+Override with a custom RPC node:
+
+```bash
+pocketd query bank balance pokt1youraddress upokt \
+  --chain-id=pocket \
+  --node=https://rpc-pocket.blockval.io
+```
+
+### Genesis
+
+The MainNet genesis file is at [pokt-network/pocket-network-genesis](https://github.com/pokt-network/pocket-network-genesis/tree/master/shannon/mainnet).
+
+## Beta TestNet
+
+### Endpoints
+
+| Protocol | URL |
+| --- | --- |
+| RPC | `https://sauron-rpc.beta.infra.pocket.network` |
+| gRPC | `https://sauron-grpc.beta.infra.pocket.network` |
+| REST | `https://sauron-api.beta.infra.pocket.network` |
+
+### Explorers
+
+- [StakeNodes](https://explorer.pocket.network/pocket-beta) · [Soothe](https://shannon-beta.trustsoothe.io)
+- [Soothe GraphQL Playground](https://shannon-beta-api.trustsoothe.io/)
+
+### Faucets
+
+- **POKT (web):** [faucet.beta.testnet.pokt.network/pokt/](https://faucet.beta.testnet.pokt.network/pokt/)
+- **MACT (web):** [faucet.beta.testnet.pokt.network/mact/](https://faucet.beta.testnet.pokt.network/mact/)
+- **CLI:**
+
+```bash
+pocketd faucet fund upokt myWallet --network=beta
+pocketd faucet fund mact myWallet --network=beta
+```
+
+By address instead of key name:
+
+```bash
+pocketd faucet fund upokt pokt1youraddress --network=beta
+```
+
+### Connecting to Beta TestNet
+
+```bash
+pocketd query bank balance pokt1youraddress upokt --network=beta
+```
+
+Query a block:
+
+```bash
+pocketd query block --type=height 0 --network=beta
+```
+
+Using curl:
+
+```bash
+curl -X POST https://sauron-rpc.beta.infra.pocket.network/block
+```
+
+### Genesis
+
+The Beta TestNet genesis file is at [pokt-network/pocket-network-genesis](https://github.com/pokt-network/pocket-network-genesis/tree/master/shannon/testnet-beta).
+
+## LocalNet
+
+### Endpoints
+
+| Protocol | URL |
+| --- | --- |
+| RPC | `http://localhost:26657` |
+| gRPC | `localhost:9090` |
+
+### Starting LocalNet
+
+From a checkout of the poktroll repository:
+
+```bash
+make localnet_up
+```
+
+Stop:
+
+```bash
+make localnet_down
+```
+
+Reset and restart:
+
+```bash
+make localnet_reset
+```
+
+### Querying LocalNet
+
+```bash
+pocketd query bank balance pokt1youraddress upokt --network=local
+```
+
+Since `local` is the default when no `--network` flag is provided:
+
+```bash
+pocketd query bank balance pokt1youraddress upokt
+```
+
+### LocalNet Faucet
+
+The local faucet server runs at `http://localhost:8080`:
+
+```bash
+pocketd faucet fund upokt myWallet --network=local
+```
+
+## How the --network Flag Works
+
+The `--network` flag sets multiple connection flags at once:
+
+| Flag | `local` | `beta` | `main` |
+| --- | --- | --- | --- |
+| `--chain-id` | `pocket` | `pocket-lego-testnet` | `pocket` |
+| `--node` | `http://localhost:26657` | `https://sauron-rpc.beta.infra.pocket.network` | `https://sauron-rpc.infra.pocket.network` |
+| `--grpc-addr` | `localhost:9090` | `sauron-grpc.beta.infra.pocket.network:443` | `sauron-grpc.infra.pocket.network:443` |
+| `--grpc-insecure` | `true` | `false` | `false` |
+| `--faucet-base-url` | `http://localhost:8080` | `https://shannon-testnet-grove-faucet.beta.poktroll.com` | `https://shannon-grove-faucet.mainnet.poktroll.com` |
+
+You can override any individual flag while using `--network`:
+
+```bash
+pocketd query bank balance pokt1youraddress upokt \
+  --network=beta \
+  --node=https://my-custom-rpc.example.com
+```
+
+## Quick Reference Commands
+
+```bash
+# Check balance on MainNet
+pocketd query bank balance pokt1abc123 upokt --network=main
+
+# Send tokens on Beta TestNet
+pocketd tx bank send myWallet pokt1recipient 5000000upokt \
+  --network=beta --gas=auto --fees=1upokt
+
+# Query application parameters on MainNet
+pocketd query application params --network=main
+
+# List all suppliers on Beta TestNet
+pocketd query supplier list-supplier --network=beta
+```
+
+</Tab>
+</Tabs>

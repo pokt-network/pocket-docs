@@ -1,0 +1,64 @@
+---
+title: "Shannon Upgrade — What Changed"
+description: "Plain-language summary of what the Shannon upgrade means for token holders, developers, and node operators."
+section: "get-started"
+persona: ["token-holder", "developer", "node-operator"]
+tabs: false
+status: "stable"
+sources: ["zip3/shannon-migration-what-changed.docx"]
+lastUpdated: "2026-04-07"
+---
+
+Pocket Network completed its transition from Morse to Shannon mainnet on June 3, 2025. This was the biggest change in the network's history — a full protocol rebuild that changed how the network operates under the hood.
+
+This page explains what that means in plain language for each type of participant. Skip to the section that applies to you.
+
+## If You Hold POKT
+
+You don't need to do anything on an ongoing basis. The migration happened, and your POKT carried over. Here's what changed in practice:
+
+**Check your wallet:** If you haven't already, migrate your POKT address to a Shannon-compatible wallet. [Soothe Vault](https://trustsoothe.io) has a built-in Morse → Shannon upgrade function.
+
+**Verify your balance:** Search your address on [POKTscan](https://poktscan.com) to confirm your POKT migrated correctly.
+
+**Exchange holders:** If your POKT is on an exchange, the exchange handles the technical migration. Check their status page for any deposit/withdrawal requirements post-upgrade.
+
+**wPOKT holders:** No action needed. Your wPOKT balance is unchanged on Ethereum and Base.
+
+## If You're a Developer Using Pocket for RPC
+
+The developer experience improved significantly in Shannon. The endpoint format changed, the chains available expanded, and pricing shifted to a usage-based model.
+
+### Migration Checklist
+
+**Update your RPC endpoint:** Replace `gateway.pokt.network/v1/lb/{APP_ID}/{CHAIN_ID}` with `{CHAIN_ID}.api.pocket.network`. For example, Ethereum mainnet is `eth.api.pocket.network`. See the full chain list at [pocket.network/support-public-rpc](https://pocket.network/support-public-rpc).
+
+**Remove the App ID:** The new public portal does not require an App ID or API key — just the chain path suffix.
+
+**No SDK changes required:** Pocket's RPC is standard JSON-RPC. Your existing ethers.js, web3.py, viem, or other library integrations work without modification — just update the URL.
+
+**For high-volume production:** Consider the [Foundation Partnership program](/foundation/partnerships) for a dedicated endpoint, or deploy your own [PATH gateway](/path/) for full control.
+
+<Callout type="tip">
+  The migration is a drop-in URL change for most applications. If you're seeing errors after the update, check [poktscan.com/services](https://poktscan.com/services) to confirm your target chain is active and serving relays.
+</Callout>
+
+## If You Run a Pocket Node (Supplier)
+
+The node operator experience changed completely in Shannon. The software stack, staking model, reward calculation, and wallet format all changed.
+
+### What Node Operators Needed to Do
+
+**Generate new Shannon keys:** Morse private keys are not compatible with Shannon. You need a Cosmos SDK keypair and a registered Shannon address.
+
+**Update your output address:** All noderunner providers were required to collect new Shannon output addresses from their customers after the migration. If you staked with a provider, they should have guided you through this.
+
+**Install the new software:** `pocket-core` is retired. You need [pocketd](/get-started/pocketd-installation) (the Shannon chain binary) and [RelayMiner](/node-operators/relayminer-setup) (the relay-serving sidecar).
+
+**Reconfigure chain services:** The [service configuration format](/node-operators/service-management) changed completely. Chain IDs are now string identifiers (`eth`, `solana`, etc.) rather than numeric codes.
+
+**Monitor with POKTscan Operator:** Use [poktscan.com/tools/operator](https://poktscan.com/tools/operator) to track rewards, claims, proofs, and earnings by service.
+
+<Callout type="info">
+  For the complete Morse migration procedure (ETVL process, address mapping, timeline), see the [Morse Migration archive](/deprecated/morse-migration).
+</Callout>

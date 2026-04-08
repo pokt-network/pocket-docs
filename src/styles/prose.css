@@ -1,0 +1,334 @@
+/* ═══════════════════════════════════════════════════════════════
+   ARTICLE PROSE — MDX Content Rendering
+   ═══════════════════════════════════════════════════════════════
+   
+   When Astro renders MDX, it produces naked semantic HTML:
+   <p>, <h2>, <h3>, <ul>, <ol>, <table>, <blockquote>, <hr>, etc.
+   
+   These styles target those elements WITHIN the article content
+   column (.article-content). They are NOT global — they only
+   apply inside the content wrapper to avoid polluting component
+   internals.
+   
+   This file is the #1 source of visual consistency. Without it,
+   paragraphs collapse together, headings have no breathing room,
+   and lists lose their indentation.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Content wrapper ── */
+.article-content {
+  max-width: var(--content-max-width);  /* 720px */
+  font-family: var(--font-primary);
+  font-size: var(--text-base);          /* 16px */
+  line-height: var(--leading-relaxed);  /* 1.75 — optimized for reading */
+  color: var(--text-primary);
+}
+
+/* ── Paragraphs ──
+   The single most important rule in this file.
+   Without this, paragraphs render as a wall of text. */
+.article-content > p,
+.article-content > div > p {
+  margin-bottom: var(--space-5);  /* 20px between paragraphs */
+}
+
+.article-content > p:last-child {
+  margin-bottom: 0;
+}
+
+/* Lead paragraph (first p after h1, or .lead class) */
+.article-content > p:first-of-type,
+.article-content > .lead {
+  font-size: var(--text-lg);        /* 18px */
+  line-height: var(--leading-normal); /* 1.6 */
+  color: var(--text-secondary);
+}
+
+/* ── Headings ──
+   Large top margin creates visual separation between sections.
+   Smaller bottom margin keeps heading close to its content. */
+.article-content h1 {
+  font-size: var(--text-4xl);       /* 36px */
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-snug);  /* 1.4 — brand spec 140% */
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-6);    /* 24px */
+  color: var(--text-primary);
+}
+
+.article-content h2 {
+  font-size: var(--text-2xl);       /* 24px */
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-snug);
+  margin-top: var(--space-12);      /* 48px — big section break */
+  margin-bottom: var(--space-4);    /* 16px */
+  padding-bottom: var(--space-3);   /* 12px */
+  border-bottom: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+}
+
+/* First h2 after h1 doesn't need the extra top margin */
+.article-content h1 + h2 {
+  margin-top: var(--space-8);
+}
+
+.article-content h3 {
+  font-size: var(--text-xl);        /* 20px */
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  margin-top: var(--space-8);       /* 32px */
+  margin-bottom: var(--space-3);    /* 12px */
+  color: var(--text-primary);
+}
+
+.article-content h4 {
+  font-size: var(--text-lg);        /* 18px */
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  margin-top: var(--space-6);       /* 24px */
+  margin-bottom: var(--space-2);    /* 8px */
+  color: var(--text-primary);
+}
+
+/* ── Links ── */
+.article-content a {
+  color: var(--text-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(2, 90, 242, 0.3);
+  transition: text-decoration-color var(--transition-fast);
+}
+
+.article-content a:hover {
+  color: var(--text-link-hover);
+  text-decoration-color: currentColor;
+}
+
+/* ── Lists ── */
+.article-content ul,
+.article-content ol {
+  margin-bottom: var(--space-5);    /* 20px */
+  padding-left: var(--space-6);     /* 24px indent */
+}
+
+.article-content ul {
+  list-style-type: disc;
+}
+
+.article-content ol {
+  list-style-type: decimal;
+}
+
+.article-content li {
+  margin-bottom: var(--space-2);    /* 8px between items */
+  line-height: var(--leading-normal); /* 1.6 */
+  color: var(--text-primary);
+}
+
+.article-content li:last-child {
+  margin-bottom: 0;
+}
+
+/* Nested lists */
+.article-content li > ul,
+.article-content li > ol {
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.article-content li > ul {
+  list-style-type: circle;
+}
+
+/* ── Inline code ──
+   Already defined in tokens-and-components.css as .inline-code,
+   but MDX produces raw <code> inside <p> and <li>. */
+.article-content :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--bg-code);
+  color: var(--text-code);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-secondary);
+  word-break: break-word;
+}
+
+/* ── Code blocks ──
+   MDX produces <pre><code>. The code-block component handles
+   its own styling, but for bare pre/code from markdown fences: */
+.article-content pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  overflow-x: auto;
+  margin-bottom: var(--space-5);
+  font-size: var(--text-sm);        /* 15px */
+  line-height: 1.7;
+}
+
+.article-content pre code {
+  font-family: var(--font-mono);
+  font-size: inherit;
+  background: none;
+  color: var(--text-primary);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+}
+
+/* ── Tables ──
+   MDX tables render as raw <table>. Apply data-table styling. */
+.article-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--space-5);
+  font-size: var(--text-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.article-content thead {
+  background: var(--bg-tertiary);
+}
+
+.article-content th {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  white-space: nowrap;
+}
+
+.article-content td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+  vertical-align: top;
+}
+
+.article-content tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.article-content tbody tr:hover {
+  background: var(--bg-secondary);
+}
+
+/* Monospace values in table cells */
+.article-content td code {
+  font-size: var(--text-xs);
+}
+
+/* ── Blockquotes ── */
+.article-content blockquote {
+  border-left: 3px solid var(--brand-blue);
+  background: var(--callout-info-bg);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.article-content blockquote p {
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.article-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Horizontal rules ── */
+.article-content hr {
+  border: none;
+  border-top: 1px solid var(--border-primary);
+  margin: var(--space-10) 0;
+}
+
+/* ── Images ── */
+.article-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-secondary);
+  margin-bottom: var(--space-5);
+}
+
+/* ── Strong and emphasis ── */
+.article-content strong {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.article-content em {
+  font-style: italic;
+}
+
+/* ── Definition lists (used in some MDX content) ── */
+.article-content dl {
+  margin-bottom: var(--space-5);
+}
+
+.article-content dt {
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-1);
+}
+
+.article-content dd {
+  margin-left: var(--space-6);
+  margin-bottom: var(--space-3);
+  color: var(--text-secondary);
+}
+
+/* ── Spacing between adjacent components ──
+   Ensures consistent vertical rhythm when MDX mixes
+   prose with components (callouts, code blocks, tabs). */
+.article-content > .callout,
+.article-content > .code-block,
+.article-content > .tabs,
+.article-content > .card-grid,
+.article-content > .step-list,
+.article-content > .data-table-wrapper {
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+/* ── Heading anchors (for TOC scroll-spy) ── */
+.article-content h2[id],
+.article-content h3[id] {
+  scroll-margin-top: calc(var(--header-height) + var(--space-4));
+}
+
+/* Anchor link icon on hover */
+.article-content h2:hover .heading-anchor,
+.article-content h3:hover .heading-anchor {
+  opacity: 1;
+}
+
+.heading-anchor {
+  margin-left: var(--space-2);
+  color: var(--text-tertiary);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  font-weight: var(--weight-regular);
+}
+
+.heading-anchor:hover {
+  color: var(--text-link);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   C1: H2 BRAND ACCENT — subtle blue left border on content H2s
+   ═══════════════════════════════════════════════════════════════ */
+.article-content h2 {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--brand-blue);
+  border-bottom: 1px solid var(--border-secondary);
+}

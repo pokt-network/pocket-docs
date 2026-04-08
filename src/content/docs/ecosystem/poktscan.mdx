@@ -1,0 +1,104 @@
+---
+title: "POKTscan Explorer Guide"
+description: "How to use POKTscan to look up addresses, track relay analytics, monitor network health, and explore on-chain data."
+section: "ecosystem"
+persona: ["all"]
+tabs: false
+status: "stable"
+sources: ["zip3/poktscan-explorer-guide.docx"]
+lastUpdated: "2026-04-07"
+---
+
+[POKTscan](https://poktscan.com) is the primary block explorer and analytics platform for Pocket Network Shannon. Built by the Soothe team, it covers the full picture: relay analytics, tokenomics, node performance, governance, and detailed blockchain data across every actor type.
+
+## Homepage — Network at a Glance
+
+The homepage gives an instant snapshot of network health. No login or wallet connection required.
+
+**Live stats:** Total Suppliers, total staked POKT, latest block, indexer block, computed units (24h), relay count.
+
+**Charts:** Computed Units (30d trend), Supply Evolution (total supply over time — should trend down with PIP-41 active), Staked Validators/Suppliers/Apps evolution, Services by volume (24h), Biggest Gainers.
+
+## Search
+
+The search bar at the top of every page accepts:
+
+- **Wallet address** (`pokt1...`) — balance, staking status, transaction history
+- **Transaction hash** — full transaction detail
+- **Block height** — navigate to a specific block
+- **Service ID** (e.g. `eth`) — service-specific data
+
+## Address Lookup
+
+Search any `pokt1...` address to see: balance, stake amount and status, stake type, registered services, output address, and complete transaction history.
+
+### Reading a Transaction
+
+Click any transaction hash to see: message type (MsgStake, MsgSend, MsgUnstake, claim/proof submissions), block height, status (Success/Failed), fee, and from/to addresses.
+
+## Dashboards
+
+### Dashboards → Relay Analytics
+
+[poktscan.com/dashboards/relay-analytics](https://poktscan.com/dashboards/relay-analytics)
+
+The most important dashboard for understanding network demand. Shows computed units and relay volume over time, broken down by service. Filter by time period or specific services. Watch this to understand whether Pocket's overall demand is growing or contracting.
+
+### Dashboards → Node Running
+
+[poktscan.com/dashboards/node-running](https://poktscan.com/dashboards/node-running)
+
+Tracks Claims submitted, Proofs submitted, and Expired Proofs over time. A high expired proof rate indicates network-wide issues. Useful for operators diagnosing conditions and researchers tracking protocol health.
+
+### Dashboards → Tokenomics
+
+Shows mint, burn, and net inflation over time. With PIP-41 active, burn should exceed mint at growing relay volumes.
+
+## Blockchain — On-Chain Data
+
+| Page | URL | What It Shows |
+| --- | --- | --- |
+| **Transactions** | [poktscan.com/txs](https://poktscan.com/txs) | Live feed of all transactions |
+| **Suppliers** | [poktscan.com/suppliers](https://poktscan.com/suppliers) | All Supplier nodes with stake, balance, services |
+| **Applications** | [poktscan.com/apps](https://poktscan.com/apps) | All staked Applications |
+| **Gateways** | [poktscan.com/gateways](https://poktscan.com/gateways) | All registered Gateways |
+| **Validators** | [poktscan.com/validators](https://poktscan.com/validators) | Active/inactive validators and voting power |
+| **Services** | [poktscan.com/services](https://poktscan.com/services) | All registered services and their IDs |
+| **Blocks** | [poktscan.com/blocks](https://poktscan.com/blocks) | Live block feed |
+| **Parameters** | [poktscan.com/params](https://poktscan.com/params) | All governance-controlled protocol parameters |
+| **Migration** | [poktscan.com/migration](https://poktscan.com/migration) | Morse → Shannon migration status |
+
+<Callout type="tip">
+  The Suppliers page has powerful filters: All, Staked, Unstaking, Unstaked, Low Balance, Low Stake, Below Min Stake. The Low Balance filter is especially useful for spotting nodes at risk of failing proof submissions.
+</Callout>
+
+## Tools
+
+### Operator Tool
+
+[poktscan.com/tools/operator](https://poktscan.com/tools/operator) — the personalized dashboard for node operators. Add up to 10 Supplier addresses and see aggregated:
+
+- **Rewards:** POKT earned over time, per-address or grouped
+- **Claim/Proof Comparison:** Claims vs. proofs vs. expired — any gap means lost rewards
+- **Rewards by Service:** Which chains generate the most revenue for your nodes
+- **Slashing:** Any slashing events
+
+This is the recommended monitoring tool for anyone running Supplier nodes or delegating via [Igniter](/ecosystem/igniter).
+
+### Staking Tool
+
+[poktscan.com/tools/staking](https://poktscan.com/tools/staking) — connects to Keplr or Leap wallet for on-chain staking actions directly from POKTscan, without the `pocketd` CLI.
+
+## Understanding Key Metrics
+
+**Computed Units vs. Relays:** Both measure work, but CUs determine economics. Different services have different CU costs per relay. Watching CUs is more informative than relay counts for understanding economic activity.
+
+**Indexer Block lag:** POKTscan is typically 1–2 blocks behind the chain. If a transaction hasn't appeared yet, wait 30–60 seconds and refresh.
+
+**Claim/Proof ratio:** A healthy operation shows Claims ≈ Proofs with zero Expired Proofs. Any expired proofs mean lost rewards — investigate [RelayMiner logs](/node-operators/troubleshooting) immediately.
+
+**Supplier filter meanings:**
+
+- **Low Balance:** May not have enough POKT for claim/proof transaction fees
+- **Low Stake:** Below threshold that may affect session participation
+- **Below Min Stake:** Below the <GovParam module="supplier" param="min_stake" format="pokt" /> POKT protocol minimum — will be forcibly unstaked

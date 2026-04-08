@@ -1,0 +1,91 @@
+---
+title: "Supplier Rewards & Economics"
+description: "How Supplier nodes earn POKT — compute units, reward calculation, settlement timing, and practical earnings expectations."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+sources: ["zip3/supplier-rewards-economics.docx"]
+lastUpdated: "2026-04-07"
+---
+
+Shannon replaced the old inflationary reward model with a usage-based burn-and-mint system. Suppliers earn POKT directly from work they prove they did — not from protocol inflation.
+
+## The Core Idea: You Earn What You Prove
+
+Applications burn POKT to pay for data. Suppliers get paid in newly minted POKT equal to what was burned (minus the [PIP-41](/token/pip-41) deflation factor). You earn your share by proving you served valid relays. No relay work, no reward. No valid proof, no payment.
+
+## Compute Units — The Pricing Primitive
+
+Compute Units (CUs) are the internal currency for measuring work. Every relay consumes CUs determined by the service being queried. CUs are then converted to POKT at a governance-controlled exchange rate.
+
+The pricing chain: **Relays → Compute Units → uPOKT → POKT**
+
+| Step | What Happens |
+| --- | --- |
+| 1. Serve relays | Your RelayMiner serves API requests during a session |
+| 2. CU calculation | Each relay = `ComputeUnitsPerRelay` CUs (set per service) |
+| 3. POKT conversion | CUs × `ComputeUnitsToTokenMultiplier` (CUTTM) = uPOKT |
+| 4. Settlement | Minted POKT distributed after proof validation |
+
+## Reward Allocation
+
+When minted POKT is distributed, it splits according to the `mint_equals_burn_claim_distribution` parameter:
+
+| Recipient | Share | Role |
+| --- | --- | --- |
+| **Suppliers** | 79% | Served relays |
+| **Validators** | 14% | Block production |
+| **DAO Treasury** | 4.5% | Ecosystem funding |
+| **Source Owners** | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> | Service maintainers |
+
+## Session Mechanics
+
+Pocket Network organizes relay work into sessions — time-bounded periods where specific Suppliers are assigned to serve a specific Application+Service pair.
+
+- Sessions are deterministic: the protocol calculates assignments from (Application, Service, block height)
+- You don't apply for sessions — the protocol assigns them
+- Higher stake, more registered services, and better QoS increase your selection probability
+- Each session lasts approximately a few hours
+
+## Settlement Timing
+
+After a session ends, rewards don't arrive instantly:
+
+1. **Session ends** → RelayMiner submits a **Claim** (on-chain transaction)
+2. **Claim window** → Protocol verifies, then opens **Proof** submission window
+3. **Proof submitted** → Protocol validates → POKT **minted and distributed**
+
+<Callout type="warning">
+  Claim and Proof submissions are on-chain transactions that cost POKT in fees. If your node wallet's liquid balance is too low to pay these fees, RelayMiner can't submit them and your rewards for that session are lost. Keep your node wallet funded.
+</Callout>
+
+## What Affects Your Earnings
+
+- **Relay volume:** More relays = more CUs burned and minted
+- **CUTTM rate:** The governance-controlled POKT/CU exchange rate
+- **Competition:** More Suppliers = smaller share per node
+- **Chain mix:** Different services have different CU rates and volumes
+- **POKT price:** Affects USD value of rewards (CUTTM adjusts to stabilize)
+
+There is no fixed APR. Reward rates depend on total network relay volume, the number of competing nodes, and the POKT/USD price. Published APR estimates from third parties are indicative only — verify against current [POKTscan](https://poktscan.com) data.
+
+## Monitoring Your Earnings
+
+Use [POKTscan Operator](https://poktscan.com/tools/operator) to track:
+
+- **Rewards tab:** POKT earned over time, per address or aggregated
+- **Claim/Proof Comparison:** If Claims significantly exceed Proofs, you're losing rewards — investigate RelayMiner logs
+- **Rewards by Service:** Which chains generate the most revenue for your nodes
+- **Key metric:** Expired Proofs should always be zero. Any non-zero value means lost rewards.
+
+## Governance Parameters That Affect Rewards
+
+| Parameter | Current Value | Impact |
+| --- | --- | --- |
+| `compute_units_to_tokens_multiplier` (CUTTM) | Check [poktscan.com/params](https://poktscan.com/params) | Core POKT/CU exchange rate |
+| `mint_ratio` | 0.975 | PIP-41 deflation — reduces total mint by 2.5% |
+| `mint_equals_burn_claim_distribution` | 79% Supplier | Your share of each settlement |
+| `num_suppliers_per_session` | 50 | More suppliers = smaller individual share |
+
+Subscribe to governance notifications on [forum.pokt.network](https://forum.pokt.network) to track proposed parameter changes.

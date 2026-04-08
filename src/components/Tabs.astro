@@ -1,0 +1,105 @@
+---
+/**
+ * Tabs component — Overview / Advanced content pattern.
+ * 
+ * Usage in MDX:
+ *   <Tabs>
+ *     <Tab label="Overview">Overview content</Tab>
+ *     <Tab label="Advanced">Advanced content</Tab>
+ *   </Tabs>
+ * 
+ * Features:
+ *   - ARIA tabs pattern (arrow key navigation)
+ *   - URL parameter persistence (?tab=overview)
+ *   - Content fade-in animation on switch
+ *   - Both panels in DOM (hidden attribute, not removed)
+ * 
+ * CSS classes: .tabs, .tab-list, [role="tab"], .tab-panel
+ * Defined in tokens-and-components.css
+ */
+---
+
+<div class="tabs">
+  <div class="tab-list" role="tablist">
+    <!-- Tab buttons injected by client script from child Tab labels -->
+  </div>
+  <div class="tab-panels">
+    <slot />
+  </div>
+</div>
+
+<script>
+  // Tabs initialization — runs after DOM is ready
+  document.addEventListener('astro:page-load', () => {
+    document.querySelectorAll('.tabs').forEach((tabsEl) => {
+      const tabList = tabsEl.querySelector('.tab-list');
+      const panels = tabsEl.querySelectorAll('.tab-panel');
+      if (!tabList || panels.length === 0) return;
+
+      // Build tab buttons from panel data-label attributes
+      tabList.innerHTML = '';
+      panels.forEach((panel, i) => {
+        const label = (panel as HTMLElement).dataset.label || `Tab ${i + 1}`;
+        const id = label.toLowerCase().replace(/\s+/g, '-');
+        const btn = document.createElement('button');
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+        btn.setAttribute('aria-controls', `panel-${id}`);
+        btn.setAttribute('id', `tab-${id}`);
+        btn.textContent = label;
+        tabList.appendChild(btn);
+
+        (panel as HTMLElement).setAttribute('role', 'tabpanel');
+        (panel as HTMLElement).setAttribute('id', `panel-${id}`);
+        (panel as HTMLElement).setAttribute('aria-labelledby', `tab-${id}`);
+        if (i !== 0) (panel as HTMLElement).setAttribute('hidden', '');
+      });
+
+      // Check URL for initial tab
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get('tab');
+      if (urlTab) {
+        const target = tabList.querySelector(`[id="tab-${urlTab}"]`);
+        if (target) (target as HTMLElement).click();
+      }
+
+      // Click handler
+      tabList.addEventListener('click', (e) => {
+        const btn = (e.target as HTMLElement).closest('[role="tab"]');
+        if (!btn) return;
+
+        tabList.querySelectorAll('[role="tab"]').forEach((t) => {
+          t.setAttribute('aria-selected', 'false');
+        });
+        btn.setAttribute('aria-selected', 'true');
+
+        panels.forEach((p) => (p as HTMLElement).setAttribute('hidden', ''));
+        const targetId = btn.getAttribute('aria-controls');
+        const targetPanel = tabsEl.querySelector(`#${targetId}`);
+        if (targetPanel) {
+          (targetPanel as HTMLElement).removeAttribute('hidden');
+          // Update URL without reload
+          const tabName = btn.getAttribute('id')?.replace('tab-', '') || '';
+          const url = new URL(window.location.href);
+          url.searchParams.set('tab', tabName);
+          history.replaceState(null, '', url.toString());
+        }
+      });
+
+      // Arrow key navigation
+      tabList.addEventListener('keydown', (e) => {
+        const tabs = Array.from(tabList.querySelectorAll('[role="tab"]'));
+        const current = tabs.findIndex((t) => t.getAttribute('aria-selected') === 'true');
+        let next = current;
+
+        if ((e as KeyboardEvent).key === 'ArrowRight') next = (current + 1) % tabs.length;
+        else if ((e as KeyboardEvent).key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
+        else return;
+
+        (e as Event).preventDefault();
+        (tabs[next] as HTMLElement).click();
+        (tabs[next] as HTMLElement).focus();
+      });
+    });
+  });
+</script>

@@ -1,0 +1,479 @@
+---
+title: "Gateway Staking"
+description: "Stake POKT as a Gateway operator — concepts, delegation, and CLI commands."
+section: "gateways"
+persona: ["gateway-operator"]
+tabs: true
+status: "stable"
+sources: ["zip1/05-gateway-staking.md", "zip2/05-gateway-staking.md"]
+lastUpdated: "2026-04-07"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+## What Is a Gateway?
+
+A Gateway is a quality-of-service layer that sits between the applications that need blockchain data and the suppliers that serve it. Think of a Gateway as a **premium on-ramp to the Pocket Network highway**. Without a Gateway, every application would need to navigate the network on its own — finding available suppliers, managing sessions, signing requests. A Gateway handles all of that complexity behind the scenes, giving application developers a clean, familiar API experience that feels like calling any traditional web service.
+
+In practical terms, when a web app, mobile app, or backend service needs to read data from a blockchain (say, checking an Ethereum wallet balance), it sends that request to a Gateway. The Gateway then routes the request to the best available supplier, collects the response, and hands it back — all in milliseconds. The application never needs to know that a decentralized network of independent suppliers is doing the heavy lifting underneath.
+
+Applications formally **delegate** to a Gateway, which means they authorize the Gateway to sign and route requests on their behalf. One Gateway can serve many applications simultaneously, which is exactly what makes operating one a viable business.
+
+## Prerequisites
+
+Before staking a Gateway, you need a funded Pocket wallet with enough POKT to cover the stake amount and transaction fees. You also need the Pocket Network tooling installed and configured. For detailed setup instructions, refer to the technical Getting Started guide.
+
+## Gateway Module Parameters
+
+The Gateway module is governed by on-chain parameters that the community can adjust through governance proposals. These parameters set the rules of engagement for all Gateway operators.
+
+| Parameter | What It Means | Current Default |
+|-----------|---------------|-----------------|
+| Minimum Stake | The smallest amount of POKT you must lock up to register as a Gateway. This threshold ensures that Gateway operators have meaningful skin in the game. | 1 POKT |
+
+There is also an **unbonding period** (controlled by a shared network parameter) that determines how long your tokens remain locked after you decide to stop operating. During this cooldown window, your POKT cannot be withdrawn. The default is 1 session. This prevents operators from quickly staking, capturing traffic, and immediately exiting — it keeps incentives aligned with reliable, ongoing service.
+
+## Why Staking Matters
+
+Staking is Pocket Network's way of turning commitment into trust. When you stake POKT to become a Gateway, you are putting real value on the line as a guarantee that you will operate responsibly. If every Gateway could appear and disappear at will with no financial commitment, applications could not rely on the network for mission-critical data access.
+
+Your stake is not spent — it remains yours. It is locked for as long as you operate, and it is returned to you when you stop (after the unbonding period). Think of it like a security deposit on a commercial lease: the landlord holds it as assurance that you will take care of the property, and you get it back when you leave in good standing.
+
+You can increase your stake at any time to signal greater commitment or meet future governance-adjusted minimums. The new amount replaces the old one — it is not additive.
+
+## Staking a Gateway
+
+To become an active Gateway on Pocket Network, you register your address on-chain by submitting a staking transaction with your desired stake amount. Once your transaction is confirmed, your Gateway is live and applications can begin delegating to you.
+
+The process is straightforward: prepare a configuration specifying your stake amount, submit it to the network, and wait for confirmation. For the exact technical steps, refer to the developer documentation.
+
+### Increasing Your Stake
+
+If you want to increase your commitment (or if governance raises the minimum stake), you can submit a new staking transaction with a higher amount. The new amount replaces your current stake entirely.
+
+An important detail: if you previously initiated an unstake (see below) and your Gateway is in the unbonding cooldown period, submitting a new stake cancels the unbonding and returns your Gateway to active status. This gives operators flexibility — if business conditions change during the cooldown, you can reverse course.
+
+## Unstaking a Gateway
+
+When you decide to stop operating a Gateway, you initiate an **unstake**. This does not instantly return your POKT. Instead, the Gateway enters an **unbonding period** — a cooldown window during which:
+
+- Your Gateway is no longer matched with new sessions (no new traffic is routed to you).
+- Your POKT remains locked on-chain.
+- After the unbonding period elapses, your staked tokens are automatically returned to your account.
+
+### The Unbonding Lifecycle
+
+1. **Unbonding begins** — You submit the unstake request. The network records when unbonding started and when it will end.
+2. **Cooldown period** — Your Gateway sits idle for the required number of sessions. This gives the network time to gracefully transition any remaining traffic.
+3. **Unbonding ends** — Your POKT is released back to your wallet automatically.
+
+If you change your mind during the cooldown, you can cancel unbonding by submitting a new stake transaction.
+
+## Querying Gateways
+
+Anyone can view the list of active Gateways on Pocket Network. This transparency is fundamental to how the network operates — applications can see which Gateways are available, how much they have staked, and whether any are in the process of unbonding.
+
+You can view all Gateways at once or look up a specific Gateway by its address. The details include the Gateway's address, current stake amount, and unbonding status.
+
+## Application Delegation
+
+Delegation is the formal relationship between an application and a Gateway. When an application **delegates** to your Gateway, it is saying: "I authorize you to sign relay requests on my behalf and route my traffic through the network."
+
+Key points about delegation:
+
+- **Delegation is initiated by the application**, not the Gateway. The application owner decides which Gateway to trust with their traffic.
+- **A Gateway can serve many applications** simultaneously, which is what creates the business opportunity.
+- **The target Gateway must already be staked** before an application can delegate to it.
+- **Undelegation is also initiated by the application.** Once undelegated, the Gateway can no longer act on that application's behalf in future sessions.
+
+This model creates a healthy marketplace. Gateway operators compete on quality of service, reliability, and uptime to attract application delegations. Applications choose Gateways based on performance and trust. The result is a self-improving ecosystem where the best operators earn the most business.
+
+## PATH Gateway Setup
+
+PATH stands for **Permissionless Application Transaction Handler**. It is the off-chain software that actually does the work of routing requests. If on-chain staking is how you register as a Gateway, PATH Gateway is the engine that makes it run.
+
+### How PATH Gateway Fits In
+
+The request flow through Pocket Network works like this:
+
+1. A client application (website, mobile app, backend service) sends a request to your PATH Gateway.
+2. Your PATH Gateway signs the request using your Gateway's credentials.
+3. The signed request is forwarded to an available supplier matched for the current session.
+4. The supplier processes the request against the actual blockchain data source and returns the response.
+
+From the client application's perspective, it made one simple API call and got a response. Behind the scenes, Pocket Network's decentralized infrastructure did all the work — and your Gateway made it seamless.
+
+### Running PATH Gateway
+
+PATH Gateway is maintained as a separate project with its own documentation. Setting it up involves:
+
+1. **Stake your Gateway on-chain** (as described above).
+2. **Attract at least one application delegation** so your Gateway has traffic to serve.
+3. **Install and configure the PATH Gateway software**, pointing it to your Gateway credentials and the services you want to relay.
+4. **Start the PATH Gateway** and verify that requests are flowing.
+
+For full configuration and deployment guides, refer to the PATH Gateway documentation.
+
+### Key Differences: Gateway vs. Sovereign Application
+
+Not every network participant needs a Gateway. Some applications prefer direct access — what Pocket Network calls a **sovereign application**. Here is how the two models compare:
+
+| Aspect | Gateway Operator | Sovereign Application |
+|--------|------------------|-----------------------|
+| Who they are | A dedicated service provider running infrastructure for many apps | A single application accessing the network directly for itself |
+| Delegation | Applications delegate to the Gateway | No delegation needed — the app acts on its own behalf |
+| PATH Gateway required | Yes | Yes |
+| Best for | Serving multiple applications, building a relay business | Single-app use cases, maximum control |
+
+## The Business Opportunity
+
+Operating a Gateway on Pocket Network is a real business opportunity. Here is why:
+
+- **Enterprise demand**: Companies building on Web3 need reliable, high-throughput access to blockchain data. They want a familiar API experience with SLAs, dashboards, and support — exactly what a well-run Gateway provides.
+- **Revenue at scale**: A single Gateway can serve dozens or hundreds of applications. Each relay represents usage flowing through your infrastructure.
+- **Competitive differentiation**: Gateway operators compete on latency, uptime, geographic coverage, and supported services. Operators who invest in quality attract more delegations.
+- **Permissionless entry**: Anyone can stake and become a Gateway. There are no gatekeepers deciding who gets to participate — just a minimum stake requirement and the market's judgment of your quality.
+
+By running a Gateway, you become part of Pocket Network's mission to make data access **unstoppable**. Even if one Gateway goes offline, applications can delegate to others. The network routes around failures automatically. This **self-healing** architecture means that the more independent Gateway operators there are, the more resilient the entire ecosystem becomes.
+
+## Troubleshooting
+
+If you encounter issues while staking or operating a Gateway, the most common problems are:
+
+- **Stake amount too low**: The network enforces a minimum stake. Check the current governance parameters to ensure your intended stake meets the threshold.
+- **Gateway not appearing after staking**: Transactions take a moment to be confirmed on-chain. Wait for the next block and then verify your Gateway's status.
+- **Unbonding period questions**: The cooldown duration is a network parameter that can change through governance. Check the current shared module parameters for the latest value.
+
+For detailed technical troubleshooting steps, refer to the developer documentation.
+
+</Tab>
+<Tab label="Advanced">
+
+This guide covers how to stake and unstake a Gateway on Pocket Network, delegate
+Applications to a Gateway, and set up a PATH Gateway for relaying traffic.
+
+A **Gateway** is an on-chain actor that stakes POKT in order to sign and relay
+requests on behalf of one or more Applications. Applications delegate to a
+Gateway so that the Gateway can act on their behalf during sessions, removing
+the need for the Application to run relay infrastructure directly.
+
+## Prerequisites
+
+Before staking a Gateway you need:
+
+- A funded Pocket account with enough `upokt` to cover the stake and
+  transaction fees.
+- The `pocketd` binary installed and configured. See
+  [Getting Started](/get-started/pocketd-installation) for installation instructions.
+- Access to a Pocket Network node (local or remote) via the `--network` flag.
+
+Check your account balance before staking:
+
+```bash
+pocketd query bank balances pokt1yourgatewayaddress \
+  --network=pocket-lego-testnet
+```
+
+## Gateway Module Parameters
+
+The gateway module exposes governance-controlled parameters that affect staking.
+Query the current parameters with:
+
+```bash
+pocketd query gateway params --network=pocket-lego-testnet
+```
+
+| Parameter   | Description                                         | Default    |
+|-------------|-----------------------------------------------------|------------|
+| `min_stake` | Minimum amount of `upokt` a gateway must stake      | <GovParam module="gateway" param="min_stake" format="upokt" /> (<GovParam module="gateway" param="min_stake" format="pokt" /> POKT) |
+
+The unbonding period for gateways is controlled by the **shared** module
+parameter `gateway_unbonding_period_sessions` (default: 1 session). Query it
+with:
+
+```bash
+pocketd query shared params --network=pocket-lego-testnet
+```
+
+## Staking a Gateway
+
+Staking registers your address as a Gateway on-chain and locks the specified
+amount of `upokt`. Once staked, Applications can delegate to your Gateway.
+
+### Stake Configuration File
+
+The `stake-gateway` command reads its configuration from a YAML file passed via
+the `--config` flag. The file has a single required field:
+
+```yaml
+# gateway_stake_config.yaml
+stake_amount: 5000000000upokt
+```
+
+**Field reference:**
+
+| Field          | Required | Description                                              |
+|----------------|----------|----------------------------------------------------------|
+| `stake_amount` | Yes      | Amount of `upokt` to stake. Must use the `upokt` denom. |
+
+The `stake_amount` must be:
+
+- Greater than zero.
+- Denominated in `upokt` (no other denoms are accepted).
+- Greater than or equal to the on-chain `min_stake` governance parameter.
+- Greater than or equal to the gateway's current stake (if already staked). To
+  increase your stake, set a higher value and re-submit the transaction.
+
+### Submitting the Stake Transaction
+
+```bash
+pocketd tx gateway stake-gateway \
+  --config ./gateway_stake_config.yaml \
+  --from gateway1 \
+  --keyring-backend test \
+  --network=pocket-lego-testnet \
+  --home ~/.pocket \
+  --fees 1000upokt \
+  --yes
+```
+
+Replace the flag values:
+
+- `--config` — Path to your YAML stake configuration file.
+- `--from` — The key name or address of the gateway account in your keyring.
+- `--network` — The target network (`local`, `pocket-lego-testnet`, or
+  `pocket`).
+- `--home` — Path to your `pocketd` home directory.
+- `--fees` — Transaction fee in `upokt`.
+
+A successful transaction emits an `EventGatewayStaked` event containing the
+gateway address, stake amount, and session end height.
+
+### Increasing Your Stake
+
+To increase an existing stake, update the `stake_amount` in your config file to
+a value higher than your current stake and re-run the `stake-gateway` command.
+The new amount replaces the old stake (it is not additive).
+
+```yaml
+# gateway_stake_config.yaml  (increased stake)
+stake_amount: 10000000000upokt
+```
+
+```bash
+pocketd tx gateway stake-gateway \
+  --config ./gateway_stake_config.yaml \
+  --from gateway1 \
+  --keyring-backend test \
+  --network=pocket-lego-testnet \
+  --home ~/.pocket \
+  --fees 1000upokt \
+  --yes
+```
+
+If you submit a stake transaction while the gateway is currently unbonding, the
+unbonding is canceled and the gateway returns to active status. An
+`EventGatewayUnbondingCanceled` event is emitted followed by an
+`EventGatewayStaked` event.
+
+## Unstaking a Gateway
+
+Unstaking initiates the unbonding process for a Gateway. The gateway enters an
+unbonding period (controlled by the shared parameter
+`gateway_unbonding_period_sessions`) during which it remains on-chain but will
+no longer be matched in new sessions. After the unbonding period elapses, the
+staked tokens are returned to the gateway's account.
+
+```bash
+pocketd tx gateway unstake-gateway \
+  --from gateway1 \
+  --keyring-backend test \
+  --network=pocket-lego-testnet \
+  --home ~/.pocket \
+  --fees 1000upokt \
+  --yes
+```
+
+The `--from` address must match the address that originally staked the gateway.
+
+### Unbonding Lifecycle
+
+1. **`EventGatewayUnbondingBegin`** — Emitted when the unstake transaction is
+   committed. Includes the `session_end_height` (when unbonding started) and
+   `unbonding_end_height` (when tokens will be released).
+2. The gateway remains in the unbonding state for
+   `gateway_unbonding_period_sessions` sessions.
+3. **`EventGatewayUnbondingEnd`** — Emitted automatically when the unbonding
+   period ends and tokens are returned.
+
+During unbonding you can cancel the process by submitting a new `stake-gateway`
+transaction (see "Increasing Your Stake" above).
+
+## Querying Gateways
+
+### List All Gateways
+
+```bash
+pocketd query gateway list-gateway \
+  --network=pocket-lego-testnet
+```
+
+Supports standard Cosmos SDK pagination flags:
+
+```bash
+pocketd query gateway list-gateway \
+  --network=pocket-lego-testnet \
+  --limit 10 \
+  --offset 0
+```
+
+### Show a Specific Gateway
+
+```bash
+pocketd query gateway show-gateway pokt1yourgatewayaddress \
+  --network=pocket-lego-testnet
+```
+
+The response includes the gateway's address, current stake, and
+`unstake_session_end_height` (non-zero if the gateway is currently unbonding).
+
+## Application Delegation
+
+Applications must delegate to a staked Gateway before the Gateway can sign
+relay requests on their behalf. Delegation and undelegation are submitted from
+the **Application's** account, not the Gateway's.
+
+### Delegate an Application to a Gateway
+
+```bash
+pocketd tx application delegate-to-gateway pokt1gatewayaddress \
+  --from app1 \
+  --keyring-backend test \
+  --network=pocket-lego-testnet \
+  --home ~/.pocket \
+  --fees 1000upokt \
+  --yes
+```
+
+- The first positional argument is the **gateway address** to delegate to.
+- `--from` specifies the **application** account performing the delegation.
+- The target gateway must already be staked.
+
+### Undelegate an Application from a Gateway
+
+```bash
+pocketd tx application undelegate-from-gateway pokt1gatewayaddress \
+  --from app1 \
+  --keyring-backend test \
+  --network=pocket-lego-testnet \
+  --home ~/.pocket \
+  --fees 1000upokt \
+  --yes
+```
+
+Once undelegated, the Gateway can no longer sign relay requests on behalf of
+that Application for future sessions.
+
+## PATH Gateway Setup
+
+PATH (Permissionless Application Transaction Handler) Gateway is the off-chain
+software that a Gateway operator runs to relay requests between client
+applications (web apps, mobile apps, etc.) and Suppliers on Pocket Network.
+
+A staked on-chain Gateway or a sovereign Application that wants to access Pocket
+Network directly must run a PATH Gateway instance (or equivalent custom
+software).
+
+### How PATH Gateway Fits In
+
+```
+Client dApp  -->  PATH Gateway  -->  Supplier (RelayMiner)  -->  Upstream Service
+```
+
+1. The client sends a relay request to the PATH Gateway.
+2. PATH Gateway signs the request using the Gateway's (or Application's) key.
+3. The signed request is forwarded to a matched Supplier for the current session.
+4. The Supplier proxies the request to the upstream service and returns the
+   response.
+
+### Running PATH Gateway
+
+PATH Gateway is maintained as a separate project. Full configuration
+documentation and deployment guides are available at:
+
+https://path.grove.city/category/path-configurations
+
+At a high level the setup involves:
+
+1. **Stake your Gateway on-chain** using `pocketd tx gateway stake-gateway` as
+   described above.
+2. **Have at least one Application delegate** to your Gateway so it can serve
+   relay traffic.
+3. **Install and configure PATH Gateway** following the PATH documentation.
+   Configuration includes your gateway key, the Pocket Network node endpoint,
+   and the services you want to relay.
+4. **Start the PATH Gateway process** and verify it is receiving and forwarding
+   relays.
+
+### Key Differences: Gateway vs. Sovereign Application
+
+| Aspect               | Gateway Operator                           | Sovereign Application              |
+|----------------------|--------------------------------------------|------------------------------------|
+| On-chain actor       | Gateway (staked separately)                | Application (stakes directly)      |
+| Delegation required  | Yes, Applications delegate to the Gateway  | No, the Application acts for itself|
+| PATH Gateway needed  | Yes                                        | Yes                                |
+| Use case             | Serve multiple Applications                | Single Application, direct access  |
+
+## Troubleshooting
+
+### Stake transaction fails with "invalid stake amount denom"
+
+The `stake_amount` in your config file must use the `upokt` denomination. Make
+sure there is no space between the number and the denom:
+
+```yaml
+# Correct
+stake_amount: 5000000000upokt
+
+# Wrong — will fail
+stake_amount: 5000000000 upokt
+stake_amount: 5000000000uPOKT
+stake_amount: 5000.0pokt
+```
+
+### Stake transaction fails with "stake amount below minimum"
+
+Query the current minimum stake parameter and set your `stake_amount` to at
+least that value:
+
+```bash
+pocketd query gateway params --network=pocket-lego-testnet
+```
+
+### Gateway not found after staking
+
+If `show-gateway` returns "gateway not found" shortly after staking, wait for
+the transaction to be included in a block. You can query the transaction hash
+to confirm it was committed:
+
+```bash
+pocketd query tx <tx_hash> --network=pocket-lego-testnet
+```
+
+### Unbonding period questions
+
+Query the shared module parameters to see the current
+`gateway_unbonding_period_sessions` value:
+
+```bash
+pocketd query shared params --network=pocket-lego-testnet
+```
+
+> **New in v0.1.31:** The v0.1.31 upgrade handler initializes historical
+> parameter tracking. If you are querying parameters for a past block height,
+> be aware that historical values are now stored and may differ from current
+> values.
+
+</Tab>
+</Tabs>

@@ -1,0 +1,78 @@
+---
+title: "FAQ — Token Holders & Investors"
+description: "Common questions about buying, holding, staking, and understanding POKT from a token holder's perspective."
+section: "token"
+persona: ["token-holder", "investor"]
+tabs: false
+status: "stable"
+sources: ["zip3/faq-token-holders-investors.docx"]
+lastUpdated: "2026-04-07"
+---
+
+<Callout type="info">
+  Some specific figures (staking minimums, exchange listings, CUTTM values) are governance-controlled and may change. Verify current values at [poktscan.com/params](https://poktscan.com/params).
+</Callout>
+
+## Getting and Holding POKT
+
+**Where can I buy POKT?**
+POKT trades on several centralized exchanges (see [Exchanges](/token/exchanges) for the current list). For decentralized trading, wPOKT is available on Uniswap, Aerodrome, Jupiter, and other DEXs. See the full [How to Buy](/token/how-to-buy) guide.
+
+**What wallet do I use?**
+[Soothe Vault](https://trustsoothe.io) is recommended for most holders — it supports both native POKT and wPOKT in one interface. [Keplr](https://www.keplr.app/) and [Leap](https://leapwallet.io) work for native POKT as Cosmos ecosystem wallets. See [Wallets](/wallets/).
+
+**What is wPOKT?**
+An ERC-20/SPL version of POKT bridged to Ethereum, Base, and Solana. You don't need wPOKT if you plan to hold or stake on Pocket mainnet. It's useful for DEX trading, DeFi liquidity provision, or holding in an EVM wallet. You can [bridge](/token/bridge) between native POKT and wPOKT.
+
+**What is POKT's address format?**
+Shannon uses Cosmos bech32 format: addresses start with `pokt1` followed by lowercase letters and numbers. This is different from Morse-era addresses.
+
+**I had POKT in a Morse wallet — did I lose it?**
+No. Shannon stores a complete archive of all Morse balances. You need to claim your Morse account on Shannon by following the migration instructions. If your POKT was on an exchange or with a noderunner, they handled it on your behalf. See [Shannon Upgrade](/get-started/shannon-upgrade).
+
+## Tokenomics and Supply
+
+**Is POKT inflationary or deflationary?**
+Deflationary since [PIP-41](/token/pip-41) (February 2026). For every relay served, 100% of the POKT fee is burned but only 97.5% is re-minted. The remaining 2.5% is permanently removed. More relay volume = more deflation. This is automatic — no governance vote needed per burn.
+
+**What is the total supply?**
+Approximately 2.4 billion POKT as of April 2026, and declining. There is no fixed maximum supply cap, but under PIP-41, supply contracts with every relay served.
+
+**How does burn-and-mint work?**
+Applications burn POKT to pay for relays. The protocol mints 97.5% back and distributes it: 79% to Suppliers, 14% to Validators, 4.5% to DAO, 2.5% to Service Owners. The remaining 2.5% of the original burn is never created. See [Tokenomics](/token/tokenomics) for the full model.
+
+**What is the CUTTM?**
+The Compute Unit to Token Multiplier — the exchange rate converting compute units to POKT. Since relay pricing is pegged to USD (1 billion CUs ≈ $1), the DAO adjusts CUTTM as POKT's price changes to keep dollar costs stable. A lower POKT price → higher CUTTM → more POKT burned per relay → faster deflation (natural price support).
+
+## Staking
+
+**Can I earn yield?**
+Yes, by running a Supplier node or delegating stake. Suppliers earn 79% of minted POKT from every relay they serve. There is no fixed APY — earnings are proportional to work served. See [Staking](/token/staking).
+
+**What are my staking options?**
+Run your own node (<GovParam module="supplier" param="min_stake" format="pokt" /> POKT minimum + server infrastructure), delegate to a noderunner (they run infrastructure, you provide stake), or join a staking pool (smaller amounts, pooled model). See [Staking](/token/staking) for details on each.
+
+**How long to unstake?**
+Approximately 21 days (504 sessions). You cannot access staked POKT during the unbonding period.
+
+**What's the minimum stake?**
+<GovParam module="supplier" param="min_stake" format="pokt" /> POKT is the protocol minimum for Suppliers. Applications require <GovParam module="application" param="min_stake" format="pokt" /> POKT, and Gateways require <GovParam module="gateway" param="min_stake" format="pokt" /> POKT.
+
+## Governance
+
+**Can I vote?**
+Yes, through the CREDS governance system. The DAO has two Houses: Builder House (80% weight, one-person-one-vote for verified contributors) and Staker House (20%, stake-weighted). Voting happens on [Snapshot](https://snapshot.org/#/pokt-dao.eth). See [Governance](/governance/).
+
+**What does the DAO control?**
+All key protocol parameters (relay pricing, mint ratio, reward splits, staking requirements) plus the DAO treasury (funded by 4.5% of all minted POKT).
+
+## The Network
+
+**What is Shannon?**
+The codename for Pocket Network's current protocol — a full Cosmos SDK rebuild launched June 2025. It replaced Morse with permissionless gateways, usage-based pricing, burn-and-mint tokenomics, and support for any open data service. Named after Claude Shannon, the founder of information theory.
+
+**What chains does Pocket support?**
+60+ blockchain networks and L2s. See the full list at [api.pocket.network](https://api.pocket.network) or [poktscan.com/services](https://poktscan.com/services). New chains can be added permissionlessly under Shannon.
+
+**Is Pocket just for blockchain data?**
+No. Since Shannon, Pocket can serve any HTTP-based data service as a "Source" — including AI inference endpoints, oracles, and Web2 APIs. Blockchain RPC is the current primary use case, but the protocol is service-agnostic.

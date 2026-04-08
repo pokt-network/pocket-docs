@@ -1,0 +1,93 @@
+---
+title: "How Pocket Network Works"
+description: "The relay lifecycle in accessible language — actors, sessions, relays, claims, proofs, and settlement."
+section: "get-started"
+persona: ["all"]
+tabs: false
+status: "stable"
+sources: ["zip2/09-sessions-claims-proofs.md", "zip2/10-tokenomics-overview.md"]
+lastUpdated: "2026-04-07"
+---
+
+Pocket Network is a decentralized marketplace for open data access. Applications need data — blockchain state, AI inference results, and any other supported service type. Suppliers provide it. The protocol matches them together, verifies the work was done honestly, and handles payment — all without trusting anyone.
+
+This page explains the full cycle from request to payment.
+
+## The Four Actors
+
+| Actor | Role | Analogy |
+| --- | --- | --- |
+| **Application** | Pays for data access by staking POKT | A customer placing an order |
+| **Gateway** | Routes requests from Applications to Suppliers | A dispatcher connecting customers to workers |
+| **Supplier** | Runs infrastructure and serves blockchain data | A worker fulfilling the order |
+| **Validator** | Produces blocks and validates the chain | A notary recording everything |
+
+## The Relay Lifecycle
+
+Every piece of data served through Pocket Network follows the same cycle:
+
+### 1. Session Assignment
+
+The protocol assigns Suppliers to Applications in time-bounded windows called **sessions**. Given an Application, a service (like `eth`), and a block height, every node on the network independently calculates the exact same assignment. There is no central scheduler — the math is deterministic and manipulation-resistant.
+
+### 2. Relay Serving
+
+During a session, the Application sends data requests (relays) through a Gateway, which routes them to assigned Suppliers. A relay is a data request served through the protocol — the most common relay type today is a blockchain API call ("What's this wallet's balance?" or "What happened in this transaction?"), but the protocol supports any service type registered on-chain, including AI inference requests. The Supplier's [RelayMiner](/node-operators/relayminer-setup) queries its backend service and returns the answer.
+
+### 3. Claim Submission
+
+After the session window closes, each Supplier submits a **claim** — an on-chain statement declaring how many relays they served. Think of it like a timesheet: "I served 50,000 relays for `eth` during session #12345."
+
+### 4. Proof Verification
+
+The protocol doesn't trust claims at face value. It requires each Supplier to submit a **proof** — cryptographic evidence that the work actually happened. Pocket uses a technique called probabilistic proofs: the protocol randomly selects specific relays from the session and the Supplier must prove those particular relays were served correctly. If the sample checks out, the full claim is accepted.
+
+<Callout type="info">
+  Probabilistic proofs are like a tax audit. The auditor doesn't check every receipt — they spot-check a random sample. If the sample is clean, the full return is accepted. If not, further investigation follows. This keeps verification costs low while making cheating mathematically impractical.
+</Callout>
+
+### 5. Settlement
+
+Once the proof is validated, the protocol settles the claim:
+
+1. **Burn:** POKT is burned from the Application's stake (proportional to the compute units consumed)
+2. **Mint:** New POKT is minted (97.5% of what was burned — the 2.5% gap is [PIP-41](/token/pip-41) deflation)
+3. **Distribute:** The minted POKT is split among participants:
+
+| Recipient | Share |
+| --- | --- |
+| Supplier | 79% |
+| Validators | 14% |
+| DAO Treasury | 4.5% |
+| Service Source Owner | 2.5% |
+
+## The Economic Loop
+
+This creates a self-sustaining cycle:
+
+**Applications burn POKT → Suppliers earn POKT → more Suppliers join → better service → more Applications use the network → more POKT burned**
+
+The more the network is used, the more POKT is burned. With PIP-41's deflation, total supply decreases over time as usage grows — aligning everyone's incentives with network adoption.
+
+## Compute Units: How Work Is Priced
+
+Not all relays are equal. A simple balance check is cheaper than a complex historical query. Pocket uses **compute units (CUs)** to measure work, and a governance-controlled exchange rate converts CUs to POKT.
+
+The chain: **Relays served → Compute units consumed → uPOKT burned/minted → POKT distributed**
+
+Different services have different CU costs. High-complexity chains cost more CUs per relay.
+
+## What Makes This Different
+
+**No trust required.** The protocol verifies work cryptographically. Suppliers can't claim rewards for work they didn't do.
+
+**No central coordinator.** Session assignment, relay routing, and settlement all happen through deterministic algorithms running on every node.
+
+**Usage-based economics.** Rewards scale with actual demand. No fixed inflation schedule — the network pays for what it uses.
+
+## Next Steps
+
+- [What is Pocket Network?](/get-started/what-is-pocket) — the highest-level overview
+- [Sessions, Claims & Proofs](/protocol/sessions-claims-proofs) — deep technical detail
+- [POKT Tokenomics](/token/tokenomics) — the full economic model
+- [Shannon Upgrade](/get-started/shannon-upgrade) — what changed from Morse

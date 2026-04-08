@@ -1,0 +1,61 @@
+---
+title: "PIP-41: Deflationary Mechanics"
+description: "How PIP-41 introduced programmatic deflation to Pocket Network — mechanics, implications, and on-chain verification."
+section: "token"
+persona: ["token-holder", "investor", "governance"]
+tabs: false
+status: "stable"
+sources: ["zip3/pip41-deflationary-mechanics.docx"]
+lastUpdated: "2026-04-07"
+---
+
+## What PIP-41 Is — In One Sentence
+
+For every 100 POKT burned when applications consume data, only 97.5 POKT is minted back as rewards. The remaining 2.5% is never created — permanently reducing total supply with every relay served.
+
+## The Problem It Solved
+
+When Shannon launched in June 2025, it introduced the mint-equals-burn model: applications burn POKT to access data, and an equal amount is minted back to reward Suppliers, Validators, and other participants. This was a massive improvement over Morse's unchecked inflation, but the total supply neither grew nor shrank.
+
+The DAO recognized that a sustainable protocol should tie supply contraction to actual usage. If demand for Pocket's data services grows, the token supply should shrink — creating scarcity that reflects real economic activity, not arbitrary halvings or treasury burns.
+
+PIP-41 makes this happen. It is not a special event or one-time action — it is a permanent change to the protocol's fundamental mechanics.
+
+## How It Works
+
+### The Burn-and-Mint Cycle
+
+1. An application sends relays through the network
+2. POKT is burned proportional to the compute units consumed
+3. The protocol mints back **97.5%** of the burned amount as rewards
+4. The remaining **2.5% is never created** — permanently removed from circulation
+
+### The Auto-Stabilizer
+
+Pocket's relay pricing is pegged to USD: 1 billion Compute Units = $1. The exchange rate between POKT and CUs (the CUTTM) adjusts automatically. This creates a self-reinforcing relationship:
+
+- **If POKT price rises:** Each POKT buys more CUs → fewer POKT burned per relay → slower deflation (natural brake)
+- **If POKT price falls:** Each POKT buys fewer CUs → more POKT burned per relay → faster deflation (natural support)
+
+This differentiates PIP-41 from other deflation mechanisms: it's not a scheduled event or committee decision — it's a mathematical property that operates continuously and automatically.
+
+## What It Means for Each Actor
+
+| Actor | Impact |
+| --- | --- |
+| **Token holders** | Total supply decreases over time with relay growth. Same number of tokens represents a growing share of total supply. |
+| **Suppliers** | Rewards per relay are 2.5% less than under mint-equals-burn. But fewer total tokens minted means each token is scarcer. |
+| **Applications** | No change to cost. Relay pricing is USD-denominated — the deflation mechanics are transparent to consumers. |
+| **Governance** | The 97.5% ratio is a governance parameter. The DAO can adjust it via a PUP (Parameter Update Proposal) at any time. |
+
+## A Starting Point, Not a Permanent Setting
+
+The 97.5% mint ratio is deliberately conservative. The DAO has the authority to adjust this parameter at any time. The Foundation has modeled deflationary scenarios all the way to 50% mint ratios as relay volume scales. Future changes require a governance vote — this parameter cannot be changed unilaterally by PNF or any other actor.
+
+## Verifying PIP-41 On-Chain
+
+You can verify the current settings directly on POKTscan:
+
+- **Current mint ratio:** [poktscan.com/params](https://poktscan.com/params) → Tokenomics Parameters → `mint_ratio` (should show `0.975`)
+- **Reward distribution:** Tokenomics Parameters → `mint_equals_burn_claim_distribution`
+- **Supply evolution:** [poktscan.com](https://poktscan.com) → Home → Supply Evolution chart

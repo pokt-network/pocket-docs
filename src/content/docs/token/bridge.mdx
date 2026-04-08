@@ -1,0 +1,106 @@
+---
+title: "Bridge — Moving POKT Between Chains"
+description: "Two bridges, four chains — how to move between native POKT and POKT on Ethereum, Base, Arbitrum, and Solana."
+section: "token"
+persona: ["token-holder"]
+tabs: false
+status: "stable"
+sources: ["zip3/wpokt-bridge-guide.docx"]
+lastUpdated: "2026-04-08"
+---
+
+There are currently two bridges in operation for POKT (a merge is planned). Understanding which bridge to use depends on where your tokens are and where you want them to go.
+
+## The Two Bridges
+
+| Bridge | What It Connects |
+| --- | --- |
+| **[wpokt.network](https://wpokt.network)** | Native POKT (Cosmos mainnet) ↔ wPOKT (Ethereum ERC-20) |
+| **[bridge.pocket.network](https://bridge.pocket.network)** | wPOKT (Ethereum) ↔ POKT on Base, Arbitrum, and Solana (via Wormhole) |
+
+**wpokt.network** is the only way to move between Pocket's Cosmos chain and Ethereum.
+
+**bridge.pocket.network** uses the Wormhole token bridge infrastructure and handles the multichain side — Base, Arbitrum, and Solana.
+
+## Token Naming by Chain
+
+| Chain | Token Name |
+| --- | --- |
+| Pocket mainnet (Cosmos) | Native POKT |
+| Ethereum | wPOKT (ERC-20) |
+| Base | POKT on Base |
+| Arbitrum | POKT on Arbitrum |
+| Solana | POKT on Solana |
+
+## Common Bridging Paths
+
+### Native POKT → Base (Two Hops)
+
+1. **Hop 1:** Go to [wpokt.network](https://wpokt.network) → bridge native POKT to wPOKT on Ethereum
+2. **Hop 2:** Go to [bridge.pocket.network](https://bridge.pocket.network) → bridge wPOKT on Ethereum to POKT on Base
+
+### Base → Native POKT (Two Hops, Reverse)
+
+1. **Hop 1:** Go to [bridge.pocket.network](https://bridge.pocket.network) → bridge POKT on Base to wPOKT on Ethereum
+2. **Hop 2:** Go to [wpokt.network](https://wpokt.network) → bridge wPOKT to native POKT on Pocket mainnet
+
+### Ethereum → Native POKT (One Hop)
+
+Go to [wpokt.network](https://wpokt.network) → bridge wPOKT to native POKT. No second hop needed.
+
+### Arbitrum or Solana → Native POKT (Two Hops)
+
+Same as Base path: first bridge to Ethereum via bridge.pocket.network, then bridge to native POKT via wpokt.network.
+
+## Before You Start
+
+- **Source wallet:** MetaMask/Rabby (for EVM chains) or Phantom/Solflare (for Solana)
+- **Destination wallet:** A Pocket mainnet address (`pokt1...`) if bridging to native POKT — use [Keplr](https://www.keplr.app/), [Leap](https://leapwallet.io), or Soothe Vault. See the [Wallets guide](/wallets/) if you need one.
+- **Gas funds:** Small amount of ETH (for EVM hops) or SOL (for Solana hops) for transaction fees
+- **Time:** 5–30 minutes per hop depending on chain congestion
+
+## Step-by-Step: Multichain Bridge (Base, Arbitrum, Solana → Ethereum)
+
+1. **Open** [bridge.pocket.network](https://bridge.pocket.network) — verify the URL before connecting
+2. **Connect your wallet** — MetaMask for Base/Arbitrum, Phantom for Solana
+3. **Select source chain** from the dropdown — the bridge detects your POKT balance
+4. **Enter your Ethereum destination address** — double-check carefully, transactions are irreversible
+5. **Enter the amount** — or click Max for full balance
+6. **Review** source chain, amount, destination, and estimated gas
+7. **Confirm** in your wallet
+8. **Wait** — Base/Arbitrum typically 5–15 minutes, Solana similar
+9. **Verify** on [Etherscan](https://etherscan.io) using your Ethereum address
+
+## Step-by-Step: wPOKT Bridge (Ethereum ↔ Native POKT)
+
+1. **Open** [wpokt.network](https://wpokt.network) — verify the URL
+2. **Connect MetaMask** on Ethereum mainnet (or use pocketd for the reverse direction)
+3. **Enter destination** — your `pokt1...` address for Ethereum → native, or your Ethereum address for native → Ethereum
+4. **Enter amount**
+5. **Review** — Ethereum gas fees are higher than Base/Arbitrum
+6. **Submit** and wait 15–30 minutes
+7. **Verify** on [POKTscan](https://poktscan.com)
+
+## Troubleshooting
+
+**Transaction submitted but POKT hasn't left my wallet:** Check the transaction hash on the source chain's block explorer. If pending for 30+ minutes, you may need to speed up or retry with higher gas.
+
+**Bridge shows an error:** Verify your wallet is on the correct network. Try disconnecting and reconnecting. Clear browser cache and reload.
+
+**POKT balance not showing on bridge:** Confirm you're connected with the correct wallet address. Verify the source chain selection matches where your POKT actually is.
+
+**Wrong destination address:** Bridge transactions are irreversible. POKT will arrive at whatever address you entered. Always double-check.
+
+**"Insufficient liquidity":** For very large amounts, try splitting into smaller transactions.
+
+**Native POKT hasn't arrived after 45+ minutes:** Check bridge transaction status using the provided hash. Verify the destination on POKTscan. If the source chain confirms but POKT hasn't arrived, check [Discord](http://discord.gg/pocket-network) #bridge-support.
+
+## Quick Reference
+
+| Question | Answer |
+| --- | --- |
+| Bridge fee? | No separate fee — only source chain gas |
+| Minimum amount? | No protocol minimum |
+| How long? | 5–30 minutes per hop |
+| Can I reverse it? | No — double-check destination address |
+| How many bridges are there? | Two (wpokt.network and bridge.pocket.network) |

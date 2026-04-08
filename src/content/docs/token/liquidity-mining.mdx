@@ -1,0 +1,121 @@
+---
+title: "Providing DeFi Liquidity"
+description: "Earn trading fees by providing POKT liquidity to DEX pools — available pools, step-by-step instructions, and impermanent loss explained."
+section: "token"
+persona: ["token-holder", "defi-user"]
+tabs: false
+status: "stable"
+sources: ["zip3/liquidity-mining-guide.docx"]
+lastUpdated: "2026-04-08"
+---
+
+Providing DeFi liquidity is a way to put your POKT to work without staking it on Pocket's mainnet. Instead of bridging and locking tokens, you deposit them into a trading pool on a DEX and earn a share of the fees generated every time someone swaps through that pool.
+
+It's different from staking — and the risks are different too.
+
+## How Liquidity Provision Works
+
+Decentralized exchanges use liquidity pools — smart contracts holding two tokens in a pair. When a trader swaps one token for another, they trade against the pool and pay a small fee. That fee is distributed proportionally to the liquidity providers (LPs) who supplied the tokens.
+
+As a liquidity provider, you:
+
+1. Deposit an equal value of two tokens into a pool (e.g. POKT and USDC)
+2. Receive LP tokens representing your share of the pool
+3. Earn a portion of every swap fee — automatically, continuously
+4. Optionally stake your LP tokens to earn additional rewards (AERO emissions on Aerodrome, for example)
+5. Withdraw your share by returning your LP tokens
+
+## Active POKT Liquidity Pools
+
+POKT pools exist across four chains. Check each platform directly for live APR and TVL, as these change daily.
+
+| Chain | DEX | Pairs | Fee Tier |
+| --- | --- | --- | --- |
+| **Ethereum** | Uniswap v3, CoW Swap | wPOKT/USDC, wPOKT/ETH | 0.30% – 1.00% |
+| **Base** | Aerodrome | POKT/USDC, POKT/ETH | 0.30% |
+| **Arbitrum** | PancakeSwap | POKT/USDC | varies |
+| **Solana** | Jupiter, Orca | POKT/USDC, POKT/SOL | 0.30% |
+
+<Callout type="info">
+  On Ethereum, the token is **wPOKT** (ERC-20 wrapped POKT). On Base, Arbitrum, and Solana, the token is simply **POKT** — not "wPOKT" and not "xPOKT". Use the correct label when searching for pools on each platform.
+</Callout>
+
+<Callout type="tip">
+  Base (Aerodrome) is the recommended starting point for most users — low gas, good UI, and strong POKT liquidity. Orca on Solana is best for concentrated liquidity strategies.
+</Callout>
+
+## Impermanent Loss — The Key Risk
+
+Impermanent loss (IL) is a structural feature of how AMM pools work. When the price of one token changes relative to the other, the pool automatically rebalances — selling the appreciating token and buying the depreciating one. If POKT rises significantly, the pool sells your POKT as traders buy it. When you withdraw, you end up with less POKT and more USDC than you started with — and compared to just holding, you're worse off.
+
+### When IL Is Most Damaging
+
+- **Large price moves:** A 2× move causes ~5.7% IL. A 4× move causes ~20% IL.
+- **Volatile/volatile pairs:** POKT/ETH exposes you to IL on both sides. POKT/USDC only exposes you on the volatile side.
+- **Low trading volume:** If swap fees don't offset the IL, you lose versus holding.
+- **Short time horizons:** Less time for fees to accumulate and recover.
+
+### When IL Is Manageable
+
+- **High-volume pools** with consistent swap fees that exceed IL.
+- **Stable pair composition** (POKT/USDC) — only exposed to POKT price movement.
+- **Long positions** — more time in the pool means more accumulated fees.
+
+## Step-by-Step: Providing Liquidity on Aerodrome (Base)
+
+**You need:** MetaMask/Rabby/Coinbase Wallet on Base network, POKT on Base, equal USD value of USDC or ETH on Base, small amount of ETH for gas (&lt;$0.05).
+
+1. Go to [aerodrome.finance](https://aerodrome.finance) and click "Liquidity"
+2. Connect your wallet (ensure it's set to Base network)
+3. Search for "POKT" and select your pair (POKT/USDC is most common)
+4. Click "Add Liquidity" and enter your POKT amount — Aerodrome calculates the required USDC
+5. Approve both tokens (one-time per token), then confirm the deposit
+6. **Optional:** Stake your LP tokens in Aerodrome's gauge for that pool to earn AERO emission rewards on top of swap fees
+7. Track your position in "My Positions" — fees accrue automatically
+8. Withdraw anytime by clicking "Remove Liquidity"
+
+## Step-by-Step: Providing Liquidity on Orca (Solana)
+
+Orca uses concentrated liquidity (CLMM) pools — you set a price range for your liquidity. Higher fees when price is in range, but no fees outside it.
+
+**You need:** Phantom or Solflare wallet, POKT on Solana, equal USD value of USDC or SOL, small SOL for gas (&lt;$0.01).
+
+1. Go to [orca.so](https://orca.so) and click "Pools"
+2. Connect your wallet and search for "POKT"
+3. Set your price range ("Full Range" for beginners to avoid active management)
+4. Enter amounts and confirm the deposit
+5. Monitor periodically — if price moves outside your range, the position stops earning
+6. Collect fees periodically, or collect everything when you withdraw
+
+## Step-by-Step: Providing Liquidity on PancakeSwap (Arbitrum)
+
+**You need:** MetaMask/Rabby on Arbitrum network, POKT on Arbitrum, equal USD value of USDC, small ETH for gas.
+
+1. Go to [pancakeswap.finance](https://pancakeswap.finance) and connect your wallet on Arbitrum
+2. Navigate to "Liquidity" and search for "POKT"
+3. Select the POKT/USDC pair and your desired fee tier
+4. Enter your amounts and confirm the deposit
+5. Withdraw anytime through the liquidity management interface
+
+## What You Earn
+
+### Swap Fees
+
+Every swap through a POKT pool pays a fee distributed to LPs. At a 0.30% fee tier, every $1,000 of swap volume generates $3.00 in fees. Your share depends on your proportion of total pool liquidity.
+
+### Additional Emission Rewards (Aerodrome)
+
+On Aerodrome, pools that receive veAERO votes get additional AERO token emissions distributed weekly to staked LPs. Check the APR breakdown on the pool page — it shows base fee APR and emission APR separately.
+
+## Liquidity Provision vs. Staking
+
+| | DeFi Liquidity | Native Staking |
+| --- | --- | --- |
+| **Token needed** | POKT on Base/Arb/Sol, or wPOKT on Ethereum | Native POKT |
+| **Minimum** | None | <GovParam module="supplier" param="min_stake" format="pokt" /> (own node) or none (pool) |
+| **Yield source** | Swap fees + emissions | Relay rewards |
+| **Main risk** | Impermanent loss | Relay volume decline |
+| **Lock-up** | None (DEX positions withdraw anytime) | 21-day unbonding |
+| **Complexity** | Moderate (DEX interaction) | Low (pool) to High (own node) |
+
+You don't have to choose — you could provide liquidity with a portion while bridging and staking the rest.

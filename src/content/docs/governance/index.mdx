@@ -1,0 +1,57 @@
+---
+title: "Governance & DAO"
+description: "How Pocket Network governance works — who votes, what they vote on, and how to participate."
+section: "governance"
+persona: ["governance"]
+tabs: false
+status: "stable"
+sources: ["zip3/governance-hub.docx"]
+lastUpdated: "2026-04-07"
+---
+
+Pocket Network is governed by its community through the Pocket DAO — a decentralized autonomous organization that controls protocol parameters, treasury, and strategic direction. Governance is not a formality; it is how the network evolves. [PIP-41](/token/pip-41) (deflationary mechanics), F-Chains II (long-tail chain coverage), and the Shannon upgrade itself were all enabled by DAO governance.
+
+## The Governance Structure
+
+| Body | Role |
+| --- | --- |
+| **Pocket DAO** | Sets protocol parameters, controls the treasury, approves strategic changes via community vote |
+| **Pocket Network Foundation (PNF)** | Implements DAO decisions, operates infrastructure, manages partnerships, stewards ecosystem growth |
+
+PNF implements what the DAO decides. The DAO cannot force PNF to take actions outside its mandate, and PNF cannot implement major protocol changes without DAO approval.
+
+## Who Can Vote
+
+Pocket Network uses a **Proof-of-Participation** model — governance power is earned through contribution, not purchased. Under the CREDS system (PIP-37, 2024), the DAO has two Houses:
+
+| House | Weight | Voting Model | Who Qualifies |
+| --- | --- | --- | --- |
+| **Builder House** | 80% | One-person-one-vote | Verified contributors to the protocol, ecosystem tools, community |
+| **Staker House** | 20% | Stake-weighted (√) | Node operators, liquidity providers, gateway operators |
+
+Voting happens on [Snapshot](https://snapshot.org/#/pokt-dao.eth). To participate, you need to earn Builder or Staker Credentials through contributions.
+
+## What the DAO Votes On
+
+| Proposal Type | Scope | Examples |
+| --- | --- | --- |
+| **PIP** (Improvement) | Protocol changes, governance structure | PIP-41 deflation, Shannon upgrade |
+| **PEP** (Ecosystem) | Funding, ecosystem investment, grants | PNF budget, F-Chains II |
+| **PUP** (Parameters) | On-chain parameter changes | CUTTM adjustments, mint ratio |
+
+## Token Logic Modules — Governance Without Hard Forks
+
+Shannon's TLMs are modular, independently adjustable components of the protocol's economics. Before Shannon, changing a parameter required a software upgrade (hard fork). Under Shannon, the DAO can change many parameters through a simple on-chain governance vote — making governance dramatically more responsive.
+
+## What's in This Section
+
+- [How to Submit a Proposal](/governance/proposals) — the full PIP/PEP/PUP process from idea to vote
+- [Governance Parameters](/governance/parameters) — all on-chain parameters with current values and CLI queries
+
+## Key Resources
+
+- **Forum:** [forum.pokt.network](https://forum.pokt.network) — where governance discussion happens
+- **Snapshot:** [snapshot.org/#/pokt-dao.eth](https://snapshot.org/#/pokt-dao.eth) — where votes happen
+- **Constitution:** [github.com/pokt-network/governance](https://github.com/pokt-network/governance)
+- **Discord:** [discord.gg/pocket-network](http://discord.gg/pocket-network) — #governance channel
+- **Parameters:** [poktscan.com/params](https://poktscan.com/params) — live on-chain values

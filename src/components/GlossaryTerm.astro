@@ -1,0 +1,25 @@
+---
+/**
+ * GlossaryTerm — Inline term with hover tooltip definition.
+ *
+ * Usage in MDX:
+ *   <GlossaryTerm term="Relay" definition="A request routed through a node" />
+ *
+ * CSS classes: .glossary-term, .glossary-tooltip, .tooltip-term, .tooltip-def
+ * Defined in tokens-and-components.css
+ */
+interface Props {
+  term: string;
+  definition: string;
+}
+
+const { term, definition } = Astro.props;
+---
+
+<span class="glossary-term" tabindex="0">
+  {term}
+  <span class="glossary-tooltip">
+    <span class="tooltip-term">{term}</span>
+    <span class="tooltip-def">{definition}</span>
+  </span>
+</span>

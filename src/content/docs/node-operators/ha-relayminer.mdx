@@ -1,0 +1,146 @@
+---
+title: "HA RelayMiner"
+description: "Production-grade, horizontally scalable relay mining with Redis-backed state, leader election, and multi-transport support."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+sources: ["zip4/pocket-relay-miner/CLAUDE.md", "zip4/pocket-relay-miner/config/"]
+lastUpdated: "2026-04-07"
+---
+
+<Callout type="info">
+  This page covers the **pocket-relay-miner** — a separate codebase from the standard poktroll RelayMiner. Use this for production deployments requiring horizontal scaling, high availability, and multi-transport support. For the standard single-instance RelayMiner, see [RelayMiner Setup](/node-operators/relayminer-setup).
+</Callout>
+
+The HA RelayMiner is a production-grade, horizontally scalable relay mining service for Pocket Network. It uses Redis for all session state — no local disk storage — enabling multiple replicas behind a load balancer.
+
+## Architecture
+
+```
+              ┌──────────────┐
+Requests ───→ │   Relayer    │ ───→ Backend Nodes
+              │ (stateless)  │
+              └──────┬───────┘
+                     │ Redis Streams
+              ┌──────┴───────┐
+              │    Miner     │ ───→ Blockchain (claims/proofs)
+              │  (stateful)  │
+              └──────────────┘
+```
+
+### Critical Components
+
+| Component | Directory | Purpose |
+| --- | --- | --- |
+| **Relayer** | `relayer/` | Stateless multi-transport proxy. Validates requests, signs responses, publishes to Redis Streams. |
+| **Miner** | `miner/` | Stateful claim/proof submission with leader election. Consumes from Redis Streams, builds SMST trees. |
+| **Cache** | `cache/` | Three-tier caching (L1 local → L2 Redis → L3 chain) with pub/sub invalidation. |
+| **Rings** | `rings/` | Ring signature verification for relay request authentication. |
+
+### Supported Transports
+
+| Transport | RPC Type ID | Protocol |
+| --- | --- | --- |
+| JSON-RPC | 3 | Standard HTTP POST |
+| WebSocket | 2 | Bidirectional, subscription support |
+| gRPC | 1 | High-performance binary protocol |
+| REST/SSE | 4 | Cosmos SDK REST, server-sent events |
+| CometBFT | 5 | CometBFT-specific RPC |
+
+## Performance
+
+| Metric | Value |
+| --- | --- |
+| **Throughput (local)** | 1,182 RPS (Docker) |
+| **Throughput (production)** | 1,500–2,000 RPS (dedicated hardware) |
+| **Relay latency (p50)** | 1.33ms |
+| **Relay latency (p95)** | 2.67ms |
+| **Relay latency (p99)** | 26.19ms |
+| **Validation overhead** | &lt;1ms (ring signature + session) |
+| **SMST operations** | ~30µs per Redis Hash operation |
+| **L1 cache hit** | &lt;100ns (lock-free concurrent map) |
+| **L2 cache hit** | &lt;2ms (Redis with connection pooling) |
+
+## Redis Architecture
+
+All session state lives in Redis. No local disk storage.
+
+### Key Patterns
+
+| Pattern | Type | Contents |
+| --- | --- | --- |
+| `ha:relays:{supplier}` | Stream | Write-ahead log of relays |
+| `ha:smst:{session}:nodes` | Hash | Sparse Merkle Sum Trie nodes |
+| `ha:miner:sessions:{supplier}:{session}` | String | Session metadata (JSON) |
+| `ha:cache:application:{address}` | String | Cached application data (proto) |
+| `ha:miner:global_leader` | String | Leader election lock (TTL 30s) |
+| `ha:tx:track:{supplier}:{height}:{session}` | String | Submission tracking (7-day TTL) |
+
+### Leader Election
+
+Only one Miner instance submits claims and proofs at a time. The leader holds a Redis lock (`ha:miner:global_leader`) with a 30-second TTL, refreshed continuously. If the leader fails, another instance acquires the lock automatically.
+
+## Configuration
+
+The HA RelayMiner uses two config files:
+
+### Relayer Config (`config.relayer.yaml`)
+
+```yaml
+relayer:
+  listen_address: ":8080"
+  health_address: ":8081"
+  metrics_address: ":9090"
+  redis:
+    address: "redis:6379"
+  backends:
+    eth:
+      url: "http://your-eth-node:8545"
+    solana:
+      url: "http://your-solana-node:8899"
+  supplier_keys:
+    - address: "pokt1supplier..."
+      private_key_hex: "..."
+```
+
+### Miner Config (`config.miner.yaml`)
+
+```yaml
+miner:
+  redis:
+    address: "redis:6379"
+  chain:
+    rpc_url: "https://sauron-rpc.infra.pocket.network"
+    grpc_address: "sauron-grpc.infra.pocket.network:443"
+  metrics_address: ":9092"
+```
+
+## Ports Reference
+
+| Port | Service | Purpose |
+| --- | --- | --- |
+| 8080 | Relayer HTTP | Relay request ingress |
+| 8081 | Relayer health | Health/readiness probes |
+| 9090 | Relayer metrics | Prometheus metrics |
+| 9092 | Miner metrics | Miner-specific metrics |
+| 6060 | pprof | Go profiling (debug builds) |
+
+## When to Use HA vs Standard RelayMiner
+
+| Factor | Standard RelayMiner | HA RelayMiner |
+| --- | --- | --- |
+| **Scale** | Single instance | Multiple replicas |
+| **State** | Local | Redis (shared) |
+| **Failover** | Manual | Automatic (leader election) |
+| **Transports** | JSON-RPC | JSON-RPC, WebSocket, gRPC, REST, SSE |
+| **Best for** | Small operators, getting started | Production, high-volume, SLA requirements |
+| **Dependency** | None | Redis |
+
+<Callout type="warning">
+  Keep your node wallet funded with liquid POKT. Claim and proof submissions are on-chain transactions that cost fees. If the Miner can't pay fees, rewards for that session are lost.
+</Callout>
+
+## Repository
+
+[github.com/pokt-network/pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner)

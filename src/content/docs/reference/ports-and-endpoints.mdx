@@ -1,0 +1,107 @@
+---
+title: "Ports & Endpoints"
+description: "Consolidated port reference for all Pocket Network services — poktroll, PATH, RelayMiner, and HA RelayMiner."
+section: "reference"
+persona: ["node-operator", "gateway-operator"]
+tabs: false
+status: "draft"
+sources: ["zip4/poktroll/CLAUDE.md", "zip4/path/CLAUDE.md", "zip4/pocket-relay-miner/CLAUDE.md"]
+lastUpdated: "2026-04-08"
+---
+
+
+Quick reference for all default ports across Pocket Network services. Use this when configuring firewalls, reverse proxies, monitoring, and inter-service communication.
+
+<Callout type="info">
+All ports listed are defaults and can be overridden in each service's configuration. Always check your actual config files for any customizations.
+</Callout>
+
+## poktroll (Full Node / Validator)
+
+| Port | Protocol | Service | Description |
+|------|----------|---------|-------------|
+| 26656 | TCP | CometBFT P2P | Peer-to-peer communication between nodes |
+| 26657 | TCP | CometBFT RPC | JSON-RPC for block queries, tx broadcast, consensus state |
+| 26660 | TCP | CometBFT Prometheus | Consensus-layer metrics |
+| 9090 | TCP | gRPC | Application-layer queries and transactions |
+| 1317 | TCP | REST (LCD) | RESTful API, auto-generated from proto definitions |
+| 6060 | TCP | pprof | Go profiling endpoint (debug only) |
+
+## RelayMiner (Standard)
+
+| Port | Protocol | Service | Description |
+|------|----------|---------|-------------|
+| 80 | TCP | HTTP relay | Primary relay endpoint — receives requests from gateways |
+
+The standard RelayMiner ships as part of `pocketd` and exposes a minimal surface area. It connects to a full node for on-chain operations.
+
+## HA RelayMiner (pocket-relay-miner)
+
+| Port | Protocol | Service | Description |
+|------|----------|---------|-------------|
+| 8080 | TCP | HTTP relay | Primary relay endpoint |
+| 8081 | TCP | Health check | Liveness and readiness probes |
+| 9090 | TCP | Prometheus | Standard application metrics |
+| 9092 | TCP | Miner metrics | Relay-mining-specific metrics |
+| 6060 | TCP | pprof | Go profiling endpoint (debug only) |
+
+Internal dependency:
+
+| Port | Protocol | Service | Description |
+|------|----------|---------|-------------|
+| 6379 | TCP | Redis | Leader election and coordination (never expose publicly) |
+
+## PATH Gateway
+
+| Port | Protocol | Service | Description |
+|------|----------|---------|-------------|
+| 3069 | TCP | Gateway HTTP | User-facing relay endpoint |
+| 9090 | TCP | Prometheus | Gateway metrics |
+
+PATH operational endpoints (on the gateway port):
+
+| Path | Description |
+|------|-------------|
+| `/health` | Gateway health status |
+| `/ready/<service_id>` | Per-service readiness (returns 200 when suppliers are available) |
+
+## PATH Components (Helm)
+
+When deploying PATH via Helm, three components run independently:
+
+| Component | Role | Default Port |
+|-----------|------|-------------|
+| **PATH** | Core gateway — relay routing and QoS | 3069 |
+| **GUARD** | Authentication and access control | Configurable |
+| **WATCH** | Monitoring and observability | Configurable |
+
+## Port Conflict Avoidance
+
+When running multiple services on the same machine (e.g., full node + RelayMiner + PATH for development), watch for conflicts on:
+
+- **Port 9090** — used by both gRPC (poktroll) and Prometheus (PATH, HA RelayMiner). Remap one of them.
+- **Port 6060** — pprof on both poktroll and HA RelayMiner. Only enable on the service you're profiling.
+
+## Monitoring Endpoints Summary
+
+All Prometheus metrics endpoints across services:
+
+| Service | Endpoint | Default |
+|---------|----------|---------|
+| CometBFT | `http://localhost:26660/metrics` | Consensus metrics |
+| poktroll gRPC | N/A (use Cosmos telemetry) | Application metrics |
+| PATH | `http://localhost:9090/metrics` | Gateway and QoS metrics |
+| HA RelayMiner | `http://localhost:9090/metrics` | Standard metrics |
+| HA RelayMiner | `http://localhost:9092/metrics` | Mining-specific metrics |
+
+<Callout type="tip">
+For a unified monitoring dashboard, point Prometheus at all metrics endpoints and use the [Monitoring](/node-operators/monitoring) guide for Grafana dashboard configuration.
+</Callout>
+
+## Related Pages
+
+- [Security](/reference/security) — firewall rules and which ports to expose
+- [RelayMiner Setup](/node-operators/relayminer-setup) — standard RelayMiner configuration
+- [HA RelayMiner](/node-operators/ha-relayminer) — high-availability RelayMiner
+- [PATH Configuration](/path/configuration) — PATH YAML config reference
+- [Monitoring](/node-operators/monitoring) — Prometheus and Grafana setup

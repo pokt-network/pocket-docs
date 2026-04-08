@@ -1,0 +1,22 @@
+---
+/**
+ * Tab panel — child of <Tabs>.
+ * 
+ * Usage:
+ *   <Tabs>
+ *     <Tab label="Overview">Content</Tab>
+ *     <Tab label="Advanced">Content</Tab>
+ *   </Tabs>
+ * 
+ * The parent Tabs component reads data-label to build tab buttons.
+ */
+interface Props {
+  label: string;
+}
+
+const { label } = Astro.props;
+---
+
+<div class="tab-panel" data-label={label}>
+  <slot />
+</div>

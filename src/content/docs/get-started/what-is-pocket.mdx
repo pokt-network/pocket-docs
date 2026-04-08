@@ -1,0 +1,85 @@
+---
+title: "What is Pocket Network?"
+description: "A plain-language introduction to Pocket Network — what it does, why it exists, and how it's different."
+section: "get-started"
+persona: ["all"]
+tabs: false
+status: "draft"
+sources: ["NEW"]
+lastUpdated: "2026-04-08"
+---
+
+Pocket Network is the world's first and only fully permissionless, fully decentralized, open data delivery network. It is a self-healing network that routes around downtime, geopolitical restrictions, and any other barrier to completing a request for data.
+
+While Pocket is best known for blockchain RPC access, the Shannon protocol is data-agnostic. The network relays any form of data — blockchain RPCs, AI inference requests, TOR nodes, Signal proxy relays, lightweight messaging services. Any form of data, from anywhere, to anywhere.
+
+There are zero gatekeepers on Pocket Network. Being fully permissionless means anyone, anywhere, at any time, has full access to all protocol functionality.
+
+## The Problem
+
+Every blockchain application needs RPC access. Traditionally, developers either run their own nodes (expensive, complex) or use centralized providers like Alchemy, Infura, or QuickNode (convenient, but creates a single point of failure). When a centralized provider has an outage, every application depending on it goes down simultaneously.
+
+The problem is the same for any data service: centralization creates fragility.
+
+## How Pocket Solves It
+
+Pocket Network operates a marketplace that matches **Applications** (who need data) with **Suppliers** (who run nodes or services). A decentralized **Gateway** layer routes requests to the best available Supplier automatically.
+
+Here's what happens when you make a data request through Pocket:
+
+1. Your request hits a gateway (like the public portal at api.pocket.network)
+2. The gateway looks up which Suppliers are available for your service and current session
+3. The QoS system selects the best Supplier based on latency, reliability, and correctness
+4. Your request is forwarded to the Supplier's node or service
+5. The response comes back through the same path
+6. Behind the scenes, the Supplier earns POKT tokens for the work
+
+This all happens transparently. From your application's perspective, it's just a normal API endpoint.
+
+## Why It Matters
+
+**No single point of failure.** With 5,000+ independent nodes, Pocket's architecture means that even if many nodes go offline simultaneously, requests route around the problem. At worst, service degrades gracefully — it never hard-fails from a single provider outage.
+
+**Fully permissionless.** Anyone can register a new service on-chain. Anyone can run a Supplier node. There is no whitelist, no approval process, and no entity that can revoke your access.
+
+**Privacy-preserving.** Pocket is one of the few network providers that passes all privacy checks on Chainlist, because it does not store any form of personally identifiable information. The only information stored is request origin and destination.
+
+**The protocol is completely on-chain.** All transactions deduct fees in real time. Deflation is a verifiable on-chain parameter. Every aspect of the protocol's economic functions is transparently on-chain — query the network and see for yourself.
+
+**Multi-chain and multi-service.** One network, 60+ blockchains, plus AI inference, TOR, and other service types. See [Supported Networks](/developers/supported-chains) for what's available on the public portal today.
+
+**No API key required.** The public portal at [api.pocket.network](https://api.pocket.network) is open access. Start making requests immediately — no signup, no key management.
+
+**Non-profit infrastructure.** The Pocket Network Foundation is a non-profit. There are no profit margins on relay traffic. This means costs are dramatically lower than commercial alternatives — $1 USD per billion compute units at wholesale rates.
+
+## The Four Actors
+
+| Actor | Role |
+| --- | --- |
+| **Application** | Stakes POKT to access the network and consume data requests |
+| **Supplier** | Runs infrastructure (nodes, AI endpoints, etc.) and serves data requests |
+| **Gateway** | Routes requests from Applications to Suppliers via the QoS layer |
+| **Validator** | Produces blocks and validates the chain |
+
+## Key Concepts
+
+**Relays** are individual data request-response pairs routed through the protocol — these can be blockchain RPC calls, AI inference requests, or any other supported service type. The most common relay type today is a blockchain API call.
+
+**POKT** is the network's native token. Applications burn POKT when they consume relays. Suppliers earn POKT for servicing requests. The economics are designed to be deflationary over time.
+
+**Sessions** are time-bounded windows during which a specific set of Suppliers serve a specific Application. Sessions are computed deterministically from on-chain state — they're not stored.
+
+**Claims and Proofs** are the mechanism Suppliers use to prove they did work. After a session ends, Suppliers submit cryptographic proofs of the relays they served, and the protocol settles payments.
+
+For a deeper technical explanation, see [How Pocket Works](/get-started/how-pocket-works).
+
+## The Shannon Upgrade
+
+The current protocol is called **Shannon** (named after Claude Shannon, the father of information theory). Shannon is built on Cosmos SDK with CometBFT consensus and represents a complete rewrite of the original Morse protocol. It introduced relay mining, Token Logic Modules, and a modular architecture designed to scale. For details on what changed, see [Shannon Upgrade](/get-started/shannon-upgrade).
+
+## Next Steps
+
+- **Developers:** [Integration Examples](/developers/integration-examples) — start using Pocket endpoints in 30 seconds
+- **Token holders:** [Token & Staking](/token/) — understand POKT and staking options
+- **Node operators:** [Node Operators](/node-operators/) — run infrastructure and earn POKT
+- **Protocol curious:** [How Pocket Works](/get-started/how-pocket-works) — the relay lifecycle in detail
