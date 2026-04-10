@@ -112,15 +112,15 @@ curl -X POST {exampleUrl} \
       ))
     }
 
-    {/* Testnets — collapsible section */}
+    {/* Testnet tables grouped by protocol */}
     {testnets.length > 0 && (
-      <details class="testnets-details">
-        <summary><strong>Testnets ({testnets.length})</strong></summary>
+      <>
+        <h2>Testnets</h2>
         {PROTOCOL_GROUPS
           .filter(({ key }) => testnetGroups[key]?.length)
           .map(({ key, label }) => (
             <section class="chains-group">
-              <h4>{label} — Testnets</h4>
+              <h3>{label} — Testnets</h3>
               <div class="data-table-wrapper">
                 <table>
                   <thead>
@@ -144,7 +144,7 @@ curl -X POST {exampleUrl} \
             </section>
           ))
         }
-      </details>
+      </>
     )}
 
     <p style="font-size: var(--text-sm); color: var(--text-tertiary); margin-top: var(--space-4);">
