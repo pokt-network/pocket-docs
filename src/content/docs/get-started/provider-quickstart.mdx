@@ -1,0 +1,600 @@
+---
+title: "Provider Quickstart"
+description: "Become a Pocket Network Provider and start earning POKT — from zero to serving relays."
+section: "get-started"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+sources: []
+lastUpdated: "2026-04-16"
+---
+
+This guide covers everything you need to become a Pocket Network Provider and start earning POKT by serving blockchain data relays.
+
+## What Is a Provider?
+
+A Provider runs Pocket Network infrastructure that serves blockchain API requests (relays) to applications. You stake POKT and run two components:
+
+- **Full Node + RelayMiner** — the relay-serving infrastructure that handles actual traffic
+- **Igniter Provider** — the operations platform that manages keys, staking workflows, delegators, and F-Chains collaboration with the foundation
+
+Both are required. Igniter is mandatory for F-Chains participation and foundation collaboration.
+
+---
+
+## 1. Infrastructure Setup
+
+Before deploying Igniter, you need the underlying relay-serving infrastructure.
+
+### Install pocketd
+
+`pocketd` is the CLI for Pocket Network. It handles wallet management, staking transactions, and node operations.
+
+**Prerequisites:**
+- Linux (x86_64, aarch64/arm64) or macOS (Darwin, x86_64, arm64)
+- `curl`
+- `sudo` access
+
+```bash
+curl -sSL https://raw.githubusercontent.com/pokt-network/poktroll/main/tools/scripts/pocketd-install.sh | bash -s -- --tag latest
+```
+
+Verify:
+
+```bash
+pocketd version
+```
+
+To upgrade an existing installation:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/pokt-network/poktroll/main/tools/scripts/pocketd-install.sh | bash -s -- --upgrade
+```
+
+For full installation options (Homebrew, manual binary, building from source), see [Installing pocketd](/get-started/pocketd-installation).
+
+### Create Wallets
+
+You need two wallets for non-custodial staking (required for production):
+
+- **Owner wallet** — holds the staked POKT, receives rewards
+- **Operator wallet** — runs on the server, signs relay responses and claims/proofs
+
+```bash
+# Create owner wallet (keep this seed phrase — offline backup required)
+pocketd keys add owner-wallet --keyring-backend os
+
+# Create operator wallet (this key will be on your server)
+pocketd keys add operator-wallet --keyring-backend os
+```
+
+<Callout type="danger">
+Back up both mnemonics immediately. The operator key lives on a server connected to the internet — if compromised, the attacker cannot steal staked funds (non-custodial design), but could disrupt your operations.
+</Callout>
+
+Get addresses:
+
+```bash
+pocketd keys show owner-wallet -a
+pocketd keys show operator-wallet -a
+```
+
+### Install and Run a Full Node
+
+The full node keeps the RelayMiner in sync with the blockchain and submits claims/proofs.
+
+**Prerequisites:**
+- **Linux only** (macOS/Darwin is not supported by this script)
+- Root/sudo access
+- Dependencies: `jq`, `curl`, `tar`, `wget`, `zstd`, `aria2c` (script installs them automatically if you have `apt-get`, `yum`, or `dnf`)
+- 200+ GB disk space (more for archival nodes)
+- Stable internet connection
+
+The script will prompt for:
+- Network (`testnet-alpha`, `testnet-beta`, or `mainnet`)
+- Sync method: genesis (slow, verifies everything) or snapshot via torrent (faster, recommended)
+- Node moniker (default: hostname)
+- External IP address confirmation
+- Seeds confirmation
+- UFW firewall configuration (optional, opens port 26656)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/pokt-network/poktroll/main/tools/scripts/full-node.sh | bash
+```
+
+After setup, check the service status:
+
+```bash
+sudo systemctl status cosmovisor-pocket.service
+```
+
+View logs:
+
+```bash
+sudo journalctl -u cosmovisor-pocket.service -f
+```
+
+Verify sync:
+
+```bash
+pocketd query block --type=height --network main
+```
+
+For full configuration options, see [Installing pocketd](/get-started/pocketd-installation).
+
+### Install and Run the RelayMiner
+
+The RelayMiner receives relays from the network and forwards them to your blockchain backends. It runs alongside the full node on the same server.
+
+You have two options:
+
+| Option | Repository | Best For | Status |
+|--------|-----------|----------|--------|
+| **HA RelayMiner** | [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner) | Production, all operators | **Recommended — future default** |
+| **Standard RelayMiner** | Built into `pocketd` | Legacy, single-instance only | Deprecated — will be removed |
+
+<Callout type="info">
+The HA RelayMiner is the recommended relay miner going forward. The standard RelayMiner built into `pocketd` is legacy and will be deprecated in the coming months.
+</Callout>
+
+---
+
+#### HA RelayMiner (Recommended)
+
+The HA RelayMiner is a production-grade, horizontally scalable relay mining service. It uses Redis for session state, supports multiple transports (JSON-RPC, WebSocket, gRPC), and has automatic failover via leader election.
+
+**Prerequisites:**
+- Redis 8.2+ (see below)
+- Docker and Docker Compose
+
+##### Install Redis (Ubuntu 24.04)
+
+Ubuntu 24.04 ships Redis 7.0.x. HA RelayMiner requires **Redis 8.2+** for the `XACKDEL` command. Without it, Redis memory grows unbounded.
+
+**Option A — Docker (recommended):**
+
+```bash
+docker pull redis:8.4-alpine
+docker run -d --name redis \
+  -p 127.0.0.1:6379:6379 \
+  redis:8.4-alpine \
+  redis-server --appendonly yes --appendfsync everysec
+```
+
+**Option B — Official apt repository:**
+
+```bash
+curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
+sudo apt-get update
+sudo apt-get install -y redis
+sudo systemctl enable redis
+sudo systemctl start redis
+```
+
+Verify:
+
+```bash
+redis-cli info server | grep redis_version  # Must be 8.2+
+redis-cli ping  # Should return: PONG
+```
+
+**Redis production config** (`/etc/redis/redis.conf`):
+
+```bash
+# Memory: 80% of RAM, no eviction (critical data)
+# maxmemory 8gb
+maxmemory-policy: noeviction
+
+# Multi-threading (+50-72% throughput)
+io-threads: 3
+io-threads-do-reads: "yes"
+
+# Lazy freeing (non-blocking deletes)
+lazyfree-lazy-eviction: "yes"
+lazyfree-lazy-expire: "yes"
+lazyfree-lazy-server-del: "yes"
+
+# Active defragmentation
+activedefrag: "yes"
+active-defrag-threshold-lower: 10
+active-defrag-threshold-upper: 25
+
+hz: 100
+
+# Persistence
+appendonly: "yes"
+appendfsync: "everysec"
+aof-use-rdb-preamble: "yes"
+```
+
+##### Clone and Configure
+
+```bash
+git clone https://github.com/pokt-network/pocket-relay-miner.git
+cd pocket-relay-miner
+cp config/config.relayer.yaml.example config/config.relayer.yaml
+cp config/config.miner.yaml.example config/config.miner.yaml
+```
+
+##### Backend Configuration
+
+The HA RelayMiner supports native multi-backend load balancing with circuit breakers, health checks, and automatic failover — no NGINX or HAProxy needed.
+
+Configure your backends in `config/config.relayer.yaml` under the `services` section:
+
+```yaml
+services:
+  # === EVM chain (Ethereum, Arbitrum, Base, Polygon, etc.) ===
+  eth-mainnet:
+    default_backend: jsonrpc
+    backends:
+      jsonrpc:
+        load_balancing: round_robin
+        urls:
+          - "http://eth-node1:8545"
+          - name: backup
+            url: "http://eth-node2:8545"
+        health_check:
+          enabled: true
+          endpoint: "/"
+          method: POST
+          request_body: '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}'
+          expected_status: [200]
+          expected_body: '"result"'
+          interval_seconds: 10
+          unhealthy_threshold: 5
+        recovery_timeout_seconds: 30
+        max_retries: 1
+
+  # === Cosmos SDK chain (Osmosis, Akash, Celestia, etc.) ===
+  cosmos:
+    default_backend: cometbft
+    backends:
+      rest:
+        url: "http://your-cosmos-node:1317/"
+      cometbft:
+        url: "http://your-cosmos-node:26657"
+      jsonrpc:
+        url: "http://your-cosmos-node:26657"
+
+  # === Solana ===
+  solana:
+    default_backend: jsonrpc
+    backends:
+      jsonrpc:
+        url: "http://your-solana-node:8899"
+
+  # === AI Inference (Ollama) ===
+  ollama:
+    default_backend: jsonrpc
+    backends:
+      jsonrpc:
+        url: "http://your-ollama-server:11434"
+```
+
+**Features:**
+- Round-robin load balancing across backends
+- Circuit breaker — unhealthy backends auto-removed from rotation
+- Custom health probes per backend pool
+- Auto-recovery after 30s when backends recover
+- Fast-fail — instant 503 when all backends are unhealthy
+- Retry-on-alternate — failed requests retry on a different healthy backend
+
+##### Relayer and Miner Config
+
+Edit `config/config.relayer.yaml`:
+
+```yaml
+relayer:
+  listen_address: ":8080"
+  health_address: ":8081"
+  redis:
+    address: "your-redis-host:6379"
+  services:
+    # ... your services from Backend Configuration above
+  supplier_keys:
+    - address: "pokt1your-operator-address"
+      private_key_hex: "your-hex-private-key"
+
+# Compression: 2-50x reduction in Redis memory and network bandwidth
+compression:
+  enabled: true
+  level: "best"
+```
+
+Edit `config/config.miner.yaml`:
+
+```yaml
+miner:
+  redis:
+    address: "your-redis-host:6379"
+  chain:
+    rpc_url: "https://sauron-rpc.infra.pocket.network"
+    grpc_address: "sauron-grpc.infra.pocket.network:443"
+
+# Track claim/proof submissions for debugging
+submission_tracking_ttl: "24h"  # Default: 24h, use 168h for production audit trail
+
+# For 500+ suppliers
+supplier_claiming:
+  claim_ttl_seconds: 120   # 500-1000 suppliers
+  # claim_ttl_seconds: 180 # 1000+ suppliers
+```
+
+Debug submissions:
+
+```bash
+pocket-relay-miner redis submissions --supplier pokt1abc...
+pocket-relay-miner redis submissions --supplier pokt1abc... --failed-only
+```
+
+##### Start
+
+```bash
+docker compose up -d
+```
+
+For full configuration options, see [HA RelayMiner](/node-operators/ha-relayminer).
+
+---
+
+#### Standard RelayMiner (Legacy)
+
+The standard RelayMiner is built into `pocketd`. It is single-instance only and will be deprecated.
+
+Verify it's available:
+
+```bash
+pocketd relayminer --help
+```
+
+Configure `~/.pocket/relayminer/config.yaml`:
+
+```yaml
+pocket_node:
+  rpc_url: http://localhost:26657
+  grpc_config:
+    host_port: localhost:9090
+    insecure: true
+
+signing_key: pokt1your-operator-address
+
+services:
+  eth:
+    backend:
+      url: http://your-eth-node:8545
+```
+
+Start:
+
+```bash
+pocketd relayminer start --config ~/.pocket/relayminer/config.yaml
+```
+
+<Callout type="warning">
+The standard RelayMiner is deprecated. Use the HA RelayMiner for any new deployment.
+</Callout>
+
+---
+
+## 2. Deploy Igniter Provider
+
+Igniter is the operations platform for managing your Provider. It handles:
+- Supplier key lifecycle (import, stake, unstake)
+- Relay miner and address group configuration
+- Delegator revenue sharing
+- F-Chains configuration for foundation collaboration
+
+<Callout type="info">
+Igniter is mandatory for F-Chains participation and any formal collaboration with Pocket Network Foundation. It does not replace the full node or RelayMiner — it sits on top as the management layer.
+</Callout>
+
+### Prerequisites
+
+- Docker and Docker Compose
+- A domain name for the Provider admin UI
+- PostgreSQL (self-hosted or cloud-managed)
+- Temporal server (self-hosted or [Temporal Cloud](https://temporal.io/cloud))
+- The infrastructure setup from Step 1 already running
+
+### Register as a Provider
+
+Submit a PR to [pokt-network/igniter-governance](https://github.com/pokt-network/igniter-governance):
+
+```json
+{
+  "name": "<your-company-name>",
+  "identity": "<your-secp256k1-hex-public-key>",
+  "identityHistory": [],
+  "url": "<your-provider-url>"
+}
+```
+
+Place your JSON in the correct network folder (`pocket-beta/` for testnet, `pocket/` for mainnet). After the PR is merged, your Provider is registered and can receive delegations.
+
+### Deploy with Docker Compose
+
+Clone the Igniter repo:
+
+```bash
+git clone https://github.com/pokt-network/igniter.git
+cd igniter
+```
+
+**Start dependencies first:**
+
+```bash
+cd docker-compose/dependencies
+cp .env.sample .env
+# Edit .env — set a strong POSTGRES_PASSWORD
+docker compose up -d
+```
+
+**Start the Provider app:**
+
+```bash
+cd ../apps/provider
+cp .env.sample .env
+```
+
+Edit `.env`:
+
+```bash
+# === Required ===
+TEMPORAL_URL=temporal:7233
+TEMPORAL_NAMESPACE=provider
+TEMPORAL_TASK_QUEUE=provider-operations
+
+PGHOST=postgresql
+PGUSER=igniter
+PGPASSWORD=<same-as-dependencies-env>
+DB_NAME=provider
+
+POKT_RPC_URL=https://sauron-rpc.infra.pocket.network
+CHAIN_ID=pocket
+BLOCKCHAIN_PROTOCOL=shannon
+OWNER_IDENTITY=pokt1your-owner-address
+OWNER_EMAIL=ops@example.com
+APP_IDENTITY=<hex-private-key-for-signing>
+APP_URL=https://your-provider-domain.com
+
+# === Generate these ===
+ENCRYPTION_IV=$(openssl rand -hex 16)
+ENCRYPTION_KEY=$(openssl rand -hex 32)
+AUTH_SECRET=$(openssl rand -hex 24)
+```
+
+```bash
+docker compose up -d
+```
+
+### Bootstrap Wizard
+
+Access the Provider admin UI at `APP_URL/admin/setup`. Sign in with the wallet matching `OWNER_IDENTITY`.
+
+Walk through the 7-step wizard:
+
+1. **Blockchain** — Pocket RPC/API endpoints, chain ID
+2. **Identity** — Provider name, reward addresses
+3. **Regions** — Geographic locations for your miners (e.g., `us-east`, `eu-west`)
+4. **Relay Miners** — Register each miner node with its domain
+5. **Services** — Select on-chain services to serve (e.g., `eth`, `arb-one`, `osmosis`)
+6. **Address Groups** — Link miners to services, configure revenue shares
+7. **Delegators** — Enable Middleman instances allowed to stake with you
+
+---
+
+## 3. Configure F-Chains (PNF Collaboration)
+
+F-Chains is Pocket Network Foundation's program to ensure coverage on long-tail chains. PNF stakes POKT as Applications for supported chains — generating relay sessions that registered Suppliers can earn from.
+
+### For F-Chains Participation
+
+When configuring Address Groups in the bootstrap wizard:
+
+1. Create an Address Group for your F-Chains nodes
+2. Enable **Linked Addresses** — this restricts staking to approved addresses only
+3. Add the staker wallet addresses provided by PNF
+
+This ensures only PNF can stake into this group, separating F-Chains subsidized traffic from public delegator traffic.
+
+### F-Chains II (Institutional Operators)
+
+For large-scale subsidized operations under formal contract with PNF, contact [directors@pokt.foundation](mailto:directors@pokt.foundation).
+
+For full details, see [F-Chains](/node-operators/f-chains).
+
+---
+
+## 4. Import and Stake Supplier Keys
+
+After bootstrap, go to **Keys** in the Igniter sidebar to import supplier operator keys.
+
+Igniter will:
+1. Track key lifecycle states (imported → staked → unstaking)
+2. Submit staking transactions via Temporal workflows
+3. Monitor on-chain status and update key states
+
+### Stake as a Supplier
+
+Ensure your operator wallet has:
+- Minimum stake: <GovParam module="supplier" param="min_stake" format="pokt" />
+- Transaction fees for claims/proofs
+
+Verify your Supplier status:
+
+```bash
+pocketd query supplier show-supplier pokt1your-operator-address --network main
+```
+
+You should see `status: "active"` and your registered services.
+
+---
+
+## 5. Verify Relays and Rewards
+
+### Check RelayMiner Is Serving
+
+```bash
+pocketd relayminer status
+```
+
+Monitor your Supplier:
+
+```bash
+pocketd query supplier show-supplier pokt1your-operator-address --network main
+```
+
+Check operator balance (must stay funded for proof submissions):
+
+```bash
+pocketd query bank balance pokt1your-operator-address upokt --network main
+```
+
+### POKTscan Operator Dashboard
+
+Track all earnings: [poktscan.com/tools/operator](https://poktscan.com/tools/operator)
+
+What to monitor:
+- **Rewards tab** — POKT earned over time
+- **Claim vs Proof comparison** — if Claims exceed Proofs, investigate
+- **Expired Proofs** — must always be zero; non-zero means lost rewards
+- **Rewards by Service** — which chains generate the most revenue
+
+### Key Metric
+
+```
+Expired Proofs = 0 ✓
+```
+
+For full reward mechanics, see [Supplier Rewards & Economics](/node-operators/rewards-economics).
+
+---
+
+## Common Service IDs
+
+| Service | Chain |
+|---------|-------|
+| `anvil` | Ethereum (local dev) |
+| `eth` | Ethereum mainnet |
+| `arb-one` | Arbitrum One |
+| `base` | Base |
+| `bsc` | BNB Smart Chain |
+| `solana` | Solana |
+| `poly` | Polygon |
+| `osmosis` | Osmosis |
+| `near` | Near |
+| `ollama` | AI inference |
+
+---
+
+## Next Steps
+
+- [Supplier Staking](/node-operators/supplier-staking) — Owner-operator model, revenue sharing, unstake
+- [RelayMiner Setup](/node-operators/relayminer-setup) — Full configuration reference
+- [HA RelayMiner](/node-operators/ha-relayminer) — Production-grade scaling with Redis
+- [Hardware Requirements](/node-operators/hardware-requirements) — Infrastructure specs
+- [Service Management](/node-operators/service-management) — Add or remove services
+- [F-Chains](/node-operators/f-chains) — PNF subsidized chains program
+- [Igniter Provider docs](https://github.com/pokt-network/igniter/tree/main/docs/guides/provider) — Full Igniter guides
