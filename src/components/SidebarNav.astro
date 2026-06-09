@@ -2,7 +2,9 @@
 /**
  * SidebarNav — Documentation sidebar navigation.
  * Reads from content collection and renders grouped section links.
- * CSS classes: .sidebar-section-label, .sidebar-link, .sidebar-link.active, .nav-badge
+ * Sections are collapsible (<details>/<summary>), default closed; the section
+ * containing the current page is auto-expanded.
+ * CSS classes: .sidebar-section, .sidebar-section-label, .sidebar-link, .sidebar-link.active, .nav-badge
  * Defined in tokens-and-components.css
  */
 import { getCollection } from 'astro:content';
@@ -70,17 +72,29 @@ const normalizedCurrent = currentPath.replace(/\/$/, '') || '/';
 ---
 
 <!-- Home link -->
-<div class="sidebar-section-label">Home</div>
-<a href={entryHref('index')} class={`sidebar-link${normalizedCurrent === '/' ? ' active' : ''}`}>Documentation</a>
+<a href={entryHref('index')} class={`sidebar-link sidebar-home${normalizedCurrent === '/' ? ' active' : ''}`}>Documentation</a>
 
-<!-- Section groups -->
+<!-- Section groups (collapsible, default closed; current section auto-expands) -->
 {SECTIONS.map(({ key, label }) => {
   const pages = bySection[key];
   if (!pages || pages.length === 0) return null;
   const sorted = sortEntries(pages);
+  // Open this section if it's the active page — either the section landing
+  // page (/{key}) or any of its child links.
+  const containsActive =
+    normalizedCurrent === '/' + key ||
+    sorted.some((entry) => {
+      const normPath = entryPath(entry.id).replace(/\/$/, '') || '/';
+      return normalizedCurrent === normPath;
+    });
   return (
-    <div>
-      <div class="sidebar-section-label">{label}</div>
+    <details class="sidebar-section" open={containsActive}>
+      <summary class="sidebar-section-label">
+        <span>{label}</span>
+        <svg class="sidebar-section-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </summary>
       {sorted.map((entry) => {
         const path = entryPath(entry.id);
         const normPath = path.replace(/\/$/, '') || '/';
@@ -92,6 +106,6 @@ const normalizedCurrent = currentPath.replace(/\/$/, '') || '/';
           </a>
         );
       })}
-    </div>
+    </details>
   );
 })}
