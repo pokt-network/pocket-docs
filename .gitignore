@@ -4,6 +4,8 @@ dist/
 
 # generated at build time by scripts/prefetch
 data/
+# Ansible Automations docs synced at build time from tsulhc/pocket-automations
+src/content/docs/ansible-automations/
 # generated types
 .astro/
 
