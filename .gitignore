@@ -6,6 +6,8 @@ dist/
 data/
 # Ansible Automations docs synced at build time from tsulhc/pocket-automations
 src/content/docs/ansible-automations/
+# Igniter docs synced at build time from pokt-network/igniter
+src/content/docs/igniter/
 # generated types
 .astro/
 
