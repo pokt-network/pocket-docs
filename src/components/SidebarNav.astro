@@ -49,20 +49,28 @@ function entryHref(id: string): string {
   return base + entryPath(id);
 }
 
-// Group entries by top-level section key
+// Group entries by top-level section key. Section landing pages (index.md/mdx)
+// are loaded with an id equal to the section key itself (no slash), so an entry
+// with no slash belongs to the section named by its own id.
 const bySection: Record<string, typeof entries> = {};
 for (const entry of entries) {
   const slash = entry.id.indexOf('/');
-  const section = slash > -1 ? entry.id.slice(0, slash) : '__root';
+  const section = slash > -1 ? entry.id.slice(0, slash) : entry.id;
   if (!bySection[section]) bySection[section] = [];
   bySection[section].push(entry);
 }
 
-// Sort: section index page first, then alphabetical by title
+// A section landing page has an id with no slash (e.g. "igniter"); its children
+// are "igniter/<page>".
+function isLanding(id: string): boolean {
+  return !id.includes('/');
+}
+
+// Sort: section landing (Overview) page first, then alphabetical by title
 function sortEntries(list: typeof entries) {
   return [...list].sort((a, b) => {
-    const aIdx = a.id.endsWith('/index');
-    const bIdx = b.id.endsWith('/index');
+    const aIdx = isLanding(a.id);
+    const bIdx = isLanding(b.id);
     if (aIdx && !bIdx) return -1;
     if (!aIdx && bIdx) return 1;
     return a.data.title.localeCompare(b.data.title);
@@ -103,7 +111,7 @@ const normalizedCurrent = currentPath.replace(/\/$/, '') || '/';
         const isActive = normalizedCurrent === normPath;
         return (
           <a href={entryHref(entry.id)} class={`sidebar-link${isActive ? ' active' : ''}`}>
-            {entry.data.title}
+            {isLanding(entry.id) ? 'Overview' : entry.data.title}
             {entry.data.status === 'new' && <span class="nav-badge">New</span>}
           </a>
         );
