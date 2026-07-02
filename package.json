@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "prefetch": "node scripts/fetch-governance-params.mjs && node scripts/fetch-supported-chains.mjs && node scripts/fetch-ansible-docs.mjs && node scripts/fetch-igniter-docs.mjs",
+    "prefetch": "node scripts/fetch-governance-params.mjs && node scripts/fetch-network-stats.mjs && node scripts/fetch-supported-chains.mjs && node scripts/fetch-ansible-docs.mjs && node scripts/fetch-igniter-docs.mjs",
     "dev": "npm run prefetch && astro dev",
     "build": "npm run prefetch && astro build",
     "preview": "npx http-server dist -p 4321"

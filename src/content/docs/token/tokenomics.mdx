@@ -36,8 +36,8 @@ Burning ties token value directly to network usage. Two distinct burn mechanisms
 Gateways pay POKT to access the network. Those fees are burned on-chain — permanently removed from circulating supply — every time a relay is processed. More apps using the network means more relays, which means more burn.
 
 - Burn is continuous and automatic
-- As of early 2026, relay fee burn is approximately 38,000 POKT per day
-- At current relay volume, burn roughly equals mint — near-neutral inflation
+- Burn scales directly with relay volume — more usage means more burn
+- At current relay volume, burn roughly equals mint — near-neutral inflation. For the live daily burn rate, see [pokt.money](https://pokt.money) or [POKTscan](https://poktscan.com)
 
 ### 2. Programmable Deflation (PIP-41)
 
@@ -58,7 +58,7 @@ The economics create a self-reinforcing loop:
 Staking removes POKT from circulating supply while it's actively securing the network:
 
 - Minimum stake to run a Supplier node: <GovParam module="supplier" param="min_stake" format="pokt" /> POKT
-- Current staked supply: approximately 383 million POKT (17–19% of total)
+- Total network supply: <NetworkStat metric="total_supply" format="billions" fallback="see POKTscan" /> POKT (live from chain). For current staked supply and the staked percentage, see [POKTscan](https://poktscan.com)
 - Staked tokens are locked and cannot be traded until unstaked (21-day unbonding period)
 
 A higher staked percentage means less liquid supply available to trade — which, combined with burn, reduces effective circulating supply over time.

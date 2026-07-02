@@ -5,6 +5,13 @@ on:
     branches: [main]
   merge_group:
     branches: [main]
+  # Nightly rebuild so live-fetched figures (governance params via
+  # fetch-governance-params.mjs, network stats via fetch-network-stats.mjs)
+  # stay fresh even without a content change. Runs prefetch → build → deploy.
+  schedule:
+    - cron: '0 6 * * *'  # 06:00 UTC daily
+  # Allow a maintainer to force a data refresh on demand.
+  workflow_dispatch:
 
 permissions:
   contents: read
