@@ -23,7 +23,9 @@
   },
   "overrides": {
     "devalue": ">=5.8.1",
-    "postcss": ">=8.5.10"
+    "postcss": ">=8.5.10",
+    "vite": "^6.4.3",
+    "js-yaml": "^4.2.0"
   },
   "engines": {
     "node": ">=22.0.0"
