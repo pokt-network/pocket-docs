@@ -1,0 +1,65 @@
+---
+/**
+ * NetworkStat — Inline live network-state figure (Bucket B).
+ *
+ * Twin of <GovParam>. Reads from data/network-stats.json (built by
+ * fetch-network-stats.mjs) so observed values like total supply are never
+ * hardcoded in prose and never go stale — every build re-fetches.
+ *
+ * Usage in MDX:
+ *   <NetworkStat metric="total_supply" format="billions" />
+ *   <NetworkStat metric="total_supply" format="commas" />
+ *
+ * If the metric is missing/null (fetch failed, or it's an analytics figure we
+ * deliberately don't transcribe), the `fallback` is rendered instead — pass a
+ * short "see live source" phrase for those.
+ *
+ * Formats: raw (default), commas, billions, millions
+ */
+import networkStats from '../../data/network-stats.json';
+
+interface Props {
+  metric: string;
+  format?: 'raw' | 'commas' | 'billions' | 'millions';
+  fallback?: string;
+}
+
+const { metric, format = 'raw', fallback = '—' } = Astro.props;
+
+const entry = (networkStats as any)?.metrics?.[metric];
+const value = entry?.value;
+
+function formatNumber(n: number): string {
+  return n.toLocaleString('en-US');
+}
+
+let display = fallback;
+let hasValue = false;
+
+if (value !== undefined && value !== null && Number.isFinite(Number(value))) {
+  hasValue = true;
+  const n = Number(value);
+  switch (format) {
+    case 'commas':
+      display = formatNumber(Math.round(n));
+      break;
+    case 'billions':
+      display = `${(n / 1_000_000_000).toFixed(2)} billion`;
+      break;
+    case 'millions':
+      display = `${(n / 1_000_000).toFixed(0)} million`;
+      break;
+    default:
+      display = String(n);
+  }
+}
+
+// "as of <date>" + source for the tooltip, so every live number is dated and
+// traceable — bounded, honest staleness instead of a silent snapshot.
+const asOf = entry?.as_of ? new Date(entry.as_of).toISOString().slice(0, 10) : null;
+const title = hasValue && asOf
+  ? `${metric} — as of ${asOf} (live from Sauron LCD)`
+  : metric;
+---
+
+<span class="network-stat" title={title}>{display}</span>
