@@ -113,6 +113,7 @@ export default defineConfig({
     '/get-started/shannon-upgrade': '/deprecated/shannon-upgrade',
     '/reference/querying': '/pocketd/querying',
     '/node-operators/cheat-sheets': '/pocketd/transactions',
+    '/get-started/pocketd-installation': '/pocketd',
   },
   integrations: [
     mdx(),
