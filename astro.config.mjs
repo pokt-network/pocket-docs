@@ -105,6 +105,12 @@ export default defineConfig({
   site: 'https://docs.pocket.network',
   base: '/',
   output: 'static',
+  // Redirects for merged/moved pages. In static output Astro emits a small
+  // HTML redirect page for each entry. Keep old slugs pointing at their new home.
+  redirects: {
+    '/get-started/how-pocket-works': '/get-started/about-pocket',
+    '/get-started/what-is-pocket': '/get-started/about-pocket',
+  },
   integrations: [
     mdx(),
     sitemap(),
