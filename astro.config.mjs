@@ -110,6 +110,7 @@ export default defineConfig({
   redirects: {
     '/get-started/how-pocket-works': '/get-started/about-pocket',
     '/get-started/what-is-pocket': '/get-started/about-pocket',
+    '/get-started/shannon-upgrade': '/deprecated/shannon-upgrade',
   },
   integrations: [
     mdx(),
