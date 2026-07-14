@@ -29,9 +29,38 @@
 </div>
 
 <script>
-  // Tabs initialization — runs after DOM is ready
-  document.addEventListener('astro:page-load', () => {
+  // Tabs initialization.
+  // NOTE: this must run on the initial page load, not only on `astro:page-load`.
+  // `astro:page-load` is fired exclusively by Astro's ClientRouter/ViewTransitions,
+  // which this project does not use — so binding to it alone left every tab dead
+  // (both panels rendered stacked with no tab bar). We run the initializer directly
+  // (component <script> is a deferred module, so the DOM is already parsed) and also
+  // keep the `astro:page-load` binding in case ViewTransitions is adopted later.
+
+  // Keep the "On this page" TOC in sync with the active tab. The TOC is a flat,
+  // build-time list of every heading (both panels), so without this it double-lists
+  // the Overview and Advanced headings. A TOC link whose target heading lives inside
+  // a hidden tab panel is hidden too; headings not inside any panel (untabbed pages,
+  // or content outside <Tabs>) always stay visible. Inline display is used so it wins
+  // over the stylesheet's `.toc-link` rule.
+  function syncTocToActiveTab() {
+    document.querySelectorAll('.toc-link').forEach((link) => {
+      const href = link.getAttribute('href') || '';
+      if (!href.startsWith('#')) return;
+      const id = decodeURIComponent(href.slice(1));
+      const target = document.getElementById(id);
+      const panel = target ? target.closest('.tab-panel') : null;
+      const hidden = !!panel && panel.hasAttribute('hidden');
+      (link as HTMLElement).style.display = hidden ? 'none' : '';
+    });
+  }
+
+  function initTabs() {
     document.querySelectorAll('.tabs').forEach((tabsEl) => {
+      // Guard against double-initialization (direct call + astro:page-load).
+      if ((tabsEl as HTMLElement).dataset.tabsInit === 'true') return;
+      (tabsEl as HTMLElement).dataset.tabsInit = 'true';
+
       const tabList = tabsEl.querySelector('.tab-list');
       const panels = tabsEl.querySelectorAll('.tab-panel');
       if (!tabList || panels.length === 0) return;
@@ -55,14 +84,6 @@
         if (i !== 0) (panel as HTMLElement).setAttribute('hidden', '');
       });
 
-      // Check URL for initial tab
-      const params = new URLSearchParams(window.location.search);
-      const urlTab = params.get('tab');
-      if (urlTab) {
-        const target = tabList.querySelector(`[id="tab-${urlTab}"]`);
-        if (target) (target as HTMLElement).click();
-      }
-
       // Click handler
       tabList.addEventListener('click', (e) => {
         const btn = (e.target as HTMLElement).closest('[role="tab"]');
@@ -84,6 +105,7 @@
           url.searchParams.set('tab', tabName);
           history.replaceState(null, '', url.toString());
         }
+        syncTocToActiveTab();
       });
 
       // Arrow key navigation
@@ -100,6 +122,22 @@
         (tabs[next] as HTMLElement).click();
         (tabs[next] as HTMLElement).focus();
       });
+
+      // Restore tab from URL now that handlers are attached (?tab=advanced deep-link).
+      // This click also runs syncTocToActiveTab() via the click handler.
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get('tab');
+      const urlTarget = urlTab ? tabList.querySelector(`[id="tab-${urlTab}"]`) : null;
+      if (urlTarget) {
+        (urlTarget as HTMLElement).click();
+      } else {
+        // No deep-link: filter the TOC to the default (first) tab.
+        syncTocToActiveTab();
+      }
     });
-  });
+  }
+
+  // Run now (deferred module → DOM is parsed) and again after any view transition.
+  initTabs();
+  document.addEventListener('astro:page-load', initTabs);
 </script>
