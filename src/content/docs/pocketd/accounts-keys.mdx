@@ -1,0 +1,188 @@
+---
+title: "Accounts, Keys & Fees"
+description: "Create and manage pocketd accounts — mnemonics, HD derivation, keyring backends, key import/export, denomination, faucets, and transaction fees."
+section: "pocketd"
+persona: ["node-operator", "developer", "gateway-operator"]
+tabs: false
+status: "stable"
+sources: ["zip1/01-getting-started.md", "zip2/01-getting-started.md"]
+lastUpdated: "2026-04-07"
+---
+
+Everything about holding an identity on Pocket Network with `pocketd`: creating accounts, backing them up, choosing how keys are stored, and paying for transactions. For read-only lookups use [Querying the Chain](/pocketd/querying); for the commands that spend from an account, see [Staking & Transactions](/pocketd/transactions).
+
+## Accounts and Addresses
+
+An account is your identity on the blockchain. It has three parts:
+
+- **Address** — a public identifier starting with `pokt1`, like a bank account number. Share it freely so others can send you tokens or look up your activity.
+- **Public key** — derived from your private key; safe to share, used to verify your identity.
+- **Private key** — the secret that proves ownership. Anyone with it controls your funds. Never share it.
+
+Prefer a graphical interface? Pocket is supported by browser wallets — [Soothe Vault](https://trustsoothe.io) (Chrome/Firefox) and [Keplr](https://www.keplr.app/) (Chrome/Firefox/mobile). See [Wallets](/wallets/). The rest of this page covers the `pocketd` CLI.
+
+## The Mnemonic Seed Phrase
+
+When you create an account you receive a **24-word mnemonic** — the master backup of your private key. It restores your account on any machine with `pocketd` installed.
+
+<Callout type="danger">
+  Write your mnemonic down on paper stored in multiple secure locations, or use a reputable password manager. If you lose it and lose access to the device holding your keys, your funds are gone permanently — there is no "forgot password" on a decentralized network.
+</Callout>
+
+## Creating an Account
+
+```bash
+pocketd keys add myWallet
+```
+
+Output includes your address, public key, and the mnemonic to back up:
+
+```
+- address: pokt1exampleaddress123456789
+  name: myWallet
+  pubkey: '{"@type":"/cosmos.crypto.secp256k1.PubKey","key":"..."}'
+  type: local
+
+**Important** write this mnemonic phrase in a safe place.
+word1 word2 word3 ... word24
+```
+
+Retrieve an address or list your keys:
+
+```bash
+pocketd keys show myWallet -a   # print the address
+pocketd keys list               # list all keys
+```
+
+## HD Wallets and Derivation
+
+`pocketd` uses the BIP-0044 standard, so one seed phrase can generate a whole family of related accounts. POKT is registered under `coin_type = 635` (SLIP-0044), giving the default derivation path:
+
+```
+m/44'/635'/0'/0/0
+```
+
+To set it explicitly:
+
+```bash
+pocketd keys add myWallet --coin-type=635
+```
+
+## Keyring Backends
+
+The `--keyring-backend` flag controls where private keys are stored on disk:
+
+| Backend | Description | Recommended for |
+| --- | --- | --- |
+| `os` | OS credential store (Keychain, libsecret). Protected by your system login. | Production operators |
+| `file` | Encrypted file on disk. Password required each access. | Production operators |
+| `test` | Unencrypted on disk. No password prompt. | Local development only |
+| `memory` | In-memory only; lost when the process exits. | Ephemeral scripting |
+
+<Callout type="warning">
+  With real POKT on MainNet, always use `os` or `file`. The `test` backend offers no security.
+</Callout>
+
+Set it per-command or persistently in `~/.pocket/config/client.toml`:
+
+```bash
+pocketd keys add myWallet --keyring-backend=os
+```
+
+```toml
+keyring-backend = "os"
+```
+
+The `--home` flag sets the root directory (default `~/.pocket`); `--keyring-dir` overrides just the key location:
+
+```bash
+pocketd keys list --home=. --keyring-backend=test --keyring-dir=./mykeys
+# Creates: ./mykeys/keyring-test/
+```
+
+### Password-less keyring on Linux (`os` backend)
+
+To avoid password prompts with the `os` backend on Debian/Ubuntu, integrate with `pass` and GPG:
+
+```bash
+sudo apt-get install pass
+gpg --full-generate-key
+gpg --list-secret-keys --keyid-format LONG
+pass init YOUR_GPG_KEY_ID
+pass insert cosmos-keyring
+pass cosmos-keyring
+pocketd keys list
+```
+
+<Callout type="info">
+  After each system restart, run `pass cosmos-keyring` once before `pocketd` commands will work without a password prompt.
+</Callout>
+
+## Importing, Exporting & Recovering Keys
+
+```bash
+# Recover an account from its 24-word mnemonic (you'll be prompted for it)
+pocketd keys add myRecoveredWallet --recover
+
+# Import a raw hex private key
+pocketd keys import-hex myWallet abc123def456...
+
+# Export a raw hex private key
+pocketd keys export myWallet --unsafe --unarmored-hex --yes
+```
+
+<Callout type="danger">
+  Handle exported private keys with extreme care. Store them offline and never commit them to version control — an exposed private key is full access to the account.
+</Callout>
+
+## Token Denomination
+
+- **POKT** — the human-friendly unit. "1,000 POKT" means this.
+- **upokt** (micro-POKT) — the smallest on-chain unit. 1 POKT = 1,000,000 upokt.
+
+Like dollars and cents, the blockchain always works in `upokt` internally; most tools display POKT for readability. To check any account's balance (a free, read-only operation), see [Querying the Chain](/pocketd/querying#account-balance).
+
+## Funding Your Account
+
+A **faucet** distributes free tokens — test POKT on Beta TestNet, and MACT (Migration Account Claim Tokens) for Morse-migration participants on MainNet.
+
+```bash
+# Beta TestNet POKT, by key name
+pocketd faucet fund upokt myWallet --network=beta
+
+# MainNet MACT
+pocketd faucet fund mact myWallet --network=main
+
+# By address instead of key name
+pocketd faucet fund upokt pokt1youraddresshere --network=beta
+```
+
+Web faucets:
+- **MainNet MACT:** [faucet.pocket.network](https://faucet.pocket.network)
+- **Beta TestNet POKT:** [faucet.beta.testnet.pokt.network/pokt/](https://faucet.beta.testnet.pokt.network/pokt/)
+- **Beta TestNet MACT:** [faucet.beta.testnet.pokt.network/mact/](https://faucet.beta.testnet.pokt.network/mact/)
+
+## Transaction Gas and Fees
+
+Every transaction pays a small fee: **Total Fee = Gas Limit × Gas Price**. The network minimum gas price is `0.000001upokt`, so a typical transaction costs around 1 upokt — effectively negligible.
+
+```bash
+# Standard (most transactions)
+pocketd tx bank send myWallet pokt1recipient 1000000upokt \
+  --gas=auto --fees=1upokt --network=main
+
+# Gas-price method (let the network compute the fee)
+pocketd tx bank send myWallet pokt1recipient 1000000upokt \
+  --gas=auto --gas-prices=0.000001upokt --gas-adjustment=1.2 --network=main
+```
+
+| Flag | Purpose | Example |
+| --- | --- | --- |
+| `--gas` | Gas limit, or `auto` to estimate | `--gas=auto` |
+| `--fees` | Fixed total fee (overrides gas-prices) | `--fees=1upokt` |
+| `--gas-prices` | Price per gas unit | `--gas-prices=0.000001upokt` |
+| `--gas-adjustment` | Multiplier for auto gas estimation | `--gas-adjustment=1.2` |
+
+<Callout type="warning">
+  Do not combine `--fees` and `--gas-prices` in the same command — they are mutually exclusive.
+</Callout>
