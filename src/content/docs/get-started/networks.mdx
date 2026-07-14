@@ -23,7 +23,7 @@ Each network is completely independent. Tokens on one network have no value or m
 | **Purpose** | Live production network | Testing and experimentation | Local development |
 | **Tokens have real value?** | Yes | No | No |
 | **Who uses it?** | All participants with real stakes | Developers, testers, newcomers learning the system | Developers building on the protocol |
-| **Block time** | ~1 minute | ~5 minutes | Varies |
+| **Block time** | ~1 minute | ~30 seconds | Varies |
 | **Open to everyone?** | Yes — permissionless | Yes — permissionless | Runs privately on your machine |
 
 ## MainNet
@@ -33,16 +33,6 @@ MainNet is the live, production network. This is where real economic activity ha
 **When to use:** When you are ready to participate for real — staking tokens, serving data, or accessing blockchain services in production.
 
 **Key facts:** Chain ID is `pocket`, block time is approximately 1 minute, and tokens have real economic value.
-
-### Explorers
-
-Block explorers let you browse blockchain activity in a user-friendly way — look up any account's balance, view transactions, see who is staked:
-
-- [StakeNodes Explorer](https://explorer.pocket.network/)
-- [PoktScan Explorer](https://www.poktscan.com/)
-- [BlockVal Explorer](https://explorer.blockval.io/pocket)
-
-A [GraphQL playground](https://shannon-mainnet-api.trustsoothe.io) is also available for advanced queries.
 
 ### Faucet
 
@@ -57,14 +47,7 @@ A fully functional copy of Pocket Network that uses worthless test tokens. Think
 - **Experimenting with new features** as they are released
 - **Debugging issues** in a safe environment
 
-**Key facts:** Chain ID is `pocket-lego-testnet` (renamed from `pocket-beta` in v0.1.31), block time is approximately 5 minutes.
-
-### Explorers
-
-- [StakeNodes Explorer](https://explorer.pocket.network/)
-- [PoktScan Explorer](https://www.poktscan.com/)
-
-A [GraphQL playground](https://shannon-beta-api.trustsoothe.io/) is available.
+**Key facts:** Chain ID is `pocket-lego-testnet` (renamed from `pocket-beta` in v0.1.31), block time is approximately 30 seconds.
 
 ### Faucets
 
@@ -125,7 +108,7 @@ The `pocketd` CLI simplifies connections with a `--network` flag. Instead of spe
 | --- | --- | --- |
 | **Chain ID** | `pocket` | `pocket-lego-testnet` |
 | **--network flag** | `main` | `beta` |
-| **Block time** | ~1 minute | ~5 minutes |
+| **Block time** | ~1 minute | ~30 seconds |
 | **Status** | Production | Active testing |
 
 <Callout type="info">
@@ -146,8 +129,8 @@ The `pocketd` CLI simplifies connections with a `--network` flag. Instead of spe
 
 ### Explorers
 
-- [StakeNodes](https://explorer.pocket.network/) · [PoktScan](https://www.poktscan.com/) · [BlockVal](https://explorer.blockval.io/pocket)
-- [Soothe GraphQL Playground](https://shannon-mainnet-api.trustsoothe.io)
+- [Explorer](https://explorer.pocket.network/) · [Analytics](https://analytics.pocket.network/)
+- [GraphQL Playground](https://data.pocket.network/)
 
 ### Faucet (MACT)
 
@@ -202,8 +185,8 @@ The MainNet genesis file is at [pokt-network/pocket-network-genesis](https://git
 
 ### Explorers
 
-- [StakeNodes](https://explorer.pocket.network/) · [PoktScan](https://www.poktscan.com/)
-- [Soothe GraphQL Playground](https://shannon-beta-api.trustsoothe.io/)
+- [Explorer](https://explorer.pocket.network/beta) · [Analytics](https://analytics.pocket.network/beta)
+- [GraphQL Playground](https://data.beta.pocket.network/)
 
 ### Faucets
 
@@ -242,7 +225,7 @@ curl -X POST https://sauron-rpc.beta.infra.pocket.network/block
 
 ### Genesis
 
-The Beta TestNet genesis file is at [pokt-network/pocket-network-genesis](https://github.com/pokt-network/pocket-network-genesis/tree/master/shannon/testnet-beta).
+The Beta TestNet genesis file is at [pokt-network/pocket-network-genesis](https://github.com/pokt-network/pocket-network-genesis/tree/master/shannon/testnet-lego).
 
 ## LocalNet
 
