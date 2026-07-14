@@ -1,0 +1,116 @@
+---
+title: "pocketd CLI"
+description: "Install and configure pocketd — the official Pocket Network command-line tool — plus global flags, network selection, and where to find every command."
+section: "pocketd"
+persona: ["node-operator", "developer", "gateway-operator"]
+tabs: false
+status: "stable"
+sources: ["zip1/01-getting-started.md", "zip2/01-getting-started.md"]
+lastUpdated: "2026-07-14"
+---
+
+`pocketd` is the official command-line tool for Pocket Network Shannon. It creates and manages accounts, submits transactions (staking, delegation, transfers), queries on-chain state, and funds wallets from faucets. It runs on Linux and macOS; Windows users run it through [WSL](https://docs.microsoft.com/en-us/windows/wsl/install).
+
+This section is the reference for the tool itself. If you're a node operator looking for the complete fast-setup path, start at the [Provider Quickstart](/get-started/provider-quickstart) — it walks the whole flow end to end and installs `pocketd` along the way.
+
+## Install pocketd
+
+### Quick install (Linux and macOS)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/pokt-network/poktroll/main/tools/scripts/pocketd-install.sh | bash
+```
+
+Verify the install:
+
+```bash
+pocketd version
+pocketd --help
+```
+
+### Upgrade
+
+```bash
+# Latest release
+curl -sSL https://raw.githubusercontent.com/pokt-network/poktroll/main/tools/scripts/pocketd-install.sh | bash -s -- --upgrade
+
+# A specific tag
+curl -sSL https://raw.githubusercontent.com/pokt-network/poktroll/main/tools/scripts/pocketd-install.sh | bash -s -- --tag v0.1.33 --upgrade
+```
+
+### Homebrew (macOS)
+
+```bash
+brew tap pokt-network/poktroll
+brew install pocketd
+```
+
+If a previous install misbehaves, do a clean reinstall:
+
+```bash
+brew tap --repair
+brew untap pokt-network/poktroll
+brew uninstall pocketd
+brew tap pokt-network/poktroll
+brew install pocketd
+```
+
+### Manual binary download
+
+Download the latest release from the [releases page](https://github.com/pokt-network/poktroll/releases/latest):
+
+```bash
+curl -LO "https://github.com/pokt-network/poktroll/releases/latest/download/pocket_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
+
+sudo tar -zxf "pocket_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" -C /usr/local/bin
+
+sudo chmod +x /usr/local/bin/pocketd
+
+pocketd version
+```
+
+### Build from source
+
+Requires Go 1.25+, Make, and Ignite CLI.
+
+```bash
+git clone https://github.com/pokt-network/poktroll.git pocket
+cd pocket
+make go_develop
+make ignite_build_pocketd
+pocketd version
+```
+
+## Selecting a Network
+
+Almost every command takes a `--network` flag that sets the chain ID, RPC/gRPC endpoints, and faucet URL in one shot:
+
+| `--network` | Chain ID | Use |
+| --- | --- | --- |
+| `local` | `pocket` | LocalNet development (the default when `--network` is omitted) |
+| `beta` | `pocket-lego-testnet` | Beta TestNet |
+| `main` | `pocket` | MainNet |
+
+For the full endpoint tables, per-flag values, and how to override individual flags, see [Networks](/get-started/networks).
+
+## Configuration and Home Directory
+
+`pocketd` stores its config and keys under `~/.pocket` by default. Common global flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--home` | Root directory for config and keys (default `~/.pocket`) |
+| `--keyring-backend` | Where private keys are stored (`os`, `file`, `test`, `memory`) — see [Accounts, Keys & Fees](/pocketd/accounts-keys#keyring-backends) |
+| `--node` | RPC endpoint URL (set automatically by `--network`) |
+| `--chain-id` | Target chain ID (set automatically by `--network`) |
+| `-o json` | JSON output, handy for scripting |
+
+Persistent defaults live in `~/.pocket/config/client.toml`:
+
+```toml
+keyring-backend = "os"
+```
+
+## In This Section
+
+Everything you can do with `pocketd`, grouped by what you're trying to accomplish:

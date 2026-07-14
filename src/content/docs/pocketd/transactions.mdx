@@ -1,0 +1,118 @@
+---
+title: "Staking & Transactions"
+description: "Quick reference for pocketd write commands — staking and unstaking actors, delegation, sending tokens, and registering services."
+section: "pocketd"
+persona: ["node-operator", "developer", "gateway-operator"]
+tabs: false
+status: "stable"
+sources: ["zip4/poktroll/docusaurus/1_operate/1_cheat_sheets/"]
+lastUpdated: "2026-04-07"
+---
+
+A quick reference for the `pocketd` commands that change on-chain state — staking, delegation, transfers, and service registration. All examples assume `--network=main`; replace with `--network=beta` for the Beta TestNet. For read-only lookups, see [Querying the Chain](/pocketd/querying); for key management and gas/fee patterns, see [Accounts, Keys & Fees](/pocketd/accounts-keys).
+
+<Callout type="info">
+  Every write command needs a signer (`--from <key>`) and a fee (`--gas=auto --fees=1upokt` covers almost all transactions). Add `--yes` to skip the confirmation prompt in scripts.
+</Callout>
+
+## Application
+
+Stake, update, and manage an Application. Full walkthrough: [Application Staking](/developers/application-staking).
+
+```bash
+# Stake (or restake) an Application from a config file
+pocketd tx application stake-application \
+  --config app-config.yaml \
+  --from myAppWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+
+# Delegate to a Gateway (lets the Gateway relay on the app's behalf)
+pocketd tx application delegate-to-gateway pokt1gatewayaddress \
+  --from myAppWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+
+# Undelegate from a Gateway
+pocketd tx application undelegate-from-gateway pokt1gatewayaddress \
+  --from myAppWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+
+# Unstake an Application
+pocketd tx application unstake-application \
+  --from myAppWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+```
+
+## Supplier
+
+Stake and manage a Supplier. Full walkthrough: [Supplier Staking](/node-operators/supplier-staking).
+
+```bash
+# Stake (or restake) a Supplier from a config file
+pocketd tx supplier stake-supplier \
+  --config supplier-config.yaml \
+  --from mySupplierWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+
+# Unstake a Supplier
+pocketd tx supplier unstake-supplier \
+  --from mySupplierWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+```
+
+## Gateway
+
+Stake and manage a Gateway. Full walkthrough: [Gateway Staking](/gateways/staking).
+
+```bash
+# Stake (or restake) a Gateway from a config file
+pocketd tx gateway stake-gateway \
+  --config gateway-config.yaml \
+  --from myGatewayWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+
+# Unstake a Gateway
+pocketd tx gateway unstake-gateway \
+  --from myGatewayWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+```
+
+## Services
+
+Register and edit on-chain services. Full walkthrough: [Service Management](/node-operators/service-management).
+
+```bash
+# Register a new service
+pocketd tx service add-service \
+  --name "my-service" \
+  --compute-units-per-relay 1 \
+  --from myWallet \
+  --network=main \
+  --gas=auto --fees=1upokt
+```
+
+## Sending Tokens
+
+```bash
+pocketd tx bank send myWallet pokt1recipient 1000000upokt \
+  --network=main --gas=auto --fees=1upokt
+```
+
+Add `--yes` to broadcast without the interactive confirmation in scripts. For fee patterns and the full flag reference, see [Accounts, Keys & Fees](/pocketd/accounts-keys#transaction-gas-and-fees).
+
+## Confirming a Transaction
+
+After broadcasting, look up the result by hash:
+
+```bash
+pocketd query tx TXHASH --network=main
+```
+
+See [Querying the Chain](/pocketd/querying) for status checks, balances, and the full read reference.

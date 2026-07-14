@@ -111,6 +111,8 @@ export default defineConfig({
     '/get-started/how-pocket-works': '/get-started/about-pocket',
     '/get-started/what-is-pocket': '/get-started/about-pocket',
     '/get-started/shannon-upgrade': '/deprecated/shannon-upgrade',
+    '/reference/querying': '/pocketd/querying',
+    '/node-operators/cheat-sheets': '/pocketd/transactions',
   },
   integrations: [
     mdx(),
