@@ -44,26 +44,46 @@ const MODULES = [
   "migration",
 ];
 
-async function fetchModuleParams(module) {
-  const url = `${BASE_URL}/pokt-network/poktroll/${module}/params`;
+// Cosmos SDK modules live under a different REST prefix than poktroll's own
+// modules. Pocket does not fork these, so their params (max_validators,
+// unbonding_time, slash fractions) come straight from the SDK endpoints.
+// Consumed by <GovParam module="staking" param="max_validators" /> etc.
+const COSMOS_MODULES = [
+  { name: "staking", path: "/cosmos/staking/v1beta1/params" },
+  { name: "slashing", path: "/cosmos/slashing/v1beta1/params" },
+  { name: "distribution", path: "/cosmos/distribution/v1beta1/params" },
+];
+
+async function fetchParamsFromUrl(label, url) {
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
     signal: AbortSignal.timeout(10_000),
   });
 
   if (!res.ok) {
-    throw new Error(`${module}: HTTP ${res.status} from ${url}`);
+    throw new Error(`${label}: HTTP ${res.status} from ${url}`);
   }
 
   const json = await res.json();
 
   if (json.code) {
     throw new Error(
-      `${module}: RPC error code ${json.code} — ${json.message}`
+      `${label}: RPC error code ${json.code} — ${json.message}`
     );
   }
 
   return json.params;
+}
+
+function fetchModuleParams(module) {
+  return fetchParamsFromUrl(
+    module,
+    `${BASE_URL}/pokt-network/poktroll/${module}/params`
+  );
+}
+
+function fetchCosmosModuleParams({ name, path }) {
+  return fetchParamsFromUrl(name, `${BASE_URL}${path}`);
 }
 
 /**
@@ -122,6 +142,20 @@ async function main() {
       console.log(`  ✓ ${mod}`);
     } catch (err) {
       console.error(`  ✗ ${mod}: ${err.message}`);
+      failures++;
+    }
+  }
+
+  for (const mod of COSMOS_MODULES) {
+    try {
+      const params = await fetchCosmosModuleParams(mod);
+      result.modules[mod.name] = {
+        raw: params,
+        flat: flattenParams(params),
+      };
+      console.log(`  ✓ ${mod.name} (cosmos-sdk)`);
+    } catch (err) {
+      console.error(`  ✗ ${mod.name}: ${err.message}`);
       failures++;
     }
   }

@@ -1,0 +1,108 @@
+---
+title: "Validators"
+description: "How validators secure Pocket Network, how the active set is chosen, how validator and delegator rewards are actually generated and paid, and where to see your real earnings."
+section: "validators"
+persona: ["node-operator", "token-holder", "all"]
+tabs: false
+status: "stable"
+lastUpdated: "2026-09-08"
+---
+
+Validators produce and sign the blocks that make up the Pocket Network chain. They are consensus infrastructure — distinct from Suppliers, which serve relays and earn from relay work. A single organization may run both, but they are separate stakes, separate roles, and separate reward paths.
+
+Pocket runs standard Cosmos SDK staking, unmodified. If you have delegated on any Cosmos chain, the mechanics are familiar. What is *not* standard is how relay income reaches validators and their delegators — and that difference is the single most misunderstood thing about staking POKT.
+
+<Callout type="warning">
+  **Keplr's "Claim" button does not show your validator earnings.** Your real rewards are paid straight to your wallet with no claim step. The claimable figure in Keplr is a small, unrelated inflation residue. See [What Keplr Gets Wrong](#what-keplr-gets-wrong) below.
+</Callout>
+
+## The Active Set
+
+Any number of validators may register and stake, but only the top <GovParam module="staking" param="max_validators" /> by total bonded stake are in the **active set** — the ones that actually sign blocks and earn. Total bonded stake means self-bond plus everything delegated to them.
+
+The set is recalculated at the end of **every block**. Any stake change — a new delegation, an undelegation, a new validator joining, a jailing — can reshuffle it. A validator that rises above the lowest active one takes its place in the next block, and the displaced validator becomes inactive.
+
+Inactive validators are not slashed and not removed. They keep their stake, keep accepting delegations, and re-enter the moment their stake carries them back into the top <GovParam module="staking" param="max_validators" />.
+
+Browse the live set at [explorer.pocket.network/validators](https://explorer.pocket.network/validators), which shows every registered validator with stake, status, and commission. You can also query it directly:
+
+```bash
+pocketd query staking validators --network=main
+```
+
+<Callout type="tip">
+  `max_validators` is governance-controlled and read live on this page. To confirm it yourself at any time, run `pocketd query staking params --network=main` or check [explorer.pocket.network/params](https://explorer.pocket.network/params).
+</Callout>
+
+## How Validator Rewards Are Generated
+
+Validator income on Pocket comes from **relay settlement**, not from block production.
+
+Every time a Supplier's claim settles on-chain, the settlement is split among network participants by governance-controlled percentages. The validator pool's share is <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.proposer" format="percent" /> of each Mint=Burn settlement.
+
+That pooled amount is then distributed as follows:
+
+- **Split across every bonded validator by stake weight** — not paid to whichever validator proposed the block. A validator with 10% of total bonded stake receives 10% of the pool, whether or not it proposed anything.
+- **Passed through to delegators proportionally.** Each delegator's share is `pool × (your bonded stake ÷ total bonded stake)`.
+- **Paid directly to each wallet** at session settlement, as a bank transfer from the tokenomics module.
+
+<Callout type="note">
+  The governance parameter is named `proposer`, which is misleading. It sets the size of the validator pool; it does not mean the block proposer receives it. Distribution is purely stake-weighted across all bonded validators.
+</Callout>
+
+### Commission Does Not Apply to Settlement Income
+
+This surprises people coming from other Cosmos chains. A validator's commission rate is applied to rewards flowing through the Cosmos distribution module — inflation and transaction fees. It is **not** applied to relay settlement income, which is distributed to delegators by stake weight before any commission logic runs.
+
+On Pocket, the network-wide minimum commission is <GovParam module="staking" param="min_commission_rate" format="percent" />, and the consensus proposer bonuses are both zero (`base_proposer_reward` and `bonus_proposer_reward`). Commission is therefore a much weaker signal when choosing a validator than it would be elsewhere. Uptime matters more — see [Delegation](/validators/delegation).
+
+### Why Inflation Is Not the Story
+
+Pocket's other reward path, the global mint, allocates <GovParam module="tokenomics" param="mint_allocation_percentages.proposer" format="percent" /> to validators. Under [PIP-41](/token/pip-41) the network settles on a Mint=Burn basis, so essentially all validator income arrives through the settlement distribution above.
+
+## What Keplr Gets Wrong
+
+Keplr — and any wallet reading the standard Cosmos staking screen — shows a **Claim** or **Claimable rewards** figure. On most Cosmos chains that number *is* your staking income. On Pocket it is not.
+
+| | Where it lives | What it is |
+| --- | --- | --- |
+| **Your actual earnings** | Already in your wallet balance | Relay settlement, paid directly at each session end. No claim step. Nothing accrues waiting for one. |
+| **Keplr's "Claimable"** | Cosmos distribution module | Minimum inflation only. Cosmos cannot set emissions to zero, so a trivial amount accumulates here until claimed. |
+
+The gap is not subtle. A delegator with roughly 8.9M POKT bonded earned about **134,000 POKT over 30 days**, while their claimable balance sat near **1,800 POKT** — a difference of about 74×.
+
+Claiming that balance is harmless, and the tokens are real. It is simply not your staking income, and treating it as such will understate your returns by orders of magnitude.
+
+<Callout type="danger">
+  Do not evaluate a validator, or your own returns, using Keplr's claimable figure. Use the explorer's delegation view below, which reads settlement events directly.
+</Callout>
+
+## Seeing Your Real Earnings
+
+Pocket Explorer reads settlement events straight from chain data. Open your account and switch to the delegation view:
+
+```
+https://explorer.pocket.network/account/<your-pokt1-address>?as=delegation
+```
+
+It reports **Delegated**, **Earned 30d**, **Daily Avg 30d**, and **APR 30d**, with four tabs:
+
+| Tab | What it shows |
+| --- | --- |
+| **Validators** | Every validator you are bonded to, and how much with each |
+| **Settlements** | Per-block reward events — the ground truth for what you were paid |
+| **Rate** | Daily average and APR, plus exactly how they were derived |
+| **Raw** | The underlying staking and distribution records from the Cosmos LCD |
+
+The explorer deliberately excludes the claimable inflation balance from Earned, the daily average, and the APR, so those figures reflect settlement income only.
+
+<Callout type="note">
+  The APR shown is backward-looking — it annualizes what these validators actually paid over the window, not a promised rate. Because Cosmos staking messages are not indexed, a delegation whose size changed mid-window cannot be corrected for and will skew both the daily average and the APR.
+</Callout>
+
+## Where to Go Next
+
+- **[Delegation](/validators/delegation)** — delegate POKT with Keplr or `pocketd`, choose a validator, redelegate, and unbond
+- **[Validator Setup](/validators/setup)** — run your own validator node
+- **[Tokenomics](/token/tokenomics)** — how the settlement split fits the wider POKT economy
+- **[Explorer & Analytics](/ecosystem/explorer)** — the full explorer guide

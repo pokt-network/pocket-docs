@@ -1,0 +1,239 @@
+---
+title: "Validator Setup"
+description: "Run a validator on Pocket Network — prerequisites, key generation and backup, validator.json, create-validator, verification, and jailing recovery."
+section: "validators"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+lastUpdated: "2026-09-08"
+---
+
+This guide takes you from a synced full node to a registered, bonded validator. Budget about 30 minutes once your node is synced — syncing itself takes considerably longer.
+
+<Callout type="warning">
+  A validator signs blocks with a key that, if lost or duplicated, cannot be recovered and can get you jailed or (should governance enable penalties) slashed. Read [Back Up Your Keys](#back-up-your-keys) before you stake anything.
+</Callout>
+
+## Prerequisites
+
+**1. A synced full node.** The validator process *is* your full node — you are promoting an existing node, not installing new software. If you do not have one yet, set it up first:
+
+```bash
+curl -O https://raw.githubusercontent.com/pokt-network/poktroll/main/tools/scripts/full-node.sh
+sudo bash full-node.sh
+```
+
+The script prompts for network, sync method, moniker, and external IP. See [Hardware Requirements](/node-operators/hardware-requirements) for sizing and pruning guidance, and the [Provider Quickstart](/get-started/provider-quickstart) for a fuller walkthrough of the same script.
+
+**2. Confirm the node is fully synced.** A validator created against a lagging node will start missing blocks immediately:
+
+```bash
+pocketd status
+```
+
+`sync_info.catching_up` must be `false`. Do not proceed until it is.
+
+**3. [`pocketd` installed](/pocketd/)** and, if you followed the full-node script, switch to the user running the node:
+
+```bash
+su - pocket
+```
+
+**4. Enough POKT** to self-bond, plus fees. There is no protocol minimum self-bond beyond `min-self-delegation` in your own config — but only the top <GovParam module="staking" param="max_validators" /> validators by total bonded stake are in the active set and earning. Check the current cut-off on [explorer.pocket.network/validators](https://explorer.pocket.network/validators) before deciding an amount.
+
+## Create the Validator Account
+
+```bash
+pocketd keys add validator
+```
+
+This prints a new address and mnemonic. **Save the mnemonic offline now** — it is shown once.
+
+### Set Up Environment
+
+Keep validator environment variables in their own file:
+
+```bash
+cat << 'EOT' > ~/.pocketrc
+export QUERY_FLAGS="--network=main"
+export TX_PARAM_FLAGS="--from validator --fees 200000upokt --network=main"
+export ADDR=$(pocketd keys show validator -a)
+export VALIDATOR_ADDR=$(pocketd keys show validator -a --bech val)
+EOT
+
+echo "source ~/.pocketrc" >> ~/.bashrc
+source ~/.pocketrc
+```
+
+Use `--network=beta` throughout if you are practising on Beta TestNet first, which is strongly recommended.
+
+### Fund the Account
+
+```bash
+echo "Validator address: $ADDR"
+```
+
+**Beta TestNet:** fund it from [faucet.beta.pocket.network](https://faucet.beta.pocket.network/), or via the CLI:
+
+```bash
+pocketd faucet fund upokt validator --network=beta
+```
+
+**Mainnet:** transfer in from an existing account:
+
+```bash
+pocketd tx bank send <SOURCE_ADDRESS> $ADDR <AMOUNT>upokt $TX_PARAM_FLAGS
+```
+
+Confirm it arrived:
+
+```bash
+pocketd query bank balances $ADDR $QUERY_FLAGS
+```
+
+## Back Up Your Keys
+
+<Callout type="danger">
+  Do this before creating the validator, not after. Three separate items matter, and losing any of them has different — all bad — consequences.
+</Callout>
+
+| File | Location | Why it matters |
+| --- | --- | --- |
+| Validator account key / mnemonic | Your keyring | Controls the stake. Lose it and you cannot unbond, redelegate, or claim. |
+| `priv_validator_key.json` | `~/.pocketd/config/` | Signs blocks. Lose it and you cannot sign; **duplicate it onto a second running node and you double-sign.** |
+| `node_key.json` | `~/.pocketd/config/` | P2P identity. |
+
+<Callout type="danger">
+  Never run two nodes with the same `priv_validator_key.json`. Double-signing is the one fault the protocol treats as unforgivable — the slash fraction is currently <GovParam module="slashing" param="slash_fraction_double_sign" format="percent" />, but that is a governance parameter the DAO can raise at any time, and the reputational and jailing consequences apply regardless. Back the file up offline; do not "back it up" by leaving it on a warm standby that might boot.
+</Callout>
+
+## Get the Validator Public Key
+
+```bash
+pocketd comet show-validator
+```
+
+Output:
+
+```json
+{ "@type": "/cosmos.crypto.ed25519.PubKey", "key": "YourPublicKeyHere" }
+```
+
+Copy this whole object — it goes into `validator.json` next.
+
+## Create validator.json
+
+```bash
+cat << 'EOF' > validator.json
+{
+  "pubkey": {
+    "@type": "/cosmos.crypto.ed25519.PubKey",
+    "key": "YdlQyhjtrq9pk7afmz6oQ275L4FElzjzEJvB1fj3e1w="
+  },
+  "amount": "1000000upokt",
+  "moniker": "validator",
+  "identity": "",
+  "website": "",
+  "security": "",
+  "details": "",
+  "commission-rate": "0.100000000000000000",
+  "commission-max-rate": "0.200000000000000000",
+  "commission-max-change-rate": "0.010000000000000000",
+  "min-self-delegation": "1"
+}
+EOF
+```
+
+Fields to change:
+
+| Field | Notes |
+| --- | --- |
+| `pubkey` | Paste the object from `pocketd comet show-validator`. |
+| `amount` | Your self-bond, in `upokt`. 1 POKT = 1,000,000 upokt. |
+| `moniker` | Public display name, shown in explorers and wallets. |
+| `commission-rate` | Decimal, not percent — `0.1` is 10%. Network minimum is <GovParam module="staking" param="min_commission_rate" format="percent" />. |
+| `commission-max-rate` | Ceiling you can ever raise to. **Cannot be changed after creation.** |
+| `commission-max-change-rate` | Most you can move the rate in a single day. Also fixed at creation. |
+| `min-self-delegation` | Floor, in `upokt`. Drop below it and the validator is removed from the set. |
+| `identity`, `website`, `security`, `details` | Optional metadata. `identity` takes a Keybase ID for a logo. |
+
+<Callout type="note">
+  Commission on Pocket applies to the Cosmos distribution stream (inflation and transaction fees), not to relay settlement income, which reaches delegators by stake weight regardless of your rate. It is still worth setting deliberately — `commission-max-rate` and `commission-max-change-rate` are permanent.
+</Callout>
+
+## Create the Validator
+
+```bash
+pocketd tx staking create-validator ./validator.json $TX_PARAM_FLAGS
+```
+
+You should get a transaction hash back. Look it up on [explorer.pocket.network/txs](https://explorer.pocket.network/txs) to confirm it succeeded.
+
+## Verify
+
+```bash
+pocketd query staking validator $VALIDATOR_ADDR $QUERY_FLAGS
+```
+
+Check that `status` reads `BOND_STATUS_BONDED`. Anything else means you are registered but not in the active set:
+
+| Status | Meaning |
+| --- | --- |
+| `BOND_STATUS_BONDED` | Active — signing blocks and earning. |
+| `BOND_STATUS_UNBONDED` | Registered but outside the top <GovParam module="staking" param="max_validators" /> by stake. Not earning. |
+| `BOND_STATUS_UNBONDING` | Leaving the set; funds locked for the unbonding period. |
+| `jailed: true` | Removed for missed blocks. See below. |
+
+Your validator should also appear at [explorer.pocket.network/validators](https://explorer.pocket.network/validators) within a block or two.
+
+## Staying in the Active Set
+
+Set membership is recalculated every block against total bonded stake — self-bond plus delegations. You can be displaced without any fault of your own, simply by another validator attracting more stake. Watch your position rather than assuming it holds.
+
+To increase your self-bond:
+
+```bash
+pocketd tx staking delegate $VALIDATOR_ADDR <amount>upokt $TX_PARAM_FLAGS
+```
+
+## Jailing and Recovery
+
+A validator is jailed for missing too many blocks — specifically, signing fewer than <GovParam module="slashing" param="min_signed_per_window" format="percent" /> of the last <GovParam module="slashing" param="signed_blocks_window" /> blocks. The minimum time in jail is <GovParam module="slashing" param="downtime_jail_duration" />.
+
+While jailed you earn nothing, and neither do your delegators. Fix the underlying problem — usually a desynced, overloaded, or stopped node — then confirm the node is caught up:
+
+```bash
+pocketd status
+```
+
+Once `catching_up` is `false` and the jail period has elapsed:
+
+```bash
+pocketd tx slashing unjail $TX_PARAM_FLAGS
+```
+
+Then re-verify status as above.
+
+<Callout type="tip">
+  Jailing is a monitoring failure more than an infrastructure one. Set up alerting on block signing and sync status before you need it — see [Monitoring](/node-operators/monitoring) for the Prometheus and Grafana setup that ships with poktroll.
+</Callout>
+
+## Upgrades
+
+Validators run the same binary as full nodes and follow the same upgrade path, coordinated through Cosmovisor. Missing a scheduled upgrade halts your node and gets you jailed. Track announcements in [Discord](https://discord.gg/pocket-network) and see [Upgrades](/node-operators/upgrades).
+
+## Security Practices
+
+- Never share or expose mnemonics or private keys; store them offline.
+- Never run two nodes with the same `priv_validator_key.json`.
+- Monitor signing and sync continuously — downtime is the realistic failure mode.
+- Keep enough balance in the validator account to pay transaction fees, including unjail transactions.
+- Practise the whole flow on Beta TestNet before committing mainnet stake.
+
+## Related Pages
+
+- [Validators](/validators/) — active set and reward mechanics
+- [Delegation](/validators/delegation) — how delegators bond to you
+- [Hardware Requirements](/node-operators/hardware-requirements) — sizing and pruning
+- [Monitoring](/node-operators/monitoring) — alerting setup
+- [Upgrades](/node-operators/upgrades) — Cosmovisor upgrade path

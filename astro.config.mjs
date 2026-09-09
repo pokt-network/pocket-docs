@@ -115,6 +115,7 @@ export default defineConfig({
     '/node-operators/cheat-sheets': '/pocketd/transactions',
     '/get-started/pocketd-installation': '/pocketd',
     '/ecosystem/poktscan': '/ecosystem/explorer',
+    '/token/validator-delegation': '/validators/delegation',
   },
   integrations: [
     mdx(),

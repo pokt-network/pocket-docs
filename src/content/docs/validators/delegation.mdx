@@ -1,0 +1,173 @@
+---
+title: "Delegation"
+description: "Delegate POKT to a validator with Keplr or pocketd — how to choose a validator, what commission actually affects, redelegation, unbonding, and jailing risk."
+section: "validators"
+persona: ["token-holder", "retail-staker"]
+tabs: false
+status: "stable"
+lastUpdated: "2026-09-08"
+---
+
+Delegating is the simplest way to earn POKT from consensus without running infrastructure. You bond POKT to a validator, they sign blocks, and you receive a stake-proportional share of the validator pool's relay settlement income — paid directly to your wallet.
+
+**You keep custody throughout.** Delegation assigns voting power; it does not transfer your tokens to the validator. You can redelegate or begin unbonding at any time.
+
+<Callout type="info">
+  Pocket uses standard Cosmos SDK delegation, unmodified. If you have delegated on any other Cosmos chain, the transaction flow is identical. How rewards *reach* you is not standard — read [Validators](/validators/) first if you have not.
+</Callout>
+
+## Choosing a Validator
+
+The usual Cosmos advice overweights commission. On Pocket that advice is misleading.
+
+**Uptime is the signal that matters.** A validator that drops out of the active set or gets jailed stops earning entirely, and so do you. Check signing history and status on [explorer.pocket.network/validators](https://explorer.pocket.network/validators).
+
+**Commission barely touches your income.** Commission applies to rewards flowing through the Cosmos distribution module — inflation and transaction fees. It is *not* applied to relay settlement income, which is the overwhelming majority of what you earn and is distributed by stake weight before commission logic runs. The network minimum is <GovParam module="staking" param="min_commission_rate" format="percent" />.
+
+**Active-set position.** Only the top <GovParam module="staking" param="max_validators" /> validators by bonded stake earn. Delegating to one sitting just below the cut-off earns you nothing until it climbs back in. Delegating to one sitting just above it carries the risk it drops out.
+
+**Decentralization.** Stake concentrated in a few validators weakens the chain. Spreading delegation across smaller active validators strengthens it, at no cost to your returns given commission's limited role.
+
+<Callout type="tip">
+  Before delegating, look up a validator's real payout history in the explorer's delegation view for one of its existing delegators. Settlement events are the ground truth — far more informative than an advertised rate.
+</Callout>
+
+## Delegating with Keplr
+
+Keplr is the most common route for token holders.
+
+1. **Add Pocket Network.** Go to [chains.keplr.app](https://chains.keplr.app), search "Pocket", and choose **Add to Keplr**. Approve the popup. Your `pokt1...` address appears in Keplr.
+2. **Open Staking.** Select Pocket Network in Keplr, then the staking section.
+3. **Pick a validator.** Keplr lists the active set with commission and voting power. Cross-check against [the explorer](https://explorer.pocket.network/validators) — Keplr does not show settlement earnings.
+4. **Enter an amount and confirm.** Leave some POKT unbonded for transaction fees.
+5. **Verify.** Your delegation appears in Keplr, and in the explorer at `/account/<your-address>?as=delegation`.
+
+<Callout type="warning">
+  After delegating, ignore Keplr's **Claim** / claimable rewards figure. It reflects only the minimum Cosmos inflation, not your settlement income — which arrives in your wallet balance automatically with no claim step. See [What Keplr Gets Wrong](/validators/#what-keplr-gets-wrong).
+</Callout>
+
+Ledger users can delegate through Keplr with the Cosmos app — see [Hardware Wallets](/wallets/hardware-wallets).
+
+## Delegating with Soothe Vault
+
+<Callout type="note">
+  **Soothe support coming soon.** [Soothe Vault](/wallets/soothe-vault) is Pocket's native wallet, but it does not yet expose staking or delegation. Use Keplr (or `pocketd`) to delegate for now. This page will be updated when Soothe ships delegation support.
+</Callout>
+
+## Delegating with pocketd
+
+### Prerequisites
+
+- [`pocketd` installed](/pocketd/)
+- POKT in your account, plus a small amount for fees
+- A validator operator address (`poktvaloper1...`)
+
+### Find a validator
+
+```bash
+pocketd query staking validators --network=main
+```
+
+### Delegate
+
+```bash
+pocketd tx staking delegate <validator_address> <amount>upokt \
+  --from=<your_key_name> \
+  --network=main \
+  --fees=200000upokt
+```
+
+To delegate 10,000 POKT:
+
+```bash
+pocketd tx staking delegate poktvaloper1abc... 10000000000upokt \
+  --from=my-wallet \
+  --network=main \
+  --fees=200000upokt
+```
+
+<Callout type="warning">
+  Amounts are denominated in `upokt` (micro-POKT). 1 POKT = 1,000,000 upokt. Double-check before submitting — there is no undo.
+</Callout>
+
+### Verify
+
+```bash
+pocketd query staking delegations <your_address> --network=main
+```
+
+## Rewards
+
+Settlement rewards need no action. They are transferred to your wallet at each session settlement, and appear in your balance.
+
+The Cosmos distribution module separately accrues a small amount from the protocol's minimum inflation. That balance *does* require a claim, and is what wallets display as claimable:
+
+```bash
+# The small inflation-only balance — not your settlement income
+pocketd query distribution rewards <your_address> --network=main
+
+# Claim it
+pocketd tx distribution withdraw-all-rewards \
+  --from=<your_key_name> \
+  --network=main \
+  --fees=200000upokt
+```
+
+To see what you actually earned, use the explorer's delegation view:
+
+```
+https://explorer.pocket.network/account/<your-pokt1-address>?as=delegation
+```
+
+## Redelegation
+
+You can move a delegation between validators without unbonding:
+
+```bash
+pocketd tx staking redelegate <source_validator> <dest_validator> <amount>upokt \
+  --from=<your_key_name> \
+  --network=main \
+  --fees=200000upokt
+```
+
+Redelegation takes effect immediately with no unbonding period, and you keep earning throughout. Cosmos limits how many redelegations can be in flight from the same source validator — the cap is <GovParam module="staking" param="max_entries" /> concurrent entries. A completed redelegation also cannot be immediately redelegated onward until its entry clears.
+
+## Unbonding
+
+```bash
+pocketd tx staking unbond <validator_address> <amount>upokt \
+  --from=<your_key_name> \
+  --network=main \
+  --fees=200000upokt
+```
+
+<Callout type="danger">
+  Unbonding takes **21 days** (`unbonding_time` = <GovParam module="staking" param="unbonding_time" />). During that period your tokens are locked, earn nothing, and the unbonding cannot be cancelled. This is a protocol rule — no validator or pool can shorten it. If you only want to change validators, use redelegation instead, which is instant and keeps you earning.
+</Callout>
+
+## Jailing and Slashing Risk
+
+Validators that miss too many blocks are **jailed** — removed from the active set until they submit an unjail transaction. While a validator is jailed, it earns nothing, and neither do its delegators.
+
+A validator is jailed if it signs fewer than <GovParam module="slashing" param="min_signed_per_window" format="percent" /> of the blocks in a rolling window of <GovParam module="slashing" param="signed_blocks_window" /> blocks. The minimum jail period is <GovParam module="slashing" param="downtime_jail_duration" />.
+
+**Slashing penalties are currently set to zero on Pocket Network.** Both `slash_fraction_downtime` (<GovParam module="slashing" param="slash_fraction_downtime" format="percent" />) and `slash_fraction_double_sign` (<GovParam module="slashing" param="slash_fraction_double_sign" format="percent" />) are zero, so neither downtime nor double-signing currently burns delegator stake.
+
+<Callout type="warning">
+  These are governance-controlled parameters, not guarantees. The slashing machinery is fully present in the protocol and the DAO can raise either fraction by vote. Treat zero-slashing as the network's current configuration, not a permanent property — and note the real cost of poor uptime is lost earnings, which applies today regardless.
+</Callout>
+
+Values on this page are read live from chain state at build time. Verify any of them yourself:
+
+```bash
+pocketd query slashing params --network=main
+pocketd query staking params --network=main
+```
+
+## Related Pages
+
+- [Validators](/validators/) — the active set, and how rewards are generated
+- [Validator Setup](/validators/setup) — run your own validator
+- [Staking](/token/staking) — all POKT staking options compared
+- [Hardware Wallets](/wallets/hardware-wallets) — Ledger via Keplr
+- [Explorer & Analytics](/ecosystem/explorer) — reading settlement data
