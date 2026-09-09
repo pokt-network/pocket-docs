@@ -45,8 +45,19 @@ Pocket Network organizes relay work into sessions — time-bounded periods where
 
 - Sessions are deterministic: the protocol calculates assignments from (Application, Service, block height)
 - You don't apply for sessions — the protocol assigns them
-- Higher stake, more registered services, and better QoS increase your selection probability
+- Selection among eligible Suppliers is uniform and pseudorandom — stake size does **not** improve your odds
 - Each session lasts approximately a few hours
+
+### What Actually Affects How Much You Serve
+
+Shannon has no stake weighting for Suppliers. To be considered for a session you must be staked for that service with an active service configuration at the session's block height — that is an eligibility gate, not a weighting. Among eligible Suppliers the protocol ranks candidates by a deterministic hash of the session ID and operator address, then takes the top <GovParam module="session" param="num_suppliers_per_session" />.
+
+Two consequences worth internalising:
+
+- **If a service has fewer eligible Suppliers than <GovParam module="session" param="num_suppliers_per_session" />, every one of them is included in every session.** On thinner services, participation is effectively guaranteed — staking more changes nothing.
+- **Registering additional services widens your eligibility, not your odds within a service.** Each service is its own candidate pool, so more registered services means more pools you can be drawn from.
+
+Quality of service does not influence protocol-level session assignment. It matters *after* selection: Gateways route relays among the Suppliers in a session based on observed latency and reliability, so QoS determines how much of a session's traffic you actually receive — and therefore how much you earn from it.
 
 ## Settlement Timing
 

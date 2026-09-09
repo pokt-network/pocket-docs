@@ -30,7 +30,7 @@ On-chain state lives in `x/application/`. The `Application` struct stores the ad
 
 ### Supplier
 
-Suppliers represent **supply**. They stake POKT and register the services they can provide along with their endpoints. The session system assigns Suppliers to sessions based on stake weight. Off-chain, Suppliers run **RelayMiner** software that services relay requests, builds a Sparse Merkle Sum Trie (SMST) of completed work, and submits claims and proofs on-chain.
+Suppliers represent **supply**. They stake POKT and register the services they can provide along with their endpoints. The session system assigns Suppliers to sessions pseudorandomly, not by stake weight: each candidate is ranked by a deterministic hash of the session ID and its operator address, and the top `num_suppliers_per_session` are selected. Stake is an eligibility gate, not a weighting. Off-chain, Suppliers run **RelayMiner** software that services relay requests, builds a Sparse Merkle Sum Trie (SMST) of completed work, and submits claims and proofs on-chain.
 
 On-chain state lives in `x/supplier/`. The `Supplier` struct separates owner and operator addresses for security — the owner controls the stake while the operator runs day-to-day infrastructure.
 
