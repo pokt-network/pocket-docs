@@ -42,14 +42,18 @@ Every Pocket Network service exposes Prometheus metrics. This guide covers what 
 
 **Session participation:** Track how many sessions your node is selected for vs. total available sessions.
 
-## POKTscan Operator Tool
+## Owner Staking Dashboard
 
-The easiest monitoring option for most operators. [poktscan.com/tools/operator](https://poktscan.com/tools/operator) — add your Supplier addresses and track:
+The easiest reward-tracking option for most operators. [analytics.pocket.network/owner-staking](https://analytics.pocket.network/owner-staking) — add up to 10 owner addresses (saved to your browser, no account needed) and track:
 
-- **Rewards over time** — per address or aggregated
-- **Claim/Proof comparison** — the most important operational metric
-- **Rewards by service** — which chains earn most
-- **Expired proofs** — should always be zero
+- **Rewards over time** — per address or aggregated, over 24h/7d/30d/60d
+- **Settlement events** — every reward issuance with block height, service, relays, settled and minted amounts
+- **Rewards by service** — which chains earn most, from the service column
+- **Mint ratio** — the ratio applied at the latest settlement
+
+<Callout type="note">
+  Owner Staking covers rewards and settlements, not claim/proof health. To catch missing or expired proofs, use the RelayMiner metrics below — an expired proof never produces a settlement, so it shows up as absence rather than an error.
+</Callout>
 
 ## Prometheus + Grafana Setup
 

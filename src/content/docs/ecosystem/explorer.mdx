@@ -1,0 +1,91 @@
+---
+title: "Explorer & Analytics Guide"
+description: "How to use Pocket Explorer and Pocket Analytics to look up addresses, inspect on-chain data, track relay traffic, and monitor node rewards."
+section: "ecosystem"
+persona: ["all"]
+tabs: false
+status: "stable"
+lastUpdated: "2026-09-08"
+---
+
+Pocket Network has two first-party web surfaces for on-chain data, and knowing which one to reach for saves a lot of clicking:
+
+- **[Pocket Explorer](https://explorer.pocket.network)** — look things *up*. Addresses, transactions, blocks, validators, suppliers, applications, gateways, services, and governance parameters.
+- **[Pocket Analytics](https://analytics.pocket.network)** — see how things are *trending*. Relay traffic, computed units, network economics, service breakdowns, and per-address reward tracking.
+
+Neither requires a login or a wallet connection.
+
+<Callout type="note">
+  Both replace POKTscan, which has been deprecated. Old `poktscan.com` links currently redirect to an archived rehost, but new links should point at Explorer or Analytics.
+</Callout>
+
+## Pocket Explorer
+
+### Homepage — Network at a Glance
+
+[explorer.pocket.network](https://explorer.pocket.network) opens with live network stats: current block height, total supply, 24h relays, 24h computed units, and total staked actors (Suppliers + Applications + Gateways). An indexer status indicator shows whether the index is synced to chain head — worth a glance before you conclude that a recent transaction is missing.
+
+Below the stats are live feeds of the most recent blocks and transactions.
+
+### Search
+
+The search bar accepts:
+
+- **Account address** (`pokt1…`) — balance, stake, and transaction history
+- **Transaction hash** — full transaction detail
+- **Block height** — jump to a specific block
+- **Validator address** (`poktvaloper1…`) — validator detail
+
+### Address Lookup
+
+Searching a `pokt1…` address opens `/account/<address>`, showing balance, stake amount and status, registered services, and transaction history.
+
+Click any transaction hash to open `/tx/<hash>` for the message type (`MsgStake`, `MsgSend`, `MsgUnstake`, claim and proof submissions), block height, status, fee, and the addresses involved.
+
+### On-Chain Data
+
+| Page | URL | What It Shows |
+| --- | --- | --- |
+| **Transactions** | [explorer.pocket.network/txs](https://explorer.pocket.network/txs) | Live feed of all transactions |
+| **Blocks** | [explorer.pocket.network/blocks](https://explorer.pocket.network/blocks) | Live block feed |
+| **Accounts** | [explorer.pocket.network/accounts](https://explorer.pocket.network/accounts) | Accounts ranked by balance |
+| **Suppliers** | [explorer.pocket.network/suppliers](https://explorer.pocket.network/suppliers) | All Supplier nodes — operator, owner, stake, service count, status |
+| **Applications** | [explorer.pocket.network/applications](https://explorer.pocket.network/applications) | All staked Applications |
+| **Gateways** | [explorer.pocket.network/gateways](https://explorer.pocket.network/gateways) | All registered Gateways |
+| **Validators** | [explorer.pocket.network/validators](https://explorer.pocket.network/validators) | Active and inactive validators with voting power |
+| **Services** | [explorer.pocket.network/services](https://explorer.pocket.network/services) | All registered services and their IDs |
+| **Parameters** | [explorer.pocket.network/params](https://explorer.pocket.network/params) | Every governance-controlled protocol parameter |
+
+<Callout type="tip">
+  The Parameters page is the fastest way to confirm a live governance value — `compute_units_to_tokens_multiplier`, `num_suppliers_per_session`, `mint_allocation_percentages`, unbonding periods, and the full proof and claim window settings are all there, read straight from chain state.
+</Callout>
+
+## Pocket Analytics
+
+[analytics.pocket.network](https://analytics.pocket.network) covers traffic and economics, sourced from `data.pocket.network`. Pick a time range (24h, 7d, 30d, or 60d) and switch between tabs:
+
+| Tab | URL | What It Shows |
+| --- | --- | --- |
+| **Traffic** | [?tab=traffic](https://analytics.pocket.network/?tab=traffic) | Relays and computed units over time, network-wide or per service |
+| **Economy** | [?tab=economy](https://analytics.pocket.network/?tab=economy) | Mint, burn, and supply dynamics |
+| **Network** | [?tab=network](https://analytics.pocket.network/?tab=network) | Overall protocol health |
+| **Suppliers** | [?tab=suppliers](https://analytics.pocket.network/?tab=suppliers) | Supplier counts and staking trends |
+| **Services** | [?tab=services](https://analytics.pocket.network/?tab=services) | Per-service performance table and share of total computed units |
+
+The Traffic tab is the one to watch for demand: it charts computed units and relays over time, defaulting to the network total plus the top five services, with any of the active services toggleable.
+
+### Owner Staking — Reward Tracking
+
+[analytics.pocket.network/owner-staking](https://analytics.pocket.network/owner-staking) is the personalized view for node operators. Add up to 10 owner addresses and see rewards and settlement history across them. Addresses are saved to your browser, not to an account.
+
+This is the recommended reward-tracking tool for anyone running Supplier nodes or delegating via [Igniter](/ecosystem/igniter).
+
+## Understanding Key Metrics
+
+**Computed Units vs. Relays:** Both measure work, but CUs determine economics. Different services have different CU costs per relay, so watching CUs is more informative than raw relay counts for understanding economic activity.
+
+**Indexer lag:** Both surfaces read from an indexer that trails chain head slightly. If a transaction hasn't appeared yet, wait 30–60 seconds and refresh before assuming it failed.
+
+**Settled vs. minted:** Owner Staking reports both per settlement. The gap is the PIP-41 mint ratio at work, not an error. What matters operationally is whether settlements keep arriving — an expired proof produces no settlement at all, so a service going quiet is the signal to check [RelayMiner logs](/node-operators/troubleshooting).
+
+**Stake below minimum:** A Supplier staked below the <GovParam module="supplier" param="min_stake" format="pokt" /> POKT protocol minimum will be forcibly unstaked. Check your stake on the Suppliers page or your account page.

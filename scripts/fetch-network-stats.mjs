@@ -21,7 +21,7 @@
  *   renders its `fallback` (typically a "see live source" link) instead.
  *   Only cleanly single-endpoint metrics are fetched here. Analytics-heavy
  *   figures (daily burn/mint, staked %) are intentionally NOT transcribed —
- *   the docs link out to pokt.money / POKTscan for those.
+ *   the docs link out to pokt.money / Pocket Analytics for those.
  *
  * Environment variables:
  *   SAURON_LCD_URL  — Override the default Sauron REST endpoint

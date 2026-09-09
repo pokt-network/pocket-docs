@@ -37,7 +37,7 @@ Gateways pay POKT to access the network. Those fees are burned on-chain — perm
 
 - Burn is continuous and automatic
 - Burn scales directly with relay volume — more usage means more burn
-- At current relay volume, burn roughly equals mint — near-neutral inflation. For the live daily burn rate, see [pokt.money](https://pokt.money) or [POKTscan](https://poktscan.com)
+- At current relay volume, burn roughly equals mint — near-neutral inflation. For the live daily burn rate, see [pokt.money](https://pokt.money) or [Pocket Analytics](https://analytics.pocket.network)
 
 ### 2. Programmable Deflation (PIP-41)
 
@@ -58,7 +58,7 @@ The economics create a self-reinforcing loop:
 Staking removes POKT from circulating supply while it's actively securing the network:
 
 - Minimum stake to run a Supplier node: <GovParam module="supplier" param="min_stake" format="pokt" /> POKT
-- Total network supply: <NetworkStat metric="total_supply" format="billions" fallback="see POKTscan" /> POKT (live from chain). For current staked supply and the staked percentage, see [POKTscan](https://poktscan.com)
+- Total network supply: <NetworkStat metric="total_supply" format="billions" fallback="see Pocket Analytics" /> POKT (live from chain). For current staked supply and the staked percentage, see [Pocket Analytics](https://analytics.pocket.network)
 - Staked tokens are locked and cannot be traded until unstaked (21-day unbonding period)
 
 A higher staked percentage means less liquid supply available to trade — which, combined with burn, reduces effective circulating supply over time.
@@ -75,7 +75,7 @@ At mainnet launch in July 2020, 650 million POKT were created and distributed ac
 
 **For Gateways and developers:** Relay fees paid in POKT are burned. Every unit of demand directly reduces token supply.
 
-**For the DAO:** 4.5% of all Mint=Burn settlement flows to the DAO Treasury, funding grants and ecosystem development. Balances are publicly visible on [POKTscan](https://poktscan.com).
+**For the DAO:** 4.5% of all Mint=Burn settlement flows to the DAO Treasury, funding grants and ecosystem development. Balances are publicly visible on [Pocket Explorer](https://explorer.pocket.network).
 
 </Tab>
 <Tab label="Advanced">

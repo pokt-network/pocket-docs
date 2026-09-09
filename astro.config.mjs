@@ -114,6 +114,7 @@ export default defineConfig({
     '/reference/querying': '/pocketd/querying',
     '/node-operators/cheat-sheets': '/pocketd/transactions',
     '/get-started/pocketd-installation': '/pocketd',
+    '/ecosystem/poktscan': '/ecosystem/explorer',
   },
   integrations: [
     mdx(),

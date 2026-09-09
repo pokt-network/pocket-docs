@@ -68,22 +68,22 @@ After a session ends, rewards don't arrive instantly:
 - **Chain mix:** Different services have different CU rates and volumes
 - **POKT price:** Affects USD value of rewards (CUTTM adjusts to stabilize)
 
-There is no fixed APR. Reward rates depend on total network relay volume, the number of competing nodes, and the POKT/USD price. Published APR estimates from third parties are indicative only — verify against current [POKTscan](https://poktscan.com) data.
+There is no fixed APR. Reward rates depend on total network relay volume, the number of competing nodes, and the POKT/USD price. Published APR estimates from third parties are indicative only — verify against current [Pocket Analytics](https://analytics.pocket.network) data.
 
 ## Monitoring Your Earnings
 
-Use [POKTscan Operator](https://poktscan.com/tools/operator) to track:
+Use [Owner Staking](https://analytics.pocket.network/owner-staking) to track:
 
-- **Rewards tab:** POKT earned over time, per address or aggregated
-- **Claim/Proof Comparison:** If Claims significantly exceed Proofs, you're losing rewards — investigate RelayMiner logs
-- **Rewards by Service:** Which chains generate the most revenue for your nodes
-- **Key metric:** Expired Proofs should always be zero. Any non-zero value means lost rewards.
+- **Rewards over time:** POKT earned, per address or aggregated
+- **Settlement events:** Each reward issuance with block height, service, relay count, and settled vs. minted amounts
+- **Rewards by service:** Which chains generate the most revenue for your nodes
+- **Key signal:** A service that stops producing settlements is losing rewards — an expired proof yields no settlement at all, so investigate [RelayMiner logs](/node-operators/troubleshooting) when settlements go quiet.
 
 ## Governance Parameters That Affect Rewards
 
 | Parameter | Current Value | Impact |
 | --- | --- | --- |
-| `compute_units_to_tokens_multiplier` (CUTTM) | Check [poktscan.com/params](https://poktscan.com/params) | Core POKT/CU exchange rate |
+| `compute_units_to_tokens_multiplier` (CUTTM) | Check [explorer.pocket.network/params](https://explorer.pocket.network/params) | Core POKT/CU exchange rate |
 | `mint_ratio` | 0.975 | PIP-41 deflation — reduces total mint by 2.5% |
 | `mint_equals_burn_claim_distribution` | 79% Supplier | Your share of each settlement |
 | `num_suppliers_per_session` | 50 | More suppliers = smaller individual share |

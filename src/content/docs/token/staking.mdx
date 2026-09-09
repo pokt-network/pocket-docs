@@ -29,7 +29,7 @@ A staking pool lets you earn rewards without meeting the 60,000 POKT minimum or 
 
 ### How It Works
 
-1. **Find a pool.** Browse active staking pools — linked from the [Pocket Network Discord](http://discord.gg/pocket-network) and [POKTscan](https://poktscan.com). Compare fee structures and track records.
+1. **Find a pool.** Browse active staking pools — linked from the [Pocket Network Discord](http://discord.gg/pocket-network), and verify operators on [Pocket Explorer](https://explorer.pocket.network/suppliers). Compare fee structures and track records.
 2. **Deposit your POKT.** Each pool has its own deposit process — typically sending native POKT to the pool's address. Use the verified pool address from the official list.
 3. **Earn rewards.** The pool earns relay rewards and distributes them periodically (weekly or monthly is common), minus the operator's fee.
 4. **Withdraw when ready.** All unstaking on Pocket Network has a 21-day unbonding period — this is a protocol requirement, not a pool choice. Check each pool's specific terms for any additional notice or withdrawal process on top of the standard unbonding.
@@ -37,7 +37,7 @@ A staking pool lets you earn rewards without meeting the 60,000 POKT minimum or 
 ### What to Look For
 
 - **Operator fee:** Node operators charge a revenue share (revshare) of relay rewards. Rates vary by operator — review each pool's terms. Lower isn't always better — a pool with higher uptime may earn more even at a higher rate.
-- **Track record:** Check node performance on POKTscan. Look for consistent relay volume and minimal downtime.
+- **Track record:** Check node stake and status on [Pocket Explorer](https://explorer.pocket.network/suppliers), and relay trends on [Pocket Analytics](https://analytics.pocket.network). Look for consistent relay volume and minimal downtime.
 - **Withdrawal terms:** Understand how and when you can exit before depositing.
 - **Communication:** Active pools publish updates on Discord or their own channels. Silence is a warning sign.
 
@@ -48,7 +48,7 @@ If you hold <GovParam module="supplier" param="min_stake" format="pokt" /> POKT 
 1. **Find a node operator** via the Pocket Network forum or Discord.
 2. **Agree on terms** — service fee (percentage or flat rate), node configuration, reward distribution.
 3. **Stake your POKT** to the node the operator runs. Your stake stays under your wallet's control.
-4. **Monitor performance** on [POKTscan](https://poktscan.com).
+4. **Monitor performance** on [Owner Staking](https://analytics.pocket.network/owner-staking).
 
 ## Option 3: Run Your Own Node (Advanced)
 
@@ -70,7 +70,7 @@ Staking rewards are not a fixed APR — they are dynamic, proportional to relay 
 - Programmatic deflation: [PIP-41](/token/pip-41) embedded a 2.5% deflation rate — at growing relay volumes, total burn outpaces mint.
 
 <Callout type="info">
-  There is no fixed annual yield to quote. Reward rates depend on total network relay volume, competing nodes, and POKT/USD price. Published APR estimates from third parties are indicative only — verify against current POKTscan data.
+  There is no fixed annual yield to quote. Reward rates depend on total network relay volume, competing nodes, and POKT/USD price. Published APR estimates from third parties are indicative only — verify against current [Pocket Analytics](https://analytics.pocket.network) data.
 </Callout>
 
 ### Reward Frequency

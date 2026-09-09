@@ -552,15 +552,15 @@ Check operator balance (must stay funded for proof submissions):
 pocketd query bank balance pokt1your-operator-address upokt --network main
 ```
 
-### POKTscan Operator Dashboard
+### Owner Staking Dashboard
 
-Track all earnings: [poktscan.com/tools/operator](https://poktscan.com/tools/operator)
+Track all earnings: [analytics.pocket.network/owner-staking](https://analytics.pocket.network/owner-staking)
 
 What to monitor:
-- **Rewards tab** — POKT earned over time
-- **Claim vs Proof comparison** — if Claims exceed Proofs, investigate
-- **Expired Proofs** — must always be zero; non-zero means lost rewards
-- **Rewards by Service** — which chains generate the most revenue
+- **Rewards over time** — POKT earned, per address or aggregated
+- **Settlement events** — block, service, relays, and the amount settled vs. minted
+- **Rewards by service** — which chains generate the most revenue
+- **Gaps in settlements** — a service that stops settling is the signal to check your RelayMiner logs
 
 ### Key Metric
 
