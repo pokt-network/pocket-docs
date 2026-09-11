@@ -1,0 +1,551 @@
+---
+title: "Service Management"
+description: "The full pocketd reference for services — add, update, batch-edit, and transfer services, publish and read service cards, and query the service registry and relay mining difficulty."
+section: "services"
+persona: ["node-operator", "developer"]
+tabs: true
+status: "stable"
+lastUpdated: "2026-09-11"
+---
+
+<Tabs>
+<Tab label="Overview">
+
+## What Is a Service?
+
+Think of services as the menu of what is available on Pocket Network. Each service represents access to a specific API — Ethereum, Solana, an LLM inference endpoint, an embeddings model, or any other HTTP service someone has chosen to register. New services can be added at any time by anyone.
+
+Every service has four key properties:
+
+- **A unique identifier** — A short, permanent label like `eth` or `text-generation` that everyone on the network uses to refer to it.
+- **A human-readable name** — A one-line description like "Ethereum Mainnet JSON-RPC" so participants know what the service provides.
+- **Compute units per relay** — A number that represents how much a single request to this service costs (more on this below).
+- **An optional service card** — A small JSON document that describes the API in enough detail for a consumer to call it and for a supplier to serve it.
+
+Services are the connective tissue of the network. Applications request access to specific services. Suppliers stake against the services they want to provide. Gateways route traffic to the right suppliers. Everything revolves around the service registry, which you can browse at [explorer.pocket.network/services](https://explorer.pocket.network/services).
+
+This page is the reference for the `pocketd` commands that manage services. If you are bringing a new service to the network, start with the step-by-step guides instead: [Register a Service](/services/register) and [Deploy a Service](/services/deploy).
+
+## Prerequisites
+
+To create or manage a service on Pocket Network, a participant needs:
+
+- A funded account with enough POKT to cover transaction fees and, for new services, the service creation fee
+- The `pocketd` CLI and access to a network
+
+For the exact commands, see the Advanced tab.
+
+## Adding a New Service
+
+Pocket Network is permissionless, which means anyone can register a new service. There is no approval committee or gatekeeping process. If a new blockchain launches or a new API becomes valuable, any network participant can add it as a service.
+
+When creating a new service, the creator specifies:
+
+1. **The service identifier** — A permanent, unique label (up to 42 characters). Once set, this cannot be changed.
+2. **The service name** — A human-readable description (up to 169 characters). The owner can change it later.
+3. **Compute units per relay** — A number that sets the price of one request to the service. Defaults to 1 if not specified. The maximum value is 1,048,576. The owner can change it later.
+4. **A service card** (optional but recommended) — The structured description of the API, covered below.
+
+### Why Compute Units Matter
+
+Not all relay requests are created equal. A simple balance check on Ethereum takes far less computational power than running a complex smart contract simulation, and an LLM completion costs far more than either. Compute units per relay let the network account for these differences. A service with 10 compute units per relay is understood to cost roughly 10 times as much as a service with 1 compute unit. Applications pay this price from their stake, and suppliers earn it.
+
+### Service Creation Fee
+
+Creating a brand-new service costs a one-time fee called the `add_service_fee`. This is a governance parameter, meaning the Pocket Network community can vote to adjust it. On MainNet it is currently <GovParam module="service" param="add_service_fee" format="pokt" /> POKT, read live from chain when this page was built; Beta TestNet sets its own, lower value. The fee serves two purposes:
+
+- **Quality signal** — It ensures that anyone adding a service has a genuine stake in the network, discouraging frivolous or spam service registrations.
+- **Network sustainability** — The fee contributes to the overall economic health of the protocol.
+
+The fee is only charged when creating a new service. Updating an existing service that you own does not incur this fee.
+
+### Updating an Existing Service
+
+The original creator of a service (the owner) can update its name, its compute units per relay, and its card at any time. Only the service owner can make updates; the identifier itself is permanent.
+
+A price change takes effect at the next session boundary, so sessions already in flight settle at the old price.
+
+## Service Cards
+
+Services can carry a **card**: on-chain metadata attached directly to the service record. The card acts like a product specification sheet. It gives applications, gateways, and suppliers machine-readable information about what the service does, which transports it expects suppliers to serve, where the full API specification lives, and how a supplier can check their backend before staking.
+
+### How Cards Work
+
+- A card is a single JSON document following the `pocket-service-card/v1` schema. Only the `schema` field is required; everything else is optional.
+- It is stored on-chain as part of the service record, byte for byte. The maximum size is 256 KiB, and a good card is well under 4 KiB.
+- The chain checks only the size. Every other field is the owner's assertion, so `pocketd` validates the card against the schema locally before it is broadcast.
+- Only the service owner can publish or replace a card. An update that omits the card leaves the stored one untouched, and there is no way to clear a card back to empty.
+
+### Why Cards Matter
+
+In a permissionless network, the card is the only place a consumer can learn what a service does and the only place a prospective supplier can learn what to run. When a supplier is deciding which services to stake against, the card tells them the backend, the transports, and the health checks to run. When an application needs to choose a service, the card describes exactly what it will get.
+
+Writing a good card is covered in [Register a Service](/services/register).
+
+## Batch-Editing Services with edit-service
+
+Service owners who manage many services — for example, someone who registered and maintains a dozen different blockchain services — can update multiple services at once through a batch operation. Instead of updating each service one at a time, the owner prepares a list of changes and submits them all in a single transaction. Each entry can carry a new price, a new card, or both.
+
+The batch operation is intelligent: it checks the current state of each service on-chain, skips any services whose price and card already match, and only submits changes for services that actually need updating. If everything is already current, no transaction is sent at all.
+
+This is particularly useful for operators who keep their cards in version control and publish from there, or who periodically recalibrate compute units across their service portfolio.
+
+### Validation Rules
+
+Before submitting any changes, the batch operation validates everything locally:
+
+- Every service identifier must be valid and correspond to an existing service on the network.
+- Every compute units per relay value must be a positive number.
+- Every card file must validate against the card schema.
+- The person submitting the update must be the owner of each service being changed.
+
+If anything fails validation, no changes are submitted. This all-or-nothing approach prevents partial updates that could leave the service registry in an inconsistent state.
+
+## Transferring a Service
+
+A service can be handed to a new owner. The new owner gains the sole right to update the service and receives the owner's share of relay settlements from that point on. Transfers are one transaction, signed by the current owner.
+
+## Querying Services
+
+Anyone on the network can look up information about services. This is part of what makes Pocket Network transparent and permissionless — all service information is publicly available on the blockchain.
+
+### Show a Single Service
+
+You can look up any service by its identifier to see its full details: the name, compute units per relay, owner, and the card, which a dedicated query decodes for you.
+
+### List All Services
+
+A full list of every service registered on Pocket Network is available. Since the network supports more than 60 blockchains plus a growing set of non-blockchain services, this gives a comprehensive view of what is available.
+
+### Query Service Module Parameters
+
+The service module's governance parameters are publicly visible. This includes the current service creation fee and the target relay volume parameter. Transparency into these parameters lets participants understand the economic rules governing service management.
+
+### Relay Mining Difficulty Queries
+
+Relay mining difficulty is one of the most important self-regulating mechanisms in Pocket Network. Here is how it works:
+
+Imagine a thermostat in a building. When the temperature rises, the thermostat automatically adjusts the cooling to compensate. When it drops, the heating kicks in. Nobody has to manually intervene — the system regulates itself.
+
+Relay mining difficulty works the same way, but for proof requirements. When a service gets very busy — handling a large volume of relay requests — the network automatically raises the difficulty. This means suppliers need to submit fewer but more selective proofs to demonstrate their work. When traffic is lighter, difficulty decreases and more proofs are accepted.
+
+This mechanism serves several purposes:
+
+- **Block space efficiency** — If every single relay required a proof, the blockchain would become congested during peak usage. Difficulty adjustment ensures that proof volume stays manageable regardless of traffic levels.
+- **Fair compensation** — Even with fewer proofs required during high-traffic periods, the tokenomics ensure that suppliers are fairly compensated for all the work they performed, not just the proofs they submitted.
+- **Self-healing resilience** — The automatic adjustment means the network adapts to changing conditions without any human intervention. A sudden surge in Ethereum traffic does not require a governance vote or manual parameter change — the network simply adjusts.
+
+You can look up the current difficulty for any service, check what the difficulty was at any specific point in time, and review the full history of difficulty changes. The same history is available for a service's price, so a supplier can verify which compute-unit value was in effect during any past session.
+
+## Service ID and Name Rules
+
+The rules for service identifiers and names are straightforward:
+
+- **Service identifiers** are permanent labels up to 42 characters long. They can contain letters, numbers, hyphens, and underscores. Once set, they cannot be changed.
+- **Service names** are human-readable descriptions up to 169 characters long. They can contain letters, numbers, hyphens, underscores, and spaces. The owner can change the name at any time.
+
+The permanence of identifiers is intentional. Every supplier, application, and gateway on the network references services by their identifier. Changing an identifier would break those references and disrupt the network. This stability is part of what makes Pocket Network a reliable, unstoppable infrastructure layer.
+
+## Quick Reference
+
+| What You Want to Do | What It Involves |
+| --- | --- |
+| Create a new service | Choose an identifier, name, and compute units. Pay the one-time creation fee. |
+| Update a service's name or price | Submit an update as the service owner. No creation fee required. |
+| Publish or replace a card | Validate the card locally, then include it when creating or updating the service. |
+| Update multiple services at once | Prepare a list of changes and submit as a batch. |
+| Transfer a service | Sign a transfer to the new owner's address. |
+| Look up a service, or decode its card | Query the network by service identifier. |
+| See all available services | Query the full service registry. |
+| Check relay mining difficulty or price history | Query difficulty or compute units for any service, at any height. |
+
+For staking suppliers against services, see [Supplier Staking](/node-operators/supplier-staking). For an introduction to the network and account setup, see the [pocketd CLI](/pocketd/) section.
+
+</Tab>
+<Tab label="Advanced">
+
+This tab is the command reference for managing services on Pocket Network: creating new services, updating existing ones, publishing service cards, batch-editing, transferring ownership, and querying service information. The step-by-step guides are [Register a Service](/services/register) and [Deploy a Service](/services/deploy).
+
+A **service** represents an API endpoint (such as an Ethereum JSON-RPC node, an OpenAI-compatible inference server, or any REST API) that suppliers provide and applications consume through Pocket Network. Each service is uniquely identified by its `service_id`, carries a `compute_units_per_relay` value that sets the price of one relay, and may carry a `pocket-service-card/v1` card describing the API.
+
+## Prerequisites
+
+Before managing services, make sure you have:
+
+1. The `pocketd` CLI installed and configured.
+2. A funded account with enough `upokt` to cover transaction fees (and the `add_service_fee` when creating new services).
+3. Access to a network via the `--network` flag (`beta` or `main`) or an explicit `--node`.
+
+Check your account balance:
+
+```bash
+pocketd query bank balances $(pocketd keys show myaccount -a) --network=beta
+```
+
+Check the current service module parameters, including the add-service fee:
+
+```bash
+pocketd query service params --network=beta
+```
+
+On MainNet the fee is currently <GovParam module="service" param="add_service_fee" format="upokt" /> (<GovParam module="service" param="add_service_fee" format="pokt" /> POKT). Beta TestNet sets its own value.
+
+## Adding a New Service
+
+Use the `add-service` transaction to register a new service on-chain. This is the primary command for creating services, and it is also the update command for services you own.
+
+### Syntax
+
+```bash
+pocketd tx service add-service <service_id> <service_name> [compute_units_per_relay] \
+    [--card-file <path> | --card-base64 <base64-string>] \
+    [--skip-card-validation] \
+    --from <account> --gas auto --gas-prices 1upokt --gas-adjustment 1.5
+```
+
+### Arguments and Flags
+
+| Argument / flag | Required | Description |
+| --- | --- | --- |
+| `service_id` | Yes | Unique identifier for the service. Max 42 characters, alphanumeric plus `-` and `_`. Immutable. |
+| `service_name` | Yes | Human-readable name. Max 169 characters, alphanumeric plus `-`, `_`, and spaces. On an update, replaces the stored name. |
+| `compute_units_per_relay` | No | Positive integer representing the price of one relay. Defaults to `1` if omitted. Maximum value is `1048576` (2^20). |
+| `--card-file` | No | Path to a JSON service card. Validated against the card schema before broadcast. |
+| `--card-base64` | No | The same card, base64-encoded inline. Mutually exclusive with `--card-file`. |
+| `--skip-card-validation` | No | Publish the metadata without schema validation. Only for payloads that are deliberately not cards. |
+
+The older `--experimental-metadata-file` and `--experimental-metadata-base64` flags still work as deprecated aliases for `--card-file` and `--card-base64`.
+
+### Creating a Basic Service
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 10 \
+    --from myaccount --gas auto --gas-prices 1upokt --gas-adjustment 1.5 --network=beta
+```
+
+If you omit the `compute_units_per_relay` argument, the default value of `1` is used:
+
+```bash
+pocketd tx service add-service \
+    "avax" "Avalanche Mainnet" \
+    --from myaccount --gas auto --gas-prices 1upokt --gas-adjustment 1.5 --network=beta
+```
+
+### Service Creation Fee
+
+Creating a new service requires paying the on-chain `add_service_fee`. This fee is deducted from your account automatically when the transaction is processed. The fee is only charged for brand-new services; updating an existing service you own does not incur this fee.
+
+To check the current fee:
+
+```bash
+pocketd query service params --network=beta --output json | jq '.params.add_service_fee'
+```
+
+### Updating an Existing Service
+
+The `add-service` command also works as an update when the `service_id` already exists on-chain. Only the original owner can update a service. On an update:
+
+- The `service_name` and `compute_units_per_relay` you pass **replace** the stored values.
+- The card is replaced only if you pass `--card-file` or `--card-base64`. Omitting both leaves the stored card untouched.
+- A change to `compute_units_per_relay` takes effect at the next session boundary. Sessions already in flight settle at the old price.
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 20 \
+    --from myaccount --gas auto --gas-prices 1upokt --gas-adjustment 1.5 --network=beta
+```
+
+In this example, the compute units per relay for service `eth` changes from `10` to `20`. No creation fee is charged because the service already exists.
+
+## Service Cards
+
+A service card is the structured metadata stored in `Service.metadata.card`. It follows the `pocket-service-card/v1` schema, whose canonical definition is `pkg/cards/service_card.schema.json` in the [poktroll repository](https://github.com/pokt-network/poktroll), with a prose specification in `docs/pocket_cards.md`. What to put in a card is covered in [Register a Service](/services/register); this section covers the mechanics.
+
+### Validate a Card Offline
+
+The chain never parses the card, so this is the only place a malformed one is caught before it costs gas:
+
+```bash
+pocketd tx service validate-card ./card.json
+```
+
+`add-service` and `edit-service` run the same check automatically before broadcasting.
+
+### Publish a Card
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 10 \
+    --card-file ./eth-card.json \
+    --from myaccount --gas auto --gas-prices 1upokt --gas-adjustment 1.5 --network=beta
+```
+
+Or inline, for CI/CD pipelines and scripted environments:
+
+```bash
+pocketd tx service add-service \
+    "eth" "Ethereum Mainnet JSON-RPC" 10 \
+    --card-base64 "$(base64 -w0 ./eth-card.json)" \
+    --from myaccount --gas auto --gas-prices 1upokt --gas-adjustment 1.5 --network=beta
+```
+
+<Callout type="info">
+  Use `--gas auto` when publishing a card. A card of a few kilobytes makes the transaction larger than a fixed `--fees` value covers, and the transaction fails with `out of gas in location: txSize`.
+</Callout>
+
+### Read a Card Back
+
+```bash
+pocketd query service card eth --network=beta
+```
+
+Add `--raw` to print the exact stored bytes instead of re-indented JSON. Use that form for hashing, diffing against your source file, or feeding the card straight back into `--card-file`:
+
+```bash
+pocketd query service card eth --raw --network=beta > eth-card.json
+```
+
+### Card Constraints
+
+- The payload must be a single UTF-8 JSON object with a `schema` field. Target under 4 KiB; the hard limit is **256 KiB** (262,144 bytes) decoded.
+- `--card-file` and `--card-base64` are **mutually exclusive**.
+- The card is stored byte for byte, so reformatting a card counts as a change.
+- Only the service owner can publish or replace a card.
+- An update that omits the card **preserves** the stored card (since v0.1.35; earlier versions wiped it on any update).
+- There is currently **no way to clear a card back to empty**. Publishing a minimal `{"schema": "pocket-service-card/v1"}` is the closest.
+- In JSON query output other than `query service card`, the card appears base64-encoded under `metadata`.
+
+## Batch-Editing Services with edit-service
+
+The `edit-service` command updates multiple existing services in a single transaction from a YAML configuration file. It reads the config, checks each service against on-chain state, skips services that are already up to date, and submits all changes in one batched transaction.
+
+### Syntax
+
+```bash
+pocketd tx service edit-service --config <config-file> \
+    [--disable-batch-msgs] \
+    --from <account> --gas auto --gas-prices 1upokt --gas-adjustment 1.5
+```
+
+### YAML Configuration Format
+
+```yaml
+services:
+  - service_id: eth
+    compute_units_per_relay: 15
+    card_file: ./cards/eth.json
+  - service_id: avax
+    compute_units_per_relay: 25
+  - service_id: poly
+    compute_units_per_relay: 12
+    card_file: ./cards/poly.json
+```
+
+Each entry accepts:
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `service_id` | Yes | The on-chain ID of the service to update. Must already exist. |
+| `compute_units_per_relay` | Yes | New value. Must be greater than 0 and at most 1048576. |
+| `card_file` | No | Path to the card to publish. Omitting it leaves that service's stored card untouched. |
+
+<Callout type="warning">
+  **The batch file carries the price.** Re-read the live `compute_units_per_relay` before every publish. A stale value in the file silently reprices the service for every application and supplier.
+</Callout>
+
+### Running the Batch Update
+
+```bash
+pocketd tx service edit-service \
+    --config services.yaml \
+    --from myaccount --gas auto --gas-prices 1upokt --gas-adjustment 1.5 --network=beta
+```
+
+The command performs the following steps for each service entry:
+
+1. Queries the chain to confirm the service exists.
+2. Verifies the transaction signer (`--from`) is the service owner.
+3. Compares the on-chain `compute_units_per_relay` and card with the config.
+4. Skips services where **both** already match (prints a message like `Skipping service "eth": already up to date`). Card comparison is byte-exact.
+5. Collects all remaining updates and submits them as a single batched transaction.
+
+If all services are already up to date, the command prints `All services are already up to date, nothing to do.` and exits without sending a transaction, so it is safe to run repeatedly from CI.
+
+### Sending Individual Transactions
+
+If you prefer to send each update as a separate transaction instead of a single batch, use the `--disable-batch-msgs` flag:
+
+```bash
+pocketd tx service edit-service \
+    --config services.yaml \
+    --disable-batch-msgs \
+    --from myaccount --gas auto --gas-prices 1upokt --gas-adjustment 1.5 --network=beta
+```
+
+When using `--disable-batch-msgs`, the command automatically increments the account sequence number for each transaction to avoid sequence mismatch errors when multiple transactions land in the same block.
+
+### Validation Rules
+
+The config file is validated before any on-chain queries are made:
+
+- The file must not be empty.
+- The `services` list must contain at least one entry.
+- Each `service_id` must be a valid service identifier (1–42 characters, alphanumeric plus `-` and `_`).
+- Each `compute_units_per_relay` must be greater than 0.
+- Each `card_file`, if present, must validate against the card schema.
+
+If any entry fails validation, the command exits with an error and no transactions are sent.
+
+### Error Scenarios
+
+| Error | Cause | Resolution |
+| --- | --- | --- |
+| `service "xyz" not found on-chain` | The service ID in your config does not exist on-chain. | Verify the service ID. Create the service first with `add-service` if needed. |
+| `signer is not the owner of service` | Your `--from` account does not own the service. | Use the correct owner account for the transaction signer. |
+| `compute_units_per_relay must be greater than 0` | A config entry has a zero or missing value. | Set a positive integer for `compute_units_per_relay`. |
+
+## Transferring a Service
+
+```bash
+pocketd tx service transfer-service <service_id> <new_owner_address> \
+    --from <current-owner> --gas auto --gas-prices 1upokt --gas-adjustment 1.5 --network=beta
+```
+
+The new owner gains the sole right to update the service and receives the owner's share of relay settlements from that point. The transfer is immediate and cannot be reversed except by the new owner transferring it back.
+
+## Querying Services
+
+The service module provides several query commands for inspecting services, their price history, and relay mining difficulty.
+
+### Show a Single Service
+
+Retrieve complete details for a specific service by its ID:
+
+```bash
+pocketd query service show-service eth --network=beta
+```
+
+With JSON output:
+
+```bash
+pocketd query service show-service eth --network=beta --output json | jq
+```
+
+Example response:
+
+```json
+{
+  "service": {
+    "id": "eth",
+    "name": "Ethereum Mainnet JSON-RPC",
+    "compute_units_per_relay": "10",
+    "owner_address": "pokt1abc123...",
+    "metadata": {
+      "card": "<base64-encoded card>"
+    }
+  }
+}
+```
+
+To decode the card, use `pocketd query service card eth` as shown above.
+
+### List All Services
+
+List every service registered on-chain:
+
+```bash
+pocketd query service all-services --network=beta
+```
+
+Pagination is supported for large result sets:
+
+```bash
+pocketd query service all-services --limit 50 --network=beta
+pocketd query service all-services --page 2 --network=beta
+```
+
+### Query Service Module Parameters
+
+View the current on-chain parameters for the service module:
+
+```bash
+pocketd query service params --network=beta
+```
+
+This returns the `add_service_fee` (the cost to create a new service) and the `target_num_relays` parameter. Current MainNet values:
+
+<GovParamBlock module="service" />
+
+### Compute Units Per Relay History
+
+A price change is pinned to the session boundary, and the chain keeps the history so a supplier can verify what a past session settled at:
+
+```bash
+pocketd query service compute-units-per-relay-at-height eth 1000 --network=beta
+pocketd query service compute-units-per-relay-history eth --network=beta
+```
+
+### Relay Mining Difficulty Queries
+
+Relay mining difficulty determines the computational threshold for submitting valid relay proofs. The service module tracks this per-service.
+
+**List difficulty for all services:**
+
+```bash
+pocketd query service relay-mining-difficulty-all --network=beta
+```
+
+**Show difficulty for a specific service:**
+
+```bash
+pocketd query service relay-mining-difficulty eth --network=beta
+```
+
+**Show difficulty at a specific block height:**
+
+```bash
+pocketd query service relay-mining-difficulty-at-height eth 1000 --network=beta
+```
+
+**Show difficulty change history for a service:**
+
+```bash
+pocketd query service relay-mining-difficulty-history eth --network=beta
+```
+
+The history query supports pagination and returns each recorded difficulty change along with the block height at which it became effective. This is useful for historical analysis and verifying which difficulty was in effect during a particular session.
+
+## Service ID and Name Rules
+
+When creating or updating services, the following constraints are enforced:
+
+| Field | Max Length | Allowed Characters | Mutable |
+| --- | --- | --- | --- |
+| `service_id` | 42 | `a-z`, `A-Z`, `0-9`, `-`, `_` | No |
+| `service_name` | 169 | `a-z`, `A-Z`, `0-9`, `-`, `_`, space | Yes, by the owner via `add-service` |
+
+The `service_id` is immutable after creation. It serves as the permanent on-chain identifier referenced by suppliers, applications, and gateways.
+
+## Quick Reference
+
+| Operation | Command |
+| --- | --- |
+| Create a service | `pocketd tx service add-service <id> "<name>" <cupr> --from <acct> --gas auto --gas-prices 1upokt --gas-adjustment 1.5` |
+| Update name or compute units | `pocketd tx service add-service <id> "<name>" <new-cupr> --from <owner> ...` |
+| Validate a card | `pocketd tx service validate-card ./card.json` |
+| Publish a card | `pocketd tx service add-service <id> "<name>" <cupr> --card-file ./card.json --from <owner> ...` |
+| Batch update services and cards | `pocketd tx service edit-service --config services.yaml --from <owner> ...` |
+| Transfer a service | `pocketd tx service transfer-service <id> <new-owner> --from <owner> ...` |
+| Query one service | `pocketd query service show-service <id>` |
+| Decode a service's card | `pocketd query service card <id> [--raw]` |
+| Query all services | `pocketd query service all-services` |
+| Query params | `pocketd query service params` |
+| Query price history | `pocketd query service compute-units-per-relay-history <id>` |
+| Query difficulty | `pocketd query service relay-mining-difficulty <id>` |
+| Query difficulty history | `pocketd query service relay-mining-difficulty-history <id>` |
+
+For staking suppliers against services, see [Supplier Staking](/node-operators/supplier-staking). For account setup and CLI basics, see the [pocketd CLI](/pocketd/) section.
+
+</Tab>
+</Tabs>

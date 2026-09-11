@@ -46,7 +46,7 @@ That pooled amount is then distributed as follows:
 - **Passed through to delegators proportionally.** Each delegator's share is `pool × (your bonded stake ÷ total bonded stake)`.
 - **Paid directly to each wallet** at session settlement, as a bank transfer from the tokenomics module.
 
-<Callout type="note">
+<Callout type="info">
   The governance parameter is named `proposer`, which is misleading. It sets the size of the validator pool; it does not mean the block proposer receives it. Distribution is purely stake-weighted across all bonded validators.
 </Callout>
 
@@ -96,7 +96,7 @@ It reports **Delegated**, **Earned 30d**, **Daily Avg 30d**, and **APR 30d**, wi
 
 The explorer deliberately excludes the claimable inflation balance from Earned, the daily average, and the APR, so those figures reflect settlement income only.
 
-<Callout type="note">
+<Callout type="info">
   The APR shown is backward-looking — it annualizes what these validators actually paid over the window, not a promised rate. Because Cosmos staking messages are not indexed, a delegation whose size changed mid-window cannot be corrected for and will skew both the daily average and the APR.
 </Callout>
 

@@ -116,6 +116,7 @@ export default defineConfig({
     '/get-started/pocketd-installation': '/pocketd',
     '/ecosystem/poktscan': '/ecosystem/explorer',
     '/token/validator-delegation': '/validators/delegation',
+    '/node-operators/service-management': '/services/management',
   },
   integrations: [
     mdx(),
