@@ -172,7 +172,7 @@ Check your account balance before staking:
 
 ```bash
 pocketd query bank balances pokt1yourgatewayaddress \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 ## Gateway Module Parameters
@@ -181,7 +181,7 @@ The gateway module exposes governance-controlled parameters that affect staking.
 Query the current parameters with:
 
 ```bash
-pocketd query gateway params --network=pocket-lego-testnet
+pocketd query gateway params --network=beta
 ```
 
 | Parameter   | Description                                         | Default    |
@@ -193,7 +193,7 @@ parameter `gateway_unbonding_period_sessions` (default: 1 session). Query it
 with:
 
 ```bash
-pocketd query shared params --network=pocket-lego-testnet
+pocketd query shared params --network=beta
 ```
 
 ## Staking a Gateway
@@ -232,7 +232,7 @@ pocketd tx gateway stake-gateway \
   --config ./gateway_stake_config.yaml \
   --from gateway1 \
   --keyring-backend test \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --home ~/.pocket \
   --fees 1000upokt \
   --yes
@@ -242,8 +242,8 @@ Replace the flag values:
 
 - `--config` — Path to your YAML stake configuration file.
 - `--from` — The key name or address of the gateway account in your keyring.
-- `--network` — The target network (`local`, `pocket-lego-testnet`, or
-  `pocket`).
+- `--network` — The target network (`local`, `beta`, or `main`). Sets the
+  chain ID and endpoints for you.
 - `--home` — Path to your `pocketd` home directory.
 - `--fees` — Transaction fee in `upokt`.
 
@@ -266,7 +266,7 @@ pocketd tx gateway stake-gateway \
   --config ./gateway_stake_config.yaml \
   --from gateway1 \
   --keyring-backend test \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --home ~/.pocket \
   --fees 1000upokt \
   --yes
@@ -289,7 +289,7 @@ staked tokens are returned to the gateway's account.
 pocketd tx gateway unstake-gateway \
   --from gateway1 \
   --keyring-backend test \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --home ~/.pocket \
   --fees 1000upokt \
   --yes
@@ -316,14 +316,14 @@ transaction (see "Increasing Your Stake" above).
 
 ```bash
 pocketd query gateway list-gateway \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 Supports standard Cosmos SDK pagination flags:
 
 ```bash
 pocketd query gateway list-gateway \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --limit 10 \
   --offset 0
 ```
@@ -332,7 +332,7 @@ pocketd query gateway list-gateway \
 
 ```bash
 pocketd query gateway show-gateway pokt1yourgatewayaddress \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 The response includes the gateway's address, current stake, and
@@ -350,7 +350,7 @@ the **Application's** account, not the Gateway's.
 pocketd tx application delegate-to-gateway pokt1gatewayaddress \
   --from app1 \
   --keyring-backend test \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --home ~/.pocket \
   --fees 1000upokt \
   --yes
@@ -366,7 +366,7 @@ pocketd tx application delegate-to-gateway pokt1gatewayaddress \
 pocketd tx application undelegate-from-gateway pokt1gatewayaddress \
   --from app1 \
   --keyring-backend test \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --home ~/.pocket \
   --fees 1000upokt \
   --yes
@@ -448,7 +448,7 @@ Query the current minimum stake parameter and set your `stake_amount` to at
 least that value:
 
 ```bash
-pocketd query gateway params --network=pocket-lego-testnet
+pocketd query gateway params --network=beta
 ```
 
 ### Gateway not found after staking
@@ -458,7 +458,7 @@ the transaction to be included in a block. You can query the transaction hash
 to confirm it was committed:
 
 ```bash
-pocketd query tx <tx_hash> --network=pocket-lego-testnet
+pocketd query tx <tx_hash> --network=beta
 ```
 
 ### Unbonding period questions
@@ -467,7 +467,7 @@ Query the shared module parameters to see the current
 `gateway_unbonding_period_sessions` value:
 
 ```bash
-pocketd query shared params --network=pocket-lego-testnet
+pocketd query shared params --network=beta
 ```
 
 > **New in v0.1.31:** The v0.1.31 upgrade handler initializes historical

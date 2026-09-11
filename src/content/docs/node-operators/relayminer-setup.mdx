@@ -571,7 +571,7 @@ RelayMiners across multiple RPC nodes.
 
 ```bash
 pocketd query supplier show-supplier pokt1operatoraddress... \
-  --network pocket-lego-testnet
+  --network beta
 ```
 
 Confirm the output shows the correct `service_id`s and `publicly_exposed_url`s.
@@ -604,7 +604,7 @@ funds:
 
 ```bash
 pocketd query bank balance pokt1operatoraddress... upokt \
-  --network pocket-lego-testnet
+  --network beta
 ```
 
 ### 5. Monitor Metrics
@@ -626,7 +626,7 @@ operator balance is critical.
 Check the current fee:
 
 ```bash
-pocketd query proof params --network pocket-lego-testnet
+pocketd query proof params --network beta
 ```
 
 If a claim is submitted but the corresponding proof is not submitted (due to

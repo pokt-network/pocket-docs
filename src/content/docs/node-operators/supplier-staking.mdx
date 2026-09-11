@@ -325,7 +325,7 @@ pocketd tx supplier stake-supplier \
   --config ./supplier_stake_config.yaml \
   --from pokt1operatoraddress... \
   --keyring-backend test \
-  --network pocket-lego-testnet
+  --network beta
 ```
 
 ### Initial Stake (Owner Signs)
@@ -344,7 +344,7 @@ pocketd tx supplier stake-supplier \
   --config ./stake_only_config.yaml \
   --from pokt1owneraddress... \
   --keyring-backend test \
-  --network pocket-lego-testnet
+  --network beta
 ```
 
 ## Staking Modes
@@ -375,7 +375,7 @@ pocketd tx supplier stake-supplier \
   --stake-only \
   --from pokt1owneraddress... \
   --keyring-backend test \
-  --network pocket-lego-testnet
+  --network beta
 ```
 
 ### Services-Only Updates (`--services-only`)
@@ -405,7 +405,7 @@ pocketd tx supplier stake-supplier \
   --services-only \
   --from pokt1operatoraddress... \
   --keyring-backend test \
-  --network pocket-lego-testnet
+  --network beta
 ```
 
 ### Combined Stake and Service Updates (Default)
@@ -418,7 +418,7 @@ pocketd tx supplier stake-supplier \
   --config ./full_supplier_config.yaml \
   --from pokt1operatoraddress... \
   --keyring-backend test \
-  --network pocket-lego-testnet
+  --network beta
 ```
 
 ### Permission Rules
@@ -442,13 +442,13 @@ the unstake.
 pocketd tx supplier unstake-supplier pokt1operatoraddress... \
   --from pokt1owneraddress... \
   --keyring-backend test \
-  --network pocket-lego-testnet
+  --network beta
 
 # Unstake as the operator
 pocketd tx supplier unstake-supplier pokt1operatoraddress... \
   --from pokt1operatoraddress... \
   --keyring-backend test \
-  --network pocket-lego-testnet
+  --network beta
 ```
 
 When a Supplier is unstaked:
@@ -569,10 +569,10 @@ submissions require a fee defined by the `proof_submission_fee` governance param
 ```bash
 # Check operator balance
 pocketd query bank balance pokt1operatoraddress... upokt \
-  --network pocket-lego-testnet
+  --network beta
 
 # Check current proof submission fee
-pocketd query proof params --network pocket-lego-testnet
+pocketd query proof params --network beta
 ```
 
 Insufficient funds for proof submission fees can lead to missed submissions and

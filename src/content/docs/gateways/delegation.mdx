@@ -180,7 +180,7 @@ To delegate an Application to a Gateway, the Gateway must already be staked and 
 pocketd tx application delegate-to-gateway <gateway_address> \
   --from my_app_key \
   --keyring-backend test \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --home ~/.pocket
 ```
 
@@ -190,7 +190,7 @@ pocketd tx application delegate-to-gateway <gateway_address> \
 pocketd tx application delegate-to-gateway pokt1gwaddr789xyz456abc123def000aaa111bbb222 \
   --from my_app_key \
   --keyring-backend test \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 ### Delegation Rules
@@ -212,7 +212,7 @@ After delegating, confirm the delegation by querying the Application:
 
 ```bash
 pocketd query application show-application pokt1yourappaddress123 \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 The `delegatee_gateway_addresses` field will list all Gateways the Application is delegated to:
@@ -240,7 +240,7 @@ Undelegating revokes a Gateway's authority to sign relay requests on behalf of t
 pocketd tx application undelegate-from-gateway <gateway_address> \
   --from my_app_key \
   --keyring-backend test \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --home ~/.pocket
 ```
 
@@ -250,7 +250,7 @@ pocketd tx application undelegate-from-gateway <gateway_address> \
 pocketd tx application undelegate-from-gateway pokt1gwaddr789xyz456abc123def000aaa111bbb222 \
   --from my_app_key \
   --keyring-backend test \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 ### Undelegation Behavior
@@ -282,7 +282,7 @@ Application transfer moves the entire Application (stake, service configs, gatew
 pocketd tx application transfer <source_app_address> <destination_app_address> \
   --from <source_key_name> \
   --keyring-backend test \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --home ~/.pocket
 ```
 
@@ -294,7 +294,7 @@ pocketd tx application transfer \
   pokt1destapp666fff777ggg888hhh999iii000jjj111 \
   --from source_app_key \
   --keyring-backend test \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 ### Transfer Rules
@@ -332,7 +332,7 @@ After initiating a transfer, check the source application's status:
 
 ```bash
 pocketd query application show-application pokt1sourceapp111aaa222bbb333ccc444ddd555eee \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 You will see a `pending_transfer` field:
@@ -367,7 +367,7 @@ If you accidentally transferred an Application to the wrong destination address,
 
 ```bash
 pocketd query application show-application <wrong_destination_address> \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 ### Step 2: Unstake the Destination Application
@@ -376,7 +376,7 @@ pocketd query application show-application <wrong_destination_address> \
 pocketd tx application unstake-application \
   --from <wrong_destination_key> \
   --keyring-backend test \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 ### Step 3: Wait for the Unbonding Period
@@ -404,7 +404,7 @@ pocketd tx application stake-application \
   --config ./wrong_dest_restore_config.yaml \
   --from <wrong_destination_key> \
   --keyring-backend test \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 ### Step 5: Stake the Correct Destination
@@ -416,7 +416,7 @@ pocketd tx application stake-application \
   --config ./correct_destination_config.yaml \
   --from <correct_destination_key> \
   --keyring-backend test \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 ## Quick Reference

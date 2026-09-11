@@ -141,7 +141,7 @@ Before staking an Application, ensure you have:
 You can verify your account balance before staking:
 
 ```bash
-pocketd query bank balances <your_app_address> --network=pocket-lego-testnet
+pocketd query bank balances <your_app_address> --network=beta
 ```
 
 ## Staking an Application
@@ -170,7 +170,7 @@ The amount of `upokt` to stake. This value must be:
 Query the current minimum stake requirement:
 
 ```bash
-pocketd query application params --network=pocket-lego-testnet
+pocketd query application params --network=beta
 ```
 
 #### `service_ids` (required, non-empty)
@@ -189,7 +189,7 @@ pocketd tx application stake-application \
   --config ./app_stake_config.yaml \
   --from my_app_key \
   --keyring-backend test \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --home ~/.pocket
 ```
 
@@ -200,7 +200,7 @@ pocketd tx application stake-application \
 | `--config` | Path to the YAML stake configuration file (required). |
 | `--from` | Name or address of the key in your keyring that will sign the transaction. This address becomes the Application address. |
 | `--keyring-backend` | Keyring backend to use (`test`, `file`, `os`). |
-| `--network` | Network to broadcast the transaction to (e.g., `local`, `pocket-lego-testnet`). |
+| `--network` | Network to broadcast the transaction to: `local`, `beta`, or `main`. Sets the chain ID and endpoints for you. |
 | `--home` | Path to the pocketd home directory. |
 
 ### Example: Complete Staking Workflow
@@ -220,13 +220,13 @@ pocketd tx application stake-application \
   --config ./app_stake_config.yaml \
   --from my_app_key \
   --keyring-backend test \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 3. Verify the application was staked:
 
 ```bash
-pocketd query application show-application pokt1yourappaddress123 --network=pocket-lego-testnet
+pocketd query application show-application pokt1yourappaddress123 --network=beta
 ```
 
 ## Updating an Existing Stake
@@ -247,7 +247,7 @@ pocketd tx application stake-application \
   --config ./updated_app_stake_config.yaml \
   --from my_app_key \
   --keyring-backend test \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 ## Unstaking an Application
@@ -258,7 +258,7 @@ Unstaking begins the unbonding process. The Application can still request servic
 pocketd tx application unstake-application \
   --from my_app_key \
   --keyring-backend test \
-  --network=pocket-lego-testnet \
+  --network=beta \
   --home ~/.pocket
 ```
 
@@ -273,7 +273,7 @@ pocketd tx application unstake-application \
 The unbonding period is governed by the `application_unbonding_period_sessions` parameter in the `shared` module. Query it with:
 
 ```bash
-pocketd query shared params --network=pocket-lego-testnet
+pocketd query shared params --network=beta
 ```
 
 Or extract just the value:
@@ -289,7 +289,7 @@ The application's tokens are locked until the unbonding period elapses after the
 ### List All Applications
 
 ```bash
-pocketd query application list-application --network=pocket-lego-testnet
+pocketd query application list-application --network=beta
 ```
 
 Supports standard Cosmos SDK pagination flags:
@@ -298,14 +298,14 @@ Supports standard Cosmos SDK pagination flags:
 pocketd query application list-application \
   --limit 10 \
   --offset 0 \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 ### Show a Specific Application
 
 ```bash
 pocketd query application show-application pokt1ad28jdap2zfanjd7hpkh984yveney6k9a42man \
-  --network=pocket-lego-testnet
+  --network=beta
 ```
 
 Example output:
@@ -327,7 +327,7 @@ application:
 ### Query Application Module Parameters
 
 ```bash
-pocketd query application params --network=pocket-lego-testnet
+pocketd query application params --network=beta
 ```
 
 This returns the `max_delegated_gateways` (default: <GovParam module="application" param="max_delegated_gateways" />) and `min_stake` (default: <GovParam module="application" param="min_stake" format="upokt" />) governance parameters.
