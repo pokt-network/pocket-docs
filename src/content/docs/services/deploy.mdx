@@ -1,0 +1,364 @@
+---
+title: "Deploy a Service"
+description: "Build a backend that works well behind a RelayMiner, stake a supplier, run the RelayMiner, test end to end, and hand gateway operators what they need to route to you."
+section: "services"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+lastUpdated: "2026-09-11"
+---
+
+This guide takes you from a registered service ID to a supplier serving real relays. Budget a day: a few hours to build and test the backend against the rules below, an hour for staking and the RelayMiner, and a session or two of waiting for the network to pick your supplier up.
+
+It assumes the service is already registered. If it is not, start with [Register a Service](/services/register). It also assumes you are the first supplier. A later supplier follows the same steps from [Stake a Supplier](#stake-a-supplier) onward, reading the service's metadata card instead of writing it.
+
+<Callout type="danger">
+  **Every relay a supplier serves is signed with the operator key.** A lost operator key cannot be replaced on an existing supplier stake; the operator address is immutable. Back it up before staking and never run two RelayMiners with the same key against the same service unless you intend them as replicas.
+</Callout>
+
+## Prerequisites
+
+1. **A registered service ID** with a metadata card. See [Register a Service](/services/register).
+2. **`pocketd` installed** and two funded accounts: an **owner** that holds the stake and an **operator** that signs relays. Non-custodial staking, where these are different accounts, is recommended for production. See [Supplier Staking](/node-operators/supplier-staking) for the owner-operator model and [Accounts & Keys](/pocketd/accounts-keys).
+3. **Enough POKT to stake.** The supplier minimum is a governance parameter, currently <GovParam module="supplier" param="min_stake" format="pokt" /> POKT on MainNet. Query it on the network you are staking on:
+   ```bash
+   pocketd query supplier params --network=beta
+   ```
+   On Beta, request funds from the faucet listed on the [Networks](/get-started/networks) page. The operator account also needs a small working balance for claim and proof transaction fees.
+4. **A public HTTPS endpoint.** Suppliers publish a URL that gateways connect to. It must be reachable from the internet, on `https://` with a publicly trusted certificate, and terminated by a reverse proxy you control, because the RelayMiner itself speaks plain HTTP.
+5. **Access to a Pocket full node**, either your own or a public RPC and gRPC endpoint from the [Networks](/get-started/networks) page. A RelayMiner needs both.
+
+### Set Up Environment
+
+```bash
+export SERVICE_ID=<your-service-id>
+export OWNER=<owner-key-name>
+export OPERATOR=<operator-key-name>
+export NETWORK=beta            # or main
+export TX_FLAGS="--network=$NETWORK --gas auto --gas-prices 1upokt --gas-adjustment 1.5"
+```
+
+## Build the Backend
+
+The backend is an ordinary HTTP server. It does not talk to the chain, verify signatures, or know what a session is; the RelayMiner does all of that. What the backend receives is a plain HTTP request with the method, path, query string, headers, and body the client sent, and what it returns is passed back to the client.
+
+There is one catch. Most clients reach your service through a gateway, and gateways grade every response to decide which suppliers to trust. A backend that ignores the rules below will work perfectly when you test it directly and will get its suppliers penalized in production. Design to these rules from the first line of code.
+
+### Every Response Is a JSON Object
+
+Gateways classify a response body by its first byte. A body that starts with `{` or `[` is graded as a normal response. A body that starts with `<html` or `<!DOCTYPE` is treated as a proxy error page: the request is retried on another supplier and the supplier that answered is penalized and circuit-broken. Plain text, an empty body on a 200, or CSV get the same treatment.
+
+So any output that is not itself JSON travels as a string inside a JSON object. The field names are your contract, not a network rule; what matters is that the body starts with `{`.
+
+```json
+{
+  "content_type": "text/html",
+  "body": "<!DOCTYPE html><html>...</html>"
+}
+```
+
+Plain JSON string escaping is sufficient. Base64 is not needed and doubles the size. Put short metadata fields first and the large string last.
+
+### All Inputs Arrive in the Body
+
+Gateways forward the HTTP method, the path, and the query string, but they do not forward the caller's request headers and they always set `Content-Type: application/json` on the request your backend sees. Some clients drop the query string as well. Design every endpoint to take its inputs from a JSON request body, including bulk data such as CSV, and use `POST` for anything with inputs.
+
+### No Caller Authentication
+
+Relays are paid for by the application's stake, not by a credential. Gateways and application-side relay clients strip `Authorization`, `Api-Key`, `X-Api-Key`, and `Cookie` headers before forwarding. If your backend needs a credential to reach something behind it, the RelayMiner can inject static headers or HTTP basic auth toward the backend; the caller never supplies one.
+
+### Status Codes
+
+| Situation | Return | Why |
+| --- | --- | --- |
+| Success | `200` with a JSON object | Graded as success. |
+| Nothing to return | `204` with no body | The only status where an empty body is graded as correct. |
+| Bad input | `400` or `422` with a JSON error object | Gateways treat a 4xx with a JSON body as the client's mistake: delivered as is, not retried, no penalty. |
+| Backend failure | `5xx` | Retried elsewhere, the supplier is penalized, and the relay is not paid. Reserve for real failures. |
+
+Never answer an expected condition with a 5xx, and never answer any error with HTML or plain text.
+
+### Avoid Error-Looking Words Early in a Success Body
+
+Gateways also scan the first 2 KB of a body for substrings that indicate an upstream failure, among them `timeout`, `bad gateway`, `service unavailable`, `gateway timeout`, `connection refused`, and `connection reset`, and they retry on a match even inside a valid JSON object. Do not name fields `timeout` and do not echo those phrases in status messages.
+
+### Respond Within the Session
+
+Gateways bound each relay attempt with a per-service timeout; the gateway configuration later in this guide uses 30 seconds. A relay whose backend call finishes after the session ends, plus the grace period of <GovParam module="shared" param="grace_period_end_offset_blocks" /> blocks, is not paid. Long-running work should return quickly with a handle rather than blocking, unless you deliberately target streaming-capable clients through the HA RelayMiner.
+
+### Serve Identity Encoding
+
+Application-side relay clients force `Accept-Encoding: identity`. Do not gzip responses.
+
+### Provide the Three Probe Endpoints
+
+Your metadata card's `serving.healthcheck` names an identity endpoint, a readiness endpoint, and a cheap functional request. Implement them exactly as the card describes; suppliers and gateways will run them.
+
+```text
+GET  /v1/version   → {"service": "<service-id>", "version": "1.2.0"}
+GET  /v1/health    → {"status": "ok"}
+POST /v1/<resource> with a minimal body → a deterministic answer
+```
+
+### Test the Backend Directly
+
+Before involving the network, run the card's health checks against the backend with `curl`, and confirm that every response, including error responses, starts with `{`.
+
+## Choose a RelayMiner
+
+Two implementations exist. Both speak the same protocol and both serve REST backends.
+
+| | RelayMiner (`pocketd relayminer`) | HA RelayMiner |
+| --- | --- | --- |
+| Shape | One process | Stateless relayers plus a miner, coordinated through Redis |
+| Fits | A first deployment, a single machine, moderate traffic | Production, multiple replicas, failover, high volume |
+| Streaming responses | No | Yes |
+| Backend health checks | Reachability only | Active per-backend checks and circuit breaking |
+| Documentation | [RelayMiner Setup](/node-operators/relayminer-setup) | [HA RelayMiner](/node-operators/ha-relayminer) |
+
+Start with the single-process RelayMiner unless you already know you need HA. Moving to HA later does not touch the supplier stake.
+
+## Run the RelayMiner
+
+The examples use the single-process RelayMiner. The HA equivalent is noted where it differs.
+
+### Configuration
+
+```yaml
+# relayminer_config.yaml
+default_signing_key_names: [operator]        # the operator key's name in the keyring
+smt_store_path: /var/lib/pocket/smt          # must persist across restarts
+default_request_timeout_seconds: 30
+default_max_body_size: 20MB
+
+pocket_node:
+  query_node_rpc_url: https://sauron-rpc.beta.infra.pocket.network
+  query_node_grpc_url: https://sauron-grpc.beta.infra.pocket.network:443
+  tx_node_rpc_url: https://sauron-rpc.beta.infra.pocket.network
+
+metrics:
+  enabled: true
+  addr: :9090
+ping:
+  enabled: true
+  addr: :8081
+
+suppliers:
+  - service_id: <your-service-id>
+    listen_url: http://0.0.0.0:8545           # the reverse proxy forwards here
+    service_config:
+      backend_url: http://127.0.0.1:8080      # your backend
+      forward_pocket_headers: true
+    rpc_type_service_configs:
+      rest:
+        backend_url: http://127.0.0.1:8080
+```
+
+Points that matter for a REST backend:
+
+- The key under `rpc_type_service_configs` is the card's `rpc_types[].type`, lowercased. `REST` in the card becomes `rest` here.
+- The path the client requested is appended to `backend_url`. With `backend_url: http://127.0.0.1:8080/api`, a request for `/v1/chart` reaches the backend at `/api/v1/chart`. Trailing slashes are normalized away.
+- `forward_pocket_headers: true` adds `Pocket-Supplier`, `Pocket-Service`, `Pocket-Session-Id`, `Pocket-Application`, `Pocket-Session-Start-Height`, and `Pocket-Session-End-Height` to each backend request. They are the only per-request identity your backend will ever see, and they are useful for logging and per-application rate limiting.
+- `smt_store_path` holds the relays you have served but not yet claimed. If it is lost, those relays are unpaid.
+
+For the HA RelayMiner the same service is declared as:
+
+```yaml
+services:
+  <your-service-id>:
+    timeout_profile: fast            # or streaming, for long or SSE responses
+    max_body_size_bytes: 20971520
+    default_backend: rest
+    backends:
+      rest:
+        url: http://127.0.0.1:8080
+        health_check:
+          endpoint: /v1/health
+```
+
+### Start It
+
+```bash
+pocketd relayminer start \
+  --config ./relayminer_config.yaml \
+  --chain-id pocket-lego-testnet \
+  --keyring-backend file \
+  --grpc-insecure=false
+```
+
+Use `--chain-id pocket` on MainNet. Confirm it is up and can reach the backend:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8081/ping    # 204 when every backend_url is reachable
+```
+
+### Put a Reverse Proxy in Front
+
+The RelayMiner listens on plain HTTP. Terminate TLS on a reverse proxy such as Caddy, nginx, or your cloud load balancer, and forward to `listen_url`. The proxy's public `https://` address is what you will stake as the supplier's endpoint. Do not add authentication at the proxy; every request is already signed.
+
+## Stake a Supplier
+
+The stake declares which service you serve and where. The full field reference and the owner-operator model are in [Supplier Staking](/node-operators/supplier-staking). The stake amount must be at least the live `min_stake`, which on MainNet is currently <GovParam module="supplier" param="min_stake" format="upokt" />.
+
+```yaml
+# supplier_stake_config.yaml
+owner_address: <owner pokt1... address>
+operator_address: <operator pokt1... address>
+stake_amount: <amount>upokt                  # at least the live min_stake
+default_rev_share_percent:
+  <owner pokt1... address>: 100
+services:
+  - service_id: <your-service-id>
+    endpoints:
+      - publicly_exposed_url: https://relay.example.org
+        rpc_type: REST
+```
+
+<Callout type="warning">
+  **`rpc_type` must match the card.** Gateways select supplier endpoints by transport. A card that declares `REST` and a stake that declares `JSON_RPC` means REST clients never see your endpoint. Use exactly the type the card's `rpc_types` lists.
+</Callout>
+
+Before staking, send any transaction from the operator account, for example a tiny self-transfer, so its public key is recorded on-chain. Gateways reject responses from an operator whose key they cannot look up.
+
+```bash
+pocketd tx supplier stake-supplier \
+  --config ./supplier_stake_config.yaml \
+  --from $OPERATOR \
+  $TX_FLAGS
+```
+
+Verify:
+
+```bash
+pocketd query supplier show-supplier <operator address> --network=$NETWORK
+```
+
+The service configuration becomes active at the start of the next session. A session is <GovParam module="shared" param="num_blocks_per_session" /> blocks, which is roughly 10 minutes on Beta TestNet and 20 minutes on MainNet given their block times on the [Networks](/get-started/networks) page.
+
+## Test End to End
+
+Testing needs an application, because relays are paid for by an application stake. Stake a small one for your own service on Beta. See [Application Staking](/developers/application-staking) for the details. The application minimum is a governance parameter, currently <GovParam module="application" param="min_stake" format="pokt" /> POKT on MainNet; query it on Beta with `pocketd query application params --network=beta`. The short form is:
+
+```yaml
+# app_stake_config.yaml
+stake_amount: <amount>upokt        # at least the live application min_stake
+service_ids:
+  - <your-service-id>              # exactly one
+```
+
+```bash
+pocketd tx application stake-application --config ./app_stake_config.yaml --from <app-key> $TX_FLAGS
+```
+
+Wait for the next session, then send relays with `pocket-ap`, a command-line relay client from the [pocket-ap repository](https://github.com/pokt-network/pocket-ap). It signs with the application key directly; no gateway and no delegation are needed, because an application is always a member of its own signing ring.
+
+```bash
+go install github.com/pokt-network/pocket-ap/cmd/pocket-ap@latest   # or: brew install pokt-network/tap/pocket-ap
+```
+
+```yaml
+# pocket-ap.yaml
+network: beta
+listeners:
+  - addr: 127.0.0.1:8550
+    service_id: <your-service-id>
+    rpc_type: rest
+apps: []                        # key comes from the environment
+```
+
+```bash
+POCKET_APP_PRIVATE_KEY=<app key hex> pocket-ap call \
+  --config ./pocket-ap.yaml \
+  --service <your-service-id> --rpc-type rest \
+  -X POST --path /v1/<resource> \
+  -d '{"...": "..."}' -v
+```
+
+Its `--compare <url>` flag sends the same request straight to your backend and diffs the two answers, which is the fastest way to catch a path-prefix or content-type mistake.
+
+<Callout type="info">
+  `pocketd relayminer relay` sends JSON-RPC relays only. It posts to the endpoint root with no path, so it cannot exercise a REST service. Use `pocket-ap` or a gateway.
+</Callout>
+
+Then confirm the relay was accounted for. Within a session or two of serving relays you should see a claim from your operator:
+
+```bash
+pocketd query proof list-claims --supplier-operator-address <operator address> --network=$NETWORK
+```
+
+To test the path most users will take, run a gateway locally. [SAGE](https://github.com/pokt-network/sage) is the current gateway implementation; the configuration it needs for your service is in the next section.
+
+## Give Gateway Operators What They Need
+
+Gateways do not read the metadata card. Each one has to be configured for your service by hand, and if it is not, a REST request to it is refused before a session is even looked up. Publish the following in your service documentation so an operator can copy it.
+
+The SAGE service entry:
+
+```yaml
+gateway_config:
+  services:
+    - id: <your-service-id>
+      type: passthrough
+      rpc_types: ["rest"]
+      timeout_config:
+        relay_timeout: 30s
+  active_health_checks:
+    local:
+      - service_id: <your-service-id>
+        enabled: true
+        checks:
+          - name: version
+            type: rest
+            method: GET
+            path: /v1/version
+            expected_status_code: 200
+            reputation_signal: critical_error
+            timeout: 5s
+          - name: health
+            type: rest
+            method: GET
+            path: /v1/health
+            expected_status_code: 200
+            reputation_signal: major_error
+            timeout: 5s
+```
+
+The health checks mirror your card's `serving.healthcheck`. Keep the two in sync. Do not add `sync_check` or `sync_allowance` to a non-blockchain service; those assume a block height and will mark every healthy supplier as failing.
+
+## Minimal Server Specifications
+
+Three components run on the supplier side. They can share one machine at first.
+
+| Component | Minimum | Comfortable | Notes |
+| --- | --- | --- | --- |
+| **Service backend** | Whatever your service needs | | Size it for concurrent requests, not average load. Gateways hedge and retry, so bursts are normal. |
+| **RelayMiner** | 1 vCPU, 1 GB RAM, 5 GB SSD | 4 vCPU, 16 GB RAM, 5 GB SSD | Scales linearly with relay volume and with the number of services one RelayMiner fronts. `smt_store_path` must be on persistent disk. |
+| **Full node** | 4 vCPU, 16 GB RAM, 200 GB SSD | 6 vCPU, 32 GB RAM, 420 GB SSD | Optional. A public RPC and gRPC endpoint from the [Networks](/get-started/networks) page works for a first deployment, but a production RelayMiner should not depend on infrastructure it does not control. |
+
+The full tables are on [Hardware & Infrastructure Requirements](/node-operators/hardware-requirements). Linux on x86_64 or ARM64 is the supported environment for the RelayMiner and full node.
+
+Beyond hardware:
+
+- **Persistent disk** for the RelayMiner's SMT store and for the keyring.
+- **A public HTTPS endpoint** with a publicly trusted certificate. Gateways verify TLS and can be configured to refuse plain-HTTP or raw-IP supplier URLs outright.
+- **Operator balance** kept above a few POKT at all times. Claims and proofs are transactions; an operator that cannot pay the fee forfeits the session's earnings.
+- **Metrics scraped.** The RelayMiner exposes Prometheus metrics on the address set under `metrics.addr` (`:9090` in the configuration above). See [Monitoring](/node-operators/monitoring).
+
+## Going to MainNet
+
+1. Register the service on MainNet if you have not yet. See [Register a Service](/services/register).
+2. Re-query `min_stake`, `add_service_fee`, and the shared pricing parameters with `--network=main`.
+3. Repoint `pocket_node` URLs and `--chain-id pocket`. Every other config line is unchanged.
+4. Stake, wait a session, run the card's health checks through `pocket-ap`, and watch for the first claim.
+5. Publish the gateway configuration and the card's `docs` URL, then tell gateway operators the service exists. A supplier no gateway routes to earns nothing.
+
+## Related Pages
+
+- [Register a Service](/services/register) — the on-chain record and metadata card this guide builds on
+- [Supplier Staking](/node-operators/supplier-staking) — full stake configuration and the owner-operator model
+- [RelayMiner Setup](/node-operators/relayminer-setup) — every RelayMiner configuration field
+- [HA RelayMiner](/node-operators/ha-relayminer) — the production, multi-replica deployment
+- [Application Staking](/developers/application-staking) — staking the test application
+- [Hardware & Infrastructure Requirements](/node-operators/hardware-requirements) — sizing tables
+- [Monitoring](/node-operators/monitoring) — metrics and alerting
+- [Rewards & Economics](/node-operators/rewards-economics) — how supplier income is calculated

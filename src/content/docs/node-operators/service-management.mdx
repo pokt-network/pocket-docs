@@ -261,6 +261,10 @@ In this example, the compute units per relay for service `eth` changes from `10`
 
 > **New in v0.1.31:** Services can now carry on-chain metadata containing API specifications such as OpenAPI or OpenRPC documents. This metadata is stored as raw bytes and is limited to 256 KiB.
 
+<Callout type="info">
+  The `--experimental-metadata-*` flags still work but are deprecated aliases. Metadata is now published as a structured service card with `--card-file` or `--card-base64`, validated with `pocketd tx service validate-card`, and read back with `pocketd query service card`. The end-to-end walkthrough is in [Register a Service](/services/register).
+</Callout>
+
 Service metadata allows you to attach machine-readable API specifications directly to the on-chain service record. Applications, gateways, and suppliers can read this specification to understand how to interact with the service.
 
 ### Attaching Metadata from a File
