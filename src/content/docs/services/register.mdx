@@ -77,7 +77,7 @@ Applications pay this price from their stake, and suppliers earn it. A price too
 
 ## Write the Metadata Card
 
-The card is a JSON document stored on-chain with the service. It is the only place a consumer can learn what your service does and the only place a prospective supplier can learn what to run. The chain enforces its size and nothing else, so the card is entirely your assertion, and it is worth getting right.
+The card is a JSON document stored on-chain with the service. It is the only place a consumer can learn what your service does and the only place a prospective supplier can learn what to run. It is also how services will be discovered: the agentic portal and gateways will read cards to find and configure services, and a service without one will not be surfaced. The chain enforces its size and nothing else, so the card is entirely your assertion, and it is worth getting right.
 
 The schema is `pocket-service-card/v1`. Only the `schema` field is required, and readers ignore fields they do not know. The canonical schema is `pkg/cards/service_card.schema.json` in the [poktroll repository](https://github.com/pokt-network/poktroll), with a prose specification in `docs/pocket_cards.md`. The cards for every foundation-owned service are in [pocket-network-resources/service-cards](https://github.com/pokt-network/pocket-network-resources/tree/main/service-cards) and are the best examples of the conventions in practice.
 
@@ -103,13 +103,13 @@ The schema is `pocket-service-card/v1`. Only the `schema` field is required, and
 
 ### Health Checks
 
-`serving.healthcheck` is the most useful field in the card. A supplier runs these probes against their own backend before staking and finds out immediately whether it is set up correctly, instead of discovering it from failed relays. Gateway operators transcribe the same probes into their own health-check configuration.
+`serving.healthcheck` is the most useful field in the card. A supplier runs these probes against their own backend before staking and finds out immediately whether it is set up correctly, instead of discovering it from failed relays. Gateways run the same probes against every supplier on a schedule to decide who to route to. The full API lives in `specs[]`; the health checks exist so that nobody has to parse an OpenAPI document to know which cheap, safe call proves the backend is the right one and is working.
 
-Follow the pattern every foundation card uses, three probes in this order:
+Follow the pattern the foundation cards use, in this order:
 
-1. **Identity.** A request whose answer pins the backend to this service, so a supplier cannot stake the wrong backend under your ID. For a REST service, a version or info endpoint that returns the service name.
+1. **Identity.** A request whose answer pins the backend to this service. A stake only asserts that an operator intends to serve your service; it does not verify what is actually behind the URL. The foundation added this probe after a supplier staked for `tron` was found serving a Base node under that ID. For a REST service, a version or info endpoint that returns the service name does the same job and catches the wrong container behind the right service ID.
 2. **Readiness.** A health endpoint that returns a fixed value when the backend is ready to serve.
-3. **A real request.** A small functional call with a deterministic answer. Keep it cheap; gateways run it against every supplier on a schedule.
+3. **A real request, when readiness is not proof of correctness.** A health endpoint can return ok while a model failed to load or a render pipeline is broken. If that can happen to your backend, add one small functional call with a deterministic answer. Keep it cheap, because it runs against every supplier on a schedule. Skip it if the readiness check already proves the service produces correct output.
 
 The REST probe shape:
 

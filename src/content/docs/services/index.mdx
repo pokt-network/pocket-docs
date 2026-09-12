@@ -59,16 +59,16 @@ Registering a service and supplying a service are separate acts with separate on
 
 When you bring a new service to the network you will almost always do both: register the service, then become its first supplier. Once the service has traffic, other operators can stake on it independently by reading the card you published.
 
-## What Makes a Service Work Well on Pocket
+## What Makes a Service Work Well Behind Gateways
 
-The protocol enforces very little about the shape of a service. Gateways enforce more, because they grade every response to decide which suppliers to trust. A service that returns responses gateways cannot grade will see its suppliers penalized for answering correctly.
+The protocol enforces nothing about the shape of a request or a response; a RelayMiner signs whatever bytes the backend returns. Gateways, which carry almost all of the network's traffic, enforce more, because they grade every response to decide which suppliers to trust. If a service returns responses a gateway cannot grade, the gateway marks the suppliers serving it as failing even though they answered correctly, and a service that gets its own suppliers penalized is one nobody will keep supplying.
 
 The rules that matter are covered in [Deploy a Service](/services/deploy), but the short version is:
 
 - Every response is a JSON object. HTML, CSV, images, or any other non-JSON output travels as a string field inside that object.
-- All inputs arrive in the request body. Request headers and the caller's content type do not reach the backend.
+- All inputs arrive in the request body. Gateways do not forward the caller's headers, so nothing can depend on them.
 - Client errors are 4xx with a JSON body. Server errors are 5xx and are never paid.
-- The metadata card describes the API accurately, including health checks a supplier can run before staking.
+- The service has a metadata card that describes the API accurately, including health checks a supplier can run before staking. Cards are how services will be discovered on the network, including by the agentic portal, and a service without one will not be found.
 
 <Callout type="tip">
   Register and supply on Beta TestNet first. The registration fee there is a fraction of MainNet's, the same card and configuration carry over unchanged, and mistakes are cheap. See [Networks](/get-started/networks) for endpoints and faucets.

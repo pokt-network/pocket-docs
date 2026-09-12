@@ -25,7 +25,7 @@ It assumes the service is already registered. If it is not, start with [Register
    pocketd query supplier params --network=beta
    ```
    On Beta, request funds from the faucet listed on the [Networks](/get-started/networks) page. The operator account also needs a small working balance for claim and proof transaction fees.
-4. **A public HTTPS endpoint.** Suppliers publish a URL that gateways connect to. It must be reachable from the internet, on `https://` with a publicly trusted certificate, and terminated by a reverse proxy you control, because the RelayMiner itself speaks plain HTTP.
+4. **A public endpoint.** Suppliers publish a URL that clients connect to. The protocol accepts `http://` or `https://`, but gateways can be configured to refuse plain-HTTP or raw-IP URLs, so for gateway traffic use `https://` with a publicly trusted certificate, terminated by a reverse proxy you control, because the RelayMiner itself speaks plain HTTP.
 5. **Access to a Pocket full node**, either your own or a public RPC and gRPC endpoint from the [Networks](/get-started/networks) page. A RelayMiner needs both.
 
 ### Set Up Environment
@@ -38,11 +38,17 @@ export NETWORK=beta            # or main
 export TX_FLAGS="--network=$NETWORK --gas auto --gas-prices 1upokt --gas-adjustment 1.5"
 ```
 
+## How Your Service Will Be Consumed
+
+The protocol puts no constraints on the shape of a request or a response. A RelayMiner forwards whatever HTTP request arrives to your backend, signs whatever bytes the backend returns, status code and body included, and passes them back unaltered. A client that signs its own relays, such as an application using the SDK directly, could exchange any format with your backend.
+
+In practice, almost all traffic reaches services through a gateway such as [SAGE](https://github.com/pokt-network/sage) or [PATH](/path/). Gateways hold application keys for many users, select suppliers, retry failures, and score every supplier on the responses it returns. That scoring is what the rules in the next section are about. They are gateway rules rather than protocol rules, and a gateway operator can relax them per service, but a service designed for them works everywhere, and a service designed without them will not be routed to by the gateways that carry the network's traffic.
+
 ## Build the Backend
 
 The backend is an ordinary HTTP server. It does not talk to the chain, verify signatures, or know what a session is; the RelayMiner does all of that. What the backend receives is a plain HTTP request with the method, path, query string, headers, and body the client sent, and what it returns is passed back to the client.
 
-There is one catch. Most clients reach your service through a gateway, and gateways grade every response to decide which suppliers to trust. A backend that ignores the rules below will work perfectly when you test it directly and will get its suppliers penalized in production. Design to these rules from the first line of code.
+There is one catch. Gateways grade every response to decide which suppliers to trust, and the grade is applied to exactly the bytes your backend returned. A backend that ignores the rules below will work perfectly when you test it directly and will get its suppliers penalized in production, and a service that gets its own suppliers penalized is one nobody will keep supplying. Design to these rules from the first line of code.
 
 ### Every Response Is a JSON Object
 
@@ -57,11 +63,11 @@ So any output that is not itself JSON travels as a string inside a JSON object. 
 }
 ```
 
-Plain JSON string escaping is sufficient. Base64 is not needed and doubles the size. Put short metadata fields first and the large string last.
+Plain JSON string escaping is sufficient. Base64 is not needed and doubles the size. Put short metadata fields first and the large string last. A gateway operator can switch body grading off for a service, but you cannot count on every gateway doing so.
 
 ### All Inputs Arrive in the Body
 
-Gateways forward the HTTP method, the path, and the query string, but they do not forward the caller's request headers and they always set `Content-Type: application/json` on the request your backend sees. Some clients drop the query string as well. Design every endpoint to take its inputs from a JSON request body, including bulk data such as CSV, and use `POST` for anything with inputs.
+The relay format can carry headers, and the RelayMiner copies whatever arrives onto the backend request, but you cannot rely on them arriving. SAGE forwards the HTTP method, the path, and the query string only; it drops every caller header and sets `Content-Type: application/json` on the request your backend sees. Self-signing clients forward most headers but strip credentials, and older gateways drop the query string as well. Design every endpoint to take its inputs from a JSON request body, including bulk data such as CSV, and use `POST` for anything with inputs.
 
 ### No Caller Authentication
 
@@ -88,7 +94,7 @@ Gateways bound each relay attempt with a per-service timeout; the gateway config
 
 ### Serve Identity Encoding
 
-Application-side relay clients force `Accept-Encoding: identity`. Do not gzip responses.
+Some relay clients force `Accept-Encoding: identity`. Do not gzip responses.
 
 ### Provide the Three Probe Endpoints
 
@@ -290,7 +296,7 @@ To test the path most users will take, run a gateway locally. [SAGE](https://git
 
 ## Give Gateway Operators What They Need
 
-Gateways do not read the metadata card. Each one has to be configured for your service by hand, and if it is not, a REST request to it is refused before a session is even looked up. Publish the following in your service documentation so an operator can copy it.
+Today each gateway is configured for your service by hand, and if it is not, a REST request to it is refused before a session is even looked up. Card-driven configuration is on the near-term roadmap, so keep the card and this snippet in sync, and publish the snippet in your service documentation so an operator can copy it.
 
 The SAGE service entry:
 
@@ -340,7 +346,7 @@ The full tables are on [Hardware & Infrastructure Requirements](/node-operators/
 Beyond hardware:
 
 - **Persistent disk** for the RelayMiner's SMT store and for the keyring.
-- **A public HTTPS endpoint** with a publicly trusted certificate. Gateways verify TLS and can be configured to refuse plain-HTTP or raw-IP supplier URLs outright.
+- **A public endpoint**, on HTTPS with a publicly trusted certificate if you want gateway traffic. The protocol accepts plain HTTP, but gateways verify TLS and can be configured to refuse plain-HTTP or raw-IP supplier URLs outright.
 - **Operator balance** kept above a few POKT at all times. Claims and proofs are transactions; an operator that cannot pay the fee forfeits the session's earnings.
 - **Metrics scraped.** The RelayMiner exposes Prometheus metrics on the address set under `metrics.addr` (`:9090` in the configuration above). See [Monitoring](/node-operators/monitoring).
 
