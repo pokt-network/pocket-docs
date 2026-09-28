@@ -5,8 +5,8 @@ section: "node-operators"
 persona: ["node-operator"]
 tabs: false
 status: "stable"
-sources: ["zip4/poktroll/localnet/grafana-dashboards/", "zip4/pocket-relay-miner/CLAUDE.md", "zip4/path/CLAUDE.md"]
-lastUpdated: "2026-04-07"
+sources: ["zip4/poktroll/localnet/grafana-dashboards/", "github.com/pokt-network/pocket-relay-miner v0.1.0: docs/METRICS_TRIAGE.md, examples/observability/", "zip4/path/CLAUDE.md"]
+lastUpdated: "2026-09-27"
 ---
 
 Every Pocket Network service exposes Prometheus metrics. This guide covers what to monitor and where to find it.
@@ -16,9 +16,8 @@ Every Pocket Network service exposes Prometheus metrics. This guide covers what 
 | Service | Metrics Port | Key Metrics |
 | --- | --- | --- |
 | **poktroll (full node)** | 26660 (CometBFT) | Block height, peers, consensus state |
-| **RelayMiner (standard)** | 80 (HTTP) | Relay count, latency, session activity |
-| **HA RelayMiner (relayer)** | 9090 | requests_total, relay_duration, connection pool |
-| **HA RelayMiner (miner)** | 9092 | claims_submitted, proofs_submitted, SMST ops |
+| **RelayMiner (relayer)** | 9090 | `ha_relayer_relays_served_total`, `ha_relayer_relays_rejected_total`, `ha_relayer_relay_latency_seconds` |
+| **RelayMiner (miner)** | 9092 | `ha_miner_claims_created_total`, `ha_miner_claim_inclusion_outcome_total`, `ha_miner_proof_inclusion_outcome_total`, `ha_miner_leader_status` |
 | **PATH** | 9090 | requests_total, relay_duration, reputation_score |
 
 ## What to Monitor
@@ -27,16 +26,17 @@ Every Pocket Network service exposes Prometheus metrics. This guide covers what 
 
 | Condition | Severity | Action |
 | --- | --- | --- |
-| Expired proofs > 0 | **Critical** | RelayMiner failing to submit proofs — lost rewards. Check logs, wallet balance. |
+| A required proof not found on-chain | **Critical** | `ha_miner_proof_inclusion_outcome_total{outcome="on_chain_found"}` falls short of the settled claims that required a proof — lost rewards. Check miner logs and wallet balance. |
 | Node wallet balance < 1 POKT | **Warning** | May not have enough for claim/proof tx fees. Top up immediately. |
 | Block height stale > 5 min | **Critical** | Node out of sync — not earning. Check full node and peers. |
-| Claims >> Proofs | **Warning** | Gap means some proofs failing. Check proof submission logs. |
+| Claims built but not on-chain | **Warning** | `ha_miner_claim_inclusion_outcome_total{outcome="on_chain_found"}` below `ha_miner_claims_created_total`. Check `pocket-relay-miner redis submissions`. |
+| Relays refused | **Warning** | `ha_relayer_relays_rejected_total` rising; the `reason` label says why (for example `storage_saturated` means Redis is nearly full). |
 
 ### Operational Metrics
 
-**Relay throughput:** `requests_total` or relay counters — track over time to understand volume trends and capacity utilization.
+**Relay throughput:** `ha_relayer_relays_served_total` — track over time to understand volume trends and capacity utilization.
 
-**Latency:** `relay_duration_seconds` histogram — monitor p50, p95, p99. Degraded latency affects QoS score and session selection.
+**Latency:** `ha_relayer_relay_latency_seconds` (end to end) and `ha_relayer_backend_latency_seconds` (your backend alone) — monitor p50, p95, p99. Degraded latency lowers your reputation with gateways.
 
 **Error rate:** 5xx responses, timeout counts. High error rates trigger reputation penalties in PATH.
 
@@ -59,10 +59,10 @@ The easiest reward-tracking option for most operators. [analytics.pocket.network
 
 ### Quick Start
 
-The poktroll repository includes pre-built Grafana dashboards in `localnet/grafana-dashboards/`. For production:
+The RelayMiner repository ships Prometheus and Grafana with seven ready dashboards in [examples/observability](https://github.com/pokt-network/pocket-relay-miner/tree/main/examples/observability), and the poktroll repository includes full node dashboards in `localnet/grafana-dashboards/`. For production:
 
 1. Run Prometheus pointing at your service metrics endpoints
-2. Import the poktroll Grafana dashboards as a starting point
+2. Import the RelayMiner and poktroll dashboards
 3. Add alerts for the critical conditions listed above
 
 ### Example Prometheus Config
@@ -72,7 +72,7 @@ scrape_configs:
   - job_name: 'poktroll'
     static_configs:
       - targets: ['localhost:26660']
-  - job_name: 'relayminer'
+  - job_name: 'relayer'
     static_configs:
       - targets: ['localhost:9090']
   - job_name: 'miner'
@@ -80,23 +80,18 @@ scrape_configs:
       - targets: ['localhost:9092']
 ```
 
-## HA RelayMiner-Specific Monitoring
+## RelayMiner Monitoring
 
-The HA RelayMiner exposes additional operational metrics:
+Beyond the alerts above, the RelayMiner exposes leader election status, Redis memory, claim tree, and submission metrics. Read them as identities in the order the repository's [metrics triage guide](https://github.com/pokt-network/pocket-relay-miner/blob/main/docs/METRICS_TRIAGE.md) gives; a counter named after a loss, such as `ha_miner_upokt_lost_total`, counts failed attempts and is not evidence of a loss by itself.
 
-- **Leader election status** — which instance is the active Miner
-- **Redis connection pool** — utilization and errors
-- **SMST tree operations** — throughput and latency
-- **Submission tracking** — claim/proof tx hashes, success/failure, timing
-
-Debug Redis state with: `redis-cli` (connect to your Redis instance, inspect `ha:*` keys).
+Inspect Redis state with `pocket-relay-miner redis`, which decodes sessions, claim trees, and every claim and proof submission. See [RelayMiner Operations](/node-operators/relayminer-operations#monitoring).
 
 ## Key Performance Baselines
 
 | Metric | Healthy Range |
 | --- | --- |
 | Relay latency (p95) | < 500ms for most EVM chains |
-| Expired proofs | 0 (any non-zero = lost rewards) |
-| Claim/Proof ratio | ≈ 1.0 |
+| Required proofs found on-chain | All of them (any missing = lost rewards) |
+| Claims found on-chain / claims created | 1.0 |
 | Block height lag | < 2 blocks behind network |
 | Wallet balance | > 10 POKT (comfortable buffer for tx fees) |

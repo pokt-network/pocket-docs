@@ -6,7 +6,7 @@ persona: ["core-developer"]
 tabs: false
 status: "draft"
 sources: ["zip4/poktroll/CLAUDE.md", "zip4/poktroll/docusaurus/3_protocol/actors/", "zip4/poktroll/.serena/memories/module_architecture_and_relationships.md"]
-lastUpdated: "2026-04-08"
+lastUpdated: "2026-09-27"
 ---
 
 
@@ -46,7 +46,7 @@ Validators secure the network via CometBFT consensus. They validate blocks and t
 
 ### Source Owner
 
-Source Owners register new services in the protocol's service registry and set the `compute_units_per_relay` pricing for their service. They earn a default 15% of all settlement for relays served on their service — an incentive to bring new services to the network.
+Source Owners register new services in the protocol's service registry and set the `compute_units_per_relay` pricing for their service. They earn <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> of every settlement for relays served on their service, whoever serves them — an incentive to bring new services to the network.
 
 ## Module Architecture
 
@@ -185,9 +185,9 @@ Two critical off-chain components complete the architecture:
 
 ### RelayMiner
 
-The Supplier's off-chain process. It listens for incoming relay requests, validates request signatures and session membership, forwards requests to backend services, builds the SMST from completed relays, and submits claims and proofs on-chain. RelayMiner ships as part of the `poktd` binary.
+The Supplier's off-chain process. It listens for incoming relay requests, validates request signatures and session membership, forwards requests to backend services, builds the SMST from completed relays, and submits claims and proofs on-chain. The recommended implementation is [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner), which splits this into stateless relayers and a leader-elected miner that share state through Redis; the single-process RelayMiner built into `pocketd` is legacy.
 
-For high-availability deployments with Redis-backed leader election and horizontal scaling, see [HA RelayMiner](/node-operators/ha-relayminer).
+See [RelayMiner Setup](/node-operators/relayminer-setup).
 
 ### PATH
 

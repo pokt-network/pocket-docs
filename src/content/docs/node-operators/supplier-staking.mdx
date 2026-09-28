@@ -6,7 +6,7 @@ persona: ["node-operator"]
 tabs: true
 status: "stable"
 sources: ["zip1/06-supplier-staking.md", "zip2/06-supplier-staking.md"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 <Tabs>
@@ -163,7 +163,7 @@ For production deployments, it is strongly recommended to set up automated monit
 
 ## Why the Network Needs Many Independent Suppliers
 
-This is the heart of what makes Pocket Network **unstoppable**.
+This is the heart of what makes Pocket Network **self-healing**: the network routes around servers that go offline.
 
 ### Decentralization Equals Resilience
 
@@ -200,7 +200,7 @@ funds and at least one advertised service endpoint.
 - A running `pocketd` binary (see [pocketd CLI](/pocketd/))
 - A funded Pocket account with enough `upokt` for the desired stake amount
 - At least one service to provide (e.g., `anvil`, `ollama`, an Ethereum RPC)
-- A publicly reachable URL where your RelayMiner will accept relay requests
+- A publicly reachable `https://` URL on a hostname, where your [RelayMiner](/node-operators/relayminer-setup) will accept relay requests through a TLS reverse proxy
 
 ## Owner-Operator Model
 
@@ -213,10 +213,14 @@ In custodial staking, the **owner** and **operator** are the same account. The
 single key stakes funds, signs relay responses, submits claims/proofs, and
 receives rewards. This is the simplest setup.
 
+In every example on this page, `stake_amount` must be at least the supplier
+`min_stake`, currently <GovParam module="supplier" param="min_stake" format="pokt" /> POKT on MainNet. Query it with
+`pocketd query supplier params`.
+
 ```yaml
 owner_address: pokt1exampleowner...
 operator_address: pokt1exampleowner...   # same as owner
-stake_amount: 60000000000upokt
+stake_amount: <amount>upokt                # at least the live supplier min_stake
 ```
 
 ### Non-Custodial Staking
@@ -233,7 +237,7 @@ directly.
 ```yaml
 owner_address: pokt1exampleowner...
 operator_address: pokt1exampleoperator...   # different from owner
-stake_amount: 60000000000upokt
+stake_amount: <amount>upokt                # at least the live supplier min_stake
 ```
 
 When unstaking, the staked `upokt` is always returned to the `owner_address`,
@@ -258,7 +262,7 @@ operator_address: pokt1mrqt5f7qh8uxs27cjm9t7v9e74a9vvdnq5jva4
 
 # Amount of upokt to stake. Covers all services listed below.
 # Required for initial staking and stake updates.
-stake_amount: 60000000000upokt
+stake_amount: <amount>upokt                # at least the live supplier min_stake
 
 # Default revenue share applied to services without their own rev_share_percent.
 # Optional. If omitted, 100% goes to the owner_address.
@@ -271,7 +275,7 @@ default_rev_share_percent:
 services:
   - service_id: anvil
     endpoints:
-      - publicly_exposed_url: http://relayminer1:8545
+      - publicly_exposed_url: https://relay1.example.org
         rpc_type: JSON_RPC
 
   - service_id: ollama
@@ -280,7 +284,7 @@ services:
       pokt1mrqt5f7qh8uxs27cjm9t7v9e74a9vvdnq5jva4: 50
       pokt1eeeksh2tvkh7wzmfrljnhw4wrhs55lcuvmekkw: 50
     endpoints:
-      - publicly_exposed_url: http://relayminer1:8545
+      - publicly_exposed_url: https://relay1.example.org
         rpc_type: REST
 ```
 
@@ -305,8 +309,8 @@ defining the default revenue share for all services that do not specify their ow
 **`services`** (required for initial operator stake) — A list of services the
 Supplier will provide. Each service requires:
 
-- `service_id` — A string identifier, 8 characters or fewer, matching the regex
-  `^[a-zA-Z0-9_-]{1,8}$`.
+- `service_id` — The ID of a registered service: 1 to 42 letters, digits,
+  underscores, and dashes (matching `^[a-zA-Z0-9_-]+$`).
 - `endpoints` — At least one endpoint with:
   - `publicly_exposed_url` — The URL where Gateways and Applications send relay
     requests (must be publicly reachable).
@@ -336,7 +340,7 @@ set the stake amount. Service configurations must be added later by the operator
 ```yaml
 # stake_only_config.yaml
 owner_address: pokt1owneraddress...
-stake_amount: 60000000000upokt
+stake_amount: <amount>upokt                # at least the live supplier min_stake
 ```
 
 ```bash
@@ -366,7 +370,7 @@ Can be signed by either the owner or the operator.
 # upstake_config.yaml
 owner_address: pokt1owneraddress...
 operator_address: pokt1operatoraddress...
-stake_amount: 75000000000upokt
+stake_amount: <higher amount>upokt         # more than the current stake
 ```
 
 ```bash
@@ -391,11 +395,11 @@ operator_address: pokt1operatoraddress...
 services:
   - service_id: anvil
     endpoints:
-      - publicly_exposed_url: http://relayminer1:8545
+      - publicly_exposed_url: https://relay1.example.org
         rpc_type: JSON_RPC
   - service_id: ollama
     endpoints:
-      - publicly_exposed_url: http://relayminer1:8545
+      - publicly_exposed_url: https://relay1.example.org
         rpc_type: REST
 ```
 
@@ -537,7 +541,7 @@ default_rev_share_percent:
 services:
   - service_id: anvil
     endpoints:
-      - publicly_exposed_url: http://relayminer1:8545
+      - publicly_exposed_url: https://relay1.example.org
         rpc_type: JSON_RPC
     # This service splits revenue 60/40
     rev_share_percent:
@@ -546,7 +550,7 @@ services:
 
   - service_id: ollama
     endpoints:
-      - publicly_exposed_url: http://relayminer1:8545
+      - publicly_exposed_url: https://relay1.example.org
         rpc_type: REST
     # This service uses the default (100% to owner)
 ```

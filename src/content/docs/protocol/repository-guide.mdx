@@ -6,7 +6,7 @@ persona: ["core-developer", "community-contributor"]
 tabs: false
 status: "draft"
 sources: ["zip4/master-index"]
-lastUpdated: "2026-04-08"
+lastUpdated: "2026-09-27"
 ---
 
 
@@ -56,11 +56,11 @@ github.com/pokt-network/path
 
 **Language:** Go
 
-**What's inside:** Redis-backed leader election, horizontal scaling across multiple instances, health monitoring. This is a separate codebase from the basic RelayMiner built into poktroll, designed for production Supplier operations at scale.
+**What's inside:** Redis-backed leader election, horizontal scaling across multiple instances, health monitoring. This is a separate codebase from the legacy RelayMiner built into poktroll, and it is the RelayMiner recommended for every Supplier.
 
-**Documentation:** No existing docs — the [HA RelayMiner](/node-operators/ha-relayminer) page in these docs covers setup and operation.
+**Documentation:** The repository's `docs/deploy/` runbooks, and [RelayMiner Setup](/node-operators/relayminer-setup) and [RelayMiner Operations](/node-operators/relayminer-operations) in these docs.
 
-**Start here if:** You're running Supplier infrastructure at scale and need multi-instance relay mining.
+**Start here if:** You're running Supplier infrastructure, at any scale.
 
 ```
 github.com/pokt-network/pocket-relay-miner
@@ -100,7 +100,7 @@ github.com/pokt-network/pocket-network-resources
 
 **Language:** TypeScript
 
-**What's inside:** MCP (Model Context Protocol) server with 37 tools spanning 63 chains across 7 protocol families (EVM, Solana, Cosmos, NEAR, Radix, Sui, Bitcoin). Read-only blockchain queries for balances, transactions, blocks, tokens, staking, and governance. Available as a Claude desktop extension.
+**What's inside:** MCP (Model Context Protocol) server with read-only query tools for six protocol families (EVM, Solana, Cosmos SDK, Sui, Near, and Radix). Read-only blockchain queries for balances, transactions, blocks, tokens, staking, and governance. Available as a Claude desktop extension.
 
 **Start here if:** You want to add chain support, build new query tools, or integrate BlockchainQuery into other platforms.
 

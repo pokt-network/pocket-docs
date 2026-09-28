@@ -6,7 +6,7 @@ persona: ["node-operator"]
 tabs: false
 status: "stable"
 sources: []
-lastUpdated: "2026-04-16"
+lastUpdated: "2026-09-27"
 ---
 
 This guide covers everything you need to become a Pocket Network Provider and start earning POKT by serving blockchain data relays.
@@ -124,113 +124,34 @@ For full configuration options, see the [pocketd CLI](/pocketd/) section.
 
 ### Install and Run the RelayMiner
 
-The RelayMiner receives relays from the network and forwards them to your blockchain backends. It runs alongside the full node on the same server.
+The RelayMiner receives relays from the network, forwards them to your backends, signs the responses, and submits the claims and proofs that get you paid. Use the HA RelayMiner, [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner). The single-process RelayMiner built into `pocketd` is legacy and no longer recommended.
 
-You have two options:
-
-| Option | Repository | Best For | Status |
-|--------|-----------|----------|--------|
-| **HA RelayMiner** | [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner) | Production, all operators | **Recommended — future default** |
-| **Standard RelayMiner** | Built into `pocketd` | Legacy, single-instance only | Deprecated — will be removed |
-
-<Callout type="info">
-The HA RelayMiner is the recommended relay miner going forward. The standard RelayMiner built into `pocketd` is legacy and will be deprecated in the coming months.
-</Callout>
-
----
-
-#### HA RelayMiner (Recommended)
-
-The HA RelayMiner is a production-grade, horizontally scalable relay mining service. It uses Redis for session state, supports multiple transports (JSON-RPC, WebSocket, gRPC), and has automatic failover via leader election.
+It runs as two processes, a **relayer** and a **miner**, sharing one **Redis**. The quickest start is the repository's Docker Compose example, which runs all three pointed at Beta TestNet.
 
 **Prerequisites:**
-- Redis 8.2+ (see below)
-- Docker and Docker Compose
-
-##### Install Redis (Ubuntu 24.04)
-
-Ubuntu 24.04 ships Redis 7.0.x. HA RelayMiner requires **Redis 8.2+** for the `XACKDEL` command. Without it, Redis memory grows unbounded.
-
-**Option A — Docker (recommended):**
+- Docker with Compose v2
+- Redis 8.10 or newer with `maxmemory` set and `maxmemory-policy noeviction` (the compose example provides it)
+- Your operator private key: `pocketd keys export operator-wallet --unarmored-hex --unsafe`
+- A backend node for every service you will stake on
 
 ```bash
-docker pull redis:8.4-alpine
-docker run -d --name redis \
-  -p 127.0.0.1:6379:6379 \
-  redis:8.4-alpine \
-  redis-server --appendonly yes --appendfsync everysec
-```
-
-**Option B — Official apt repository:**
-
-```bash
-curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
-sudo apt-get update
-sudo apt-get install -y redis
-sudo systemctl enable redis
-sudo systemctl start redis
-```
-
-Verify:
-
-```bash
-redis-cli info server | grep redis_version  # Must be 8.2+
-redis-cli ping  # Should return: PONG
-```
-
-**Redis production config** (`/etc/redis/redis.conf`):
-
-```bash
-# Memory: 80% of RAM, no eviction (critical data)
-# maxmemory 8gb
-maxmemory-policy: noeviction
-
-# Multi-threading (+50-72% throughput)
-io-threads: 3
-io-threads-do-reads: "yes"
-
-# Lazy freeing (non-blocking deletes)
-lazyfree-lazy-eviction: "yes"
-lazyfree-lazy-expire: "yes"
-lazyfree-lazy-server-del: "yes"
-
-# Active defragmentation
-activedefrag: "yes"
-active-defrag-threshold-lower: 10
-active-defrag-threshold-upper: 25
-
-hz: 100
-
-# Persistence
-appendonly: "yes"
-appendfsync: "everysec"
-aof-use-rdb-preamble: "yes"
-```
-
-##### Clone and Configure
-
-```bash
-git clone https://github.com/pokt-network/pocket-relay-miner.git
+git clone --branch v0.1.0 https://github.com/pokt-network/pocket-relay-miner.git
 cd pocket-relay-miner
-cp config/config.relayer.yaml.example config/config.relayer.yaml
-cp config/config.miner.yaml.example config/config.miner.yaml
+docker pull ghcr.io/pokt-network/pocket-relay-miner:v0.1.0
 ```
 
-##### Backend Configuration
+Before serving, edit the example in `examples/docker-compose/`:
 
-The HA RelayMiner supports native multi-backend load balancing with circuit breakers, health checks, and automatic failover — no NGINX or HAProxy needed.
-
-Configure your backends in `config/config.relayer.yaml` under the `services` section:
+1. Put your operator key in `config/supplier-keys.local.yaml` and point both keys mounts in `docker-compose.yaml` at it. The shipped key is public and unstaked.
+2. In `config/relayer.yaml`, add one entry under `services` for each service ID you will stake on, with the URL of its backend and an active health check:
 
 ```yaml
 services:
-  # === EVM chain (Ethereum, Arbitrum, Base, Polygon, etc.) ===
-  eth-mainnet:
+  eth:
+    validation_mode: eager
     default_backend: jsonrpc
     backends:
       jsonrpc:
-        load_balancing: round_robin
         urls:
           - "http://eth-node1:8545"
           - name: backup
@@ -238,143 +159,27 @@ services:
         health_check:
           enabled: true
           endpoint: "/"
-          method: POST
-          request_body: '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}'
-          expected_status: [200]
+          method: "POST"
+          request_body: '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
           expected_body: '"result"'
           interval_seconds: 10
-          unhealthy_threshold: 5
-        recovery_timeout_seconds: 30
-        max_retries: 1
-
-  # === Cosmos SDK chain (Osmosis, Akash, Celestia, etc.) ===
-  cosmos:
-    default_backend: cometbft
-    backends:
-      rest:
-        url: "http://your-cosmos-node:1317/"
-      cometbft:
-        url: "http://your-cosmos-node:26657"
-      jsonrpc:
-        url: "http://your-cosmos-node:26657"
-
-  # === Solana ===
-  solana:
-    default_backend: jsonrpc
-    backends:
-      jsonrpc:
-        url: "http://your-solana-node:8899"
-
-  # === AI Inference (Ollama) ===
-  ollama:
-    default_backend: jsonrpc
-    backends:
-      jsonrpc:
-        url: "http://your-ollama-server:11434"
+          timeout_seconds: 5
+          unhealthy_threshold: 3
+          healthy_threshold: 2
 ```
 
-**Features:**
-- Round-robin load balancing across backends
-- Circuit breaker — unhealthy backends auto-removed from rotation
-- Custom health probes per backend pool
-- Auto-recovery after 30s when backends recover
-- Fast-fail — instant 503 when all backends are unhealthy
-- Retry-on-alternate — failed requests retry on a different healthy backend
+3. For MainNet, switch every value marked `Mainnet:` in `config/relayer.yaml` and `config/miner.yaml`, including the miner's `chain_id: pocket` and `block_time_seconds: 60`.
 
-##### Relayer and Miner Config
-
-Edit `config/config.relayer.yaml`:
-
-```yaml
-relayer:
-  listen_address: ":8080"
-  health_address: ":8081"
-  redis:
-    address: "your-redis-host:6379"
-  services:
-    # ... your services from Backend Configuration above
-  supplier_keys:
-    - address: "pokt1your-operator-address"
-      private_key_hex: "your-hex-private-key"
-
-# Compression: 2-50x reduction in Redis memory and network bandwidth
-compression:
-  enabled: true
-  level: "best"
-```
-
-Edit `config/config.miner.yaml`:
-
-```yaml
-miner:
-  redis:
-    address: "your-redis-host:6379"
-  chain:
-    rpc_url: "https://sauron-rpc.infra.pocket.network"
-    grpc_address: "sauron-grpc.infra.pocket.network:443"
-
-# Track claim/proof submissions for debugging
-submission_tracking_ttl: "24h"  # Default: 24h, use 168h for production audit trail
-
-# For 500+ suppliers
-supplier_claiming:
-  claim_ttl_seconds: 120   # 500-1000 suppliers
-  # claim_ttl_seconds: 180 # 1000+ suppliers
-```
-
-Debug submissions:
+Validate both configurations, then start:
 
 ```bash
-pocket-relay-miner redis submissions --supplier pokt1abc...
-pocket-relay-miner redis submissions --supplier pokt1abc... --failed-only
+export C="docker compose -p pocket-supplier -f examples/docker-compose/docker-compose.yaml"
+$C run --rm --no-deps miner miner validate --config /config/miner.yaml
+$C run --rm --no-deps relayer relayer validate --config /config/relayer.yaml --check-stake
+$C up -d
 ```
 
-##### Start
-
-```bash
-docker compose up -d
-```
-
-For full configuration options, see [HA RelayMiner](/node-operators/ha-relayminer).
-
----
-
-#### Standard RelayMiner (Legacy)
-
-The standard RelayMiner is built into `pocketd`. It is single-instance only and will be deprecated.
-
-Verify it's available:
-
-```bash
-pocketd relayminer --help
-```
-
-Configure `~/.pocket/relayminer/config.yaml`:
-
-```yaml
-pocket_node:
-  rpc_url: http://localhost:26657
-  grpc_config:
-    host_port: localhost:9090
-    insecure: true
-
-signing_key: pokt1your-operator-address
-
-services:
-  eth:
-    backend:
-      url: http://your-eth-node:8545
-```
-
-Start:
-
-```bash
-pocketd relayminer start --config ~/.pocket/relayminer/config.yaml
-```
-
-<Callout type="warning">
-The standard RelayMiner is deprecated. Use the HA RelayMiner for any new deployment.
-</Callout>
+Put a TLS reverse proxy in front of the relayer and stake its `https://` hostname as your endpoint. The full walkthrough, every configuration key, and the troubleshooting table are on [RelayMiner Setup](/node-operators/relayminer-setup).
 
 ---
 
@@ -534,11 +339,14 @@ You should see `status: "active"` and your registered services.
 
 ## 5. Verify Relays and Rewards
 
-### Check RelayMiner Is Serving
+### Check the RelayMiner Is Serving
 
 ```bash
-pocketd relayminer status
+$C exec relayer curl -s http://localhost:8081/ready/eth       # each backend's health for one service
+$C exec miner pocket-relay-miner redis --config /config/miner.yaml submissions --supplier pokt1your-operator-address
 ```
+
+The second command lists every claimed session with its claim and proof status.
 
 Monitor your Supplier:
 
@@ -564,9 +372,7 @@ What to monitor:
 
 ### Key Metric
 
-```
-Expired Proofs = 0 ✓
-```
+Every required proof should land on-chain: `ha_miner_proof_inclusion_outcome_total{outcome="on_chain_found"}` should match the settled claims that required a proof. See [Monitoring](/node-operators/monitoring).
 
 For full reward mechanics, see [Supplier Rewards & Economics](/node-operators/rewards-economics).
 
@@ -587,13 +393,15 @@ For full reward mechanics, see [Supplier Rewards & Economics](/node-operators/re
 | `near` | Near |
 | `ollama` | AI inference |
 
+Many services are not blockchains at all. Browse every service and its card at [explorer.pocket.network/services](https://explorer.pocket.network/services), and see [Services](/services/) for what each card tells a supplier to run.
+
 ---
 
 ## Next Steps
 
 - [Supplier Staking](/node-operators/supplier-staking) — Owner-operator model, revenue sharing, unstake
 - [RelayMiner Setup](/node-operators/relayminer-setup) — Full configuration reference
-- [HA RelayMiner](/node-operators/ha-relayminer) — Production-grade scaling with Redis
+- [RelayMiner Operations](/node-operators/relayminer-operations) — Scaling, sizing, and metrics
 - [Hardware Requirements](/node-operators/hardware-requirements) — Infrastructure specs
 - [Service Management](/services/management) — Add or remove services
 - [F-Chains](/node-operators/f-chains) — PNF subsidized chains program

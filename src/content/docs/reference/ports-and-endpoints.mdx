@@ -1,12 +1,12 @@
 ---
 title: "Ports & Endpoints"
-description: "Consolidated port reference for all Pocket Network services — poktroll, PATH, RelayMiner, and HA RelayMiner."
+description: "Consolidated port reference for all Pocket Network services — poktroll, the RelayMiner, and PATH."
 section: "reference"
 persona: ["node-operator", "gateway-operator"]
 tabs: false
 status: "draft"
 sources: ["zip4/poktroll/CLAUDE.md", "zip4/path/CLAUDE.md", "zip4/pocket-relay-miner/CLAUDE.md"]
-lastUpdated: "2026-04-08"
+lastUpdated: "2026-09-27"
 ---
 
 
@@ -27,29 +27,21 @@ All ports listed are defaults and can be overridden in each service's configurat
 | 1317 | TCP | REST (LCD) | RESTful API, auto-generated from proto definitions |
 | 6060 | TCP | pprof | Go profiling endpoint (debug only) |
 
-## RelayMiner (Standard)
+## RelayMiner (pocket-relay-miner)
 
-| Port | Protocol | Service | Description |
+| Port | Protocol | Process | Description |
 |------|----------|---------|-------------|
-| 80 | TCP | HTTP relay | Primary relay endpoint — receives requests from gateways |
-
-The standard RelayMiner ships as part of `pocketd` and exposes a minimal surface area. It connects to a full node for on-chain operations.
-
-## HA RelayMiner (pocket-relay-miner)
-
-| Port | Protocol | Service | Description |
-|------|----------|---------|-------------|
-| 8080 | TCP | HTTP relay | Primary relay endpoint |
-| 8081 | TCP | Health check | Liveness and readiness probes |
-| 9090 | TCP | Prometheus | Standard application metrics |
-| 9092 | TCP | Miner metrics | Relay-mining-specific metrics |
-| 6060 | TCP | pprof | Go profiling endpoint (debug only) |
+| 8080 | TCP | Relayer | Relay endpoint (`listen_addr`) — receives requests from gateways through your TLS proxy |
+| 8081 | TCP | Relayer | `/health`, `/ready`, and `/ready/<service-id>` |
+| 9090 | TCP | Relayer | Prometheus metrics |
+| 9092 | TCP | Miner | Prometheus metrics and `/health` |
+| 6060 | TCP | Relayer, miner | pprof, bound to `127.0.0.1` by default (never expose) |
 
 Internal dependency:
 
 | Port | Protocol | Service | Description |
 |------|----------|---------|-------------|
-| 6379 | TCP | Redis | Leader election and coordination (never expose publicly) |
+| 6379 | TCP | Redis | Every served relay, claim tree, and leader lock (never expose publicly) |
 
 ## PATH Gateway
 
@@ -79,8 +71,8 @@ When deploying PATH via Helm, three components run independently:
 
 When running multiple services on the same machine (e.g., full node + RelayMiner + PATH for development), watch for conflicts on:
 
-- **Port 9090** — used by both gRPC (poktroll) and Prometheus (PATH, HA RelayMiner). Remap one of them.
-- **Port 6060** — pprof on both poktroll and HA RelayMiner. Only enable on the service you're profiling.
+- **Port 9090** — used by both gRPC (poktroll) and Prometheus (PATH, the RelayMiner's relayer). Remap one of them.
+- **Port 6060** — pprof on poktroll and on both RelayMiner processes. Only enable it on the service you're profiling, and give the relayer and miner different ports if both run on one host.
 
 ## Monitoring Endpoints Summary
 
@@ -91,8 +83,8 @@ All Prometheus metrics endpoints across services:
 | CometBFT | `http://localhost:26660/metrics` | Consensus metrics |
 | poktroll gRPC | N/A (use Cosmos telemetry) | Application metrics |
 | PATH | `http://localhost:9090/metrics` | Gateway and QoS metrics |
-| HA RelayMiner | `http://localhost:9090/metrics` | Standard metrics |
-| HA RelayMiner | `http://localhost:9092/metrics` | Mining-specific metrics |
+| RelayMiner (relayer) | `http://localhost:9090/metrics` | Relay metrics |
+| RelayMiner (miner) | `http://localhost:9092/metrics` | Claim and proof metrics |
 
 <Callout type="tip">
 For a unified monitoring dashboard, point Prometheus at all metrics endpoints and use the [Monitoring](/node-operators/monitoring) guide for Grafana dashboard configuration.
@@ -101,7 +93,7 @@ For a unified monitoring dashboard, point Prometheus at all metrics endpoints an
 ## Related Pages
 
 - [Security](/reference/security) — firewall rules and which ports to expose
-- [RelayMiner Setup](/node-operators/relayminer-setup) — standard RelayMiner configuration
-- [HA RelayMiner](/node-operators/ha-relayminer) — high-availability RelayMiner
+- [RelayMiner Setup](/node-operators/relayminer-setup) — deploy and configure the RelayMiner
+- [RelayMiner Operations](/node-operators/relayminer-operations) — scaling, sizing, and metrics
 - [PATH Configuration](/path/configuration) — PATH YAML config reference
 - [Monitoring](/node-operators/monitoring) — Prometheus and Grafana setup

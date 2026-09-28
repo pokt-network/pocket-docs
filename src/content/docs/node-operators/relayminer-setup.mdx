@@ -1,12 +1,12 @@
 ---
 title: "RelayMiner Setup"
-description: "Configure and run the RelayMiner sidecar to serve relays as a Pocket Network Supplier."
+description: "Deploy the HA RelayMiner (pocket-relay-miner) in front of your backends: keys, Redis, relayer and miner configuration, validation, startup, and your first claims."
 section: "node-operators"
 persona: ["node-operator"]
 tabs: true
 status: "stable"
-sources: ["zip1/07-relayminer-setup.md", "zip2/07-relayminer-setup.md"]
-lastUpdated: "2026-04-07"
+sources: ["github.com/pokt-network/pocket-relay-miner v0.1.0: README.md, docs/deploy/, config.relayer.example.yaml, config.miner.example.yaml, docs/SUPPLIER_KEYS.md"]
+lastUpdated: "2026-09-27"
 ---
 
 <Tabs>
@@ -14,644 +14,372 @@ lastUpdated: "2026-04-07"
 
 ## What Is a RelayMiner?
 
-A RelayMiner is the software that a supplier runs to actually serve data on the Pocket Network. Think of it this way: if a supplier is a licensed taxi driver registered with the city, the RelayMiner is the actual car they drive to pick up passengers. Being registered (staked) on the network is necessary, but without a running RelayMiner, a supplier has no way to fulfill data requests.
+A **RelayMiner** is the software a Supplier runs to actually do the work. It sits between the network and your backends: gateways send it signed requests, it checks that each one is legitimate and paid for, passes it to your backend, signs the answer, and afterwards proves to the chain what it served so you get paid.
 
-The RelayMiner is not recorded on the blockchain itself. It is a companion process — a piece of software that runs alongside the supplier's on-chain registration and does the real work of handling traffic.
+The Supplier is your on-chain registration; the RelayMiner is the running process that earns against it. You need both.
 
-Every supplier on the Pocket Network must run at least one RelayMiner. No RelayMiner means no relays served, no rewards earned, and no contribution to the network's permissionless infrastructure.
+The RelayMiner to run is the **HA RelayMiner**, [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner). It serves every kind of service on the network: blockchain JSON-RPC, WebSocket, gRPC, CometBFT, REST APIs, and streaming responses from LLMs and other long-running services. It runs on a single machine for a first deployment and scales to several machines without changing your stake.
 
-## Prerequisites
+<Callout type="deprecated">
+  The single-process RelayMiner built into `pocketd` (`pocketd relayminer`) is legacy and is no longer recommended. It struggles with REST services, keeps its state on local disk, and cannot fail over. Move existing deployments to the HA RelayMiner; the supplier stake does not change.
+</Callout>
 
-Before running a RelayMiner, a participant needs:
+## How It Works
 
-- An active supplier stake on the Pocket Network (see the Supplier Staking documentation)
-- A connection to a Pocket full node, which keeps the RelayMiner in sync with the blockchain
-- A running backend service — the actual blockchain node or API that the RelayMiner forwards requests to
+One deployment is one program run as two processes, sharing one Redis database:
 
-## Architecture Overview
+- **The relayer** answers requests. For each one it checks the signature and the session, confirms the application can still pay, forwards the request to your backend, signs the response, and records the relay. It keeps nothing of its own, so you can run several side by side.
+- **The miner** turns what the relayers recorded into money. After each session it builds a claim, submits it, and later submits the proof the chain asks for, each inside its on-chain window. You can run a second miner as a standby that takes over if the first stops.
+- **Redis** holds every served relay until it has been claimed and proved. It is the ledger, not a cache: anything Redis loses is a claim that cannot be proved.
 
-The RelayMiner acts as a bridge between the Pocket Network and the backend data sources that suppliers operate. Here is how a data request flows through the system:
+## What It Takes
 
-1. An application or gateway on the Pocket Network sends a relay request — a request for blockchain data such as an Ethereum account balance or a Polygon transaction.
-2. The RelayMiner receives that request.
-3. The RelayMiner forwards the request to the supplier's own backend service — for example, the supplier's Ethereum node.
-4. The backend service returns the data.
-5. The RelayMiner sends the response back to the requester through the Pocket Network.
+- **A staked Supplier** and its operator key. See [Supplier Staking](/node-operators/supplier-staking).
+- **A backend for every service you are staked for**, such as your own Ethereum node or your own API server.
+- **A Linux machine with Docker**, or systemd if you prefer running binaries. A few CPU cores and around 10 GB of free memory is enough to start.
+- **Redis 8.10 or newer**, configured so it never throws data away.
+- **A Pocket full node**, your own or a public endpoint, for reading the chain and submitting claims and proofs.
+- **A public HTTPS address** on a hostname, pointing at your relayer through a reverse proxy.
+- **A few POKT in the operator wallet** at all times. Every claim and proof is a transaction with a fee; a miner that cannot pay the fee loses that session's earnings.
 
-This architecture is what makes Pocket Network censorship-resistant. There is no single point of failure. Thousands of independent suppliers, each running their own RelayMiners pointed at their own backend nodes, collectively provide an unstoppable layer of data access. If one supplier goes offline, the network automatically routes requests to others.
+## The Steps
 
-The RelayMiner has four core responsibilities:
+1. Get the image or binary.
+2. Start Redis with the right memory settings.
+3. Give the RelayMiner your supplier key.
+4. Write the relayer configuration: one entry per service, pointing at its backend.
+5. Write the miner configuration.
+6. Validate both configurations.
+7. Start the miner, then the relayer, and check that the relayer reports ready.
+8. Put a TLS reverse proxy in front and make sure your staked URL points at it.
+9. Watch the first claims and proofs land.
 
-- **Relay proxying** — Receiving data requests, validating them, and forwarding them to the correct backend service.
-- **Claim creation** — After serving a batch of relays, the RelayMiner records a summary of the work performed and submits it to the blockchain as a claim.
-- **Proof submission** — When the network requires cryptographic proof that the work was actually done, the RelayMiner generates and submits that proof.
-- **Session management** — The Pocket Network organizes work into time-bounded sessions. The RelayMiner tracks which sessions are active and manages relay volume accordingly.
+The Advanced tab walks through each one. The repository's own [deployment runbooks](https://github.com/pokt-network/pocket-relay-miner/tree/main/docs/deploy) cover the same ground with the expected output of every command.
 
-One important detail: the public address that the supplier registers on-chain must point to the RelayMiner's listening address. If these do not match, data requests will not reach the RelayMiner, and the supplier will not be able to serve traffic.
+## Running More Than One
 
-## Configuration File
-
-The RelayMiner is set up through a configuration file that tells it how to operate. The configuration covers two main areas:
-
-- **Global settings** — How the RelayMiner connects to the Pocket Network, where it stores its working data, and general operational preferences.
-- **Per-service settings** — For each blockchain or API the supplier is serving, the configuration specifies where the RelayMiner should listen for incoming requests and where it should forward them.
-
-For example, a supplier serving both Ethereum and an AI model would have two service entries in their configuration: one that routes Ethereum requests to their Ethereum node, and another that routes AI requests to their AI model server.
-
-For the exact configuration format and all available options, refer to the technical documentation.
-
-## Configuration Reference
-
-### Global Options
-
-The global options control the RelayMiner's overall behavior:
-
-- **Signing keys** — Which cryptographic keys the RelayMiner uses to prove its identity (explained in more detail below).
-- **Data storage path** — Where the RelayMiner saves its working data locally. This is critical for ensuring that claims and proofs are not lost if the software restarts.
-- **Data persistence** — By default, the RelayMiner saves its state so that no work is lost during a restart. This should always remain enabled in production.
-- **Request validation mode** — The RelayMiner can either validate every request before serving it (stricter, but slightly slower) or serve requests optimistically and validate afterward (faster, better for high-throughput scenarios). The default is the faster approach.
-- **Over-servicing** — Suppliers can optionally choose to serve more requests than an application has paid for. The supplier will not be compensated for the extra work, but some choose to do this to build reputation or provide better quality of service.
-- **Health monitoring** — Built-in tools that let the supplier check whether all their backend services are reachable and performing well.
-
-### Pocket Node Connectivity
-
-The RelayMiner needs a live connection to a Pocket full node to stay in sync with the blockchain. This connection is used for:
-
-- Subscribing to network events, such as new blocks and staking updates
-- Querying the current state of sessions, accounts, and services
-- Broadcasting transactions like claims and proofs to the blockchain
-
-### Supplier (Service) Entries
-
-Each service the supplier offers gets its own entry in the configuration. Each entry specifies:
-
-- **Service identifier** — Which service this entry is for (must match the supplier's on-chain registration).
-- **Listening address** — Where the RelayMiner listens for incoming relay requests for this service.
-- **Backend address** — Where the actual blockchain node or API is running, so the RelayMiner knows where to forward requests.
-- **Authentication** — Optional credentials if the backend service requires them.
-- **Request size limits** — Controls on how large individual requests and responses can be.
-
-### RPC-Type-Specific Backend Configs
-
-Some blockchain services expose multiple communication protocols — for instance, a single Ethereum-compatible chain might offer JSON-RPC, REST, and WebSocket interfaces. The RelayMiner can be configured to route different types of requests to different backend endpoints, ensuring each protocol type reaches the correct server.
-
-This flexibility means a single supplier can offer comprehensive access to a blockchain through one service registration, while internally routing each protocol type to the most appropriate backend.
-
-## Running the RelayMiner
-
-Once configured, the RelayMiner is started as a long-running process. It connects to the Pocket full node, begins listening for relay requests, and starts serving traffic.
-
-Before starting, the supplier's cryptographic key must be available on the machine. This is how the RelayMiner proves to the network that it is authorized to act on behalf of the registered supplier.
-
-For the exact startup commands and key management procedures, refer to the technical documentation.
-
-## Signing Key Configuration
-
-Signing keys are how a RelayMiner proves its identity on the network. Every relay response the RelayMiner sends, and every claim and proof it submits, is cryptographically signed. This is similar to a digital signature on a document — it proves that a specific, authorized supplier produced the response, and that nobody tampered with it along the way.
-
-There are two levels of key configuration:
-
-1. **Default keys** — Applied across all services the RelayMiner handles, unless overridden.
-2. **Per-service keys** — A specific service can use different keys, which is useful for suppliers who operate different services under different identities.
-
-An important feature for resilience: multiple RelayMiner instances can share the same signing keys. This means a supplier can run RelayMiners in multiple geographic regions — for example, one in North America, one in Europe, and one in Asia — all operating under the same identity. If one region goes down, the others continue serving traffic. This geographic redundancy is part of what makes the network self-healing.
-
-## Full Node Configuration for RelayMiners
-
-The Pocket full node that a RelayMiner connects to needs to be configured to handle the RelayMiner's communication needs. Specifically, the full node must allow enough simultaneous connections and event subscriptions to support the RelayMiner's operations.
-
-For small setups with a single RelayMiner and a few services, the default settings are often sufficient. Larger operations — such as a supplier running multiple RelayMiners across many services — need higher connection limits on the full node.
-
-If these limits are set too low, the RelayMiner may experience disconnections or miss important network events, which can lead to lost claims or failed proof submissions.
-
-For specific sizing guidelines and configuration values, refer to the technical documentation.
-
-## Testing Your Setup
-
-After configuring and starting a RelayMiner, there are several ways to verify everything is working:
-
-1. **Confirm the supplier is staked** — Check on-chain that the supplier's registration shows the correct services and public addresses.
-2. **Review the RelayMiner logs** — The software outputs log messages indicating whether it has successfully connected to the full node and started listening for requests.
-3. **Use the health check** — If enabled, the RelayMiner's built-in health check reports whether all backend services are reachable.
-4. **Check the operator's token balance** — Proof submissions require small fees (explained below), so the operator account must have sufficient funds.
-5. **Monitor performance metrics** — The RelayMiner can export operational metrics for monitoring tools, allowing suppliers to track relay volume, response times, and other indicators.
-
-## Payable Proof Submissions
-
-Submitting proofs to the blockchain costs a small fee, known as the `proof_submission_fee`. This fee is a governance parameter, meaning the Pocket Network community can vote to adjust it over time.
-
-The fee exists for two important reasons:
-
-- **Spam prevention** — Without a cost, bad actors could flood the network with fake proof submissions, wasting block space and slowing down the chain.
-- **Sybil resistance** — The fee makes it economically impractical to create large numbers of fake identities to game the reward system.
-
-Proofs are the single most block-space-consuming operation on the Pocket Network, which is why this fee is necessary to keep the system efficient.
-
-If a supplier submits a claim but fails to submit the corresponding proof — whether due to insufficient funds, a software crash, or any other reason — the supplier may be penalized (slashed). This means a portion of their staked tokens could be deducted. For this reason, suppliers running in production should set up automated monitoring to ensure their operator accounts always have enough tokens to cover proof submission fees.
-
-## Troubleshooting
-
-Common issues and their causes:
-
-- **Cannot connect to the full node** — The Pocket full node may not be running, or the connection settings may be incorrect. For larger deployments, the full node's connection limits may need to be increased.
-- **Relay requests are not arriving** — The service identifiers in the RelayMiner configuration must exactly match the supplier's on-chain registration, and the public address registered on-chain must point to the RelayMiner's actual listening address.
-- **Claims or proofs are being lost** — The RelayMiner's data persistence must be enabled and the storage location must have adequate disk space. Without persistence, any restart will lose unsubmitted claims and proofs.
-- **Operator balance is too low** — Proof submissions require fees. The operator account must be funded, and balance monitoring should be in place to avoid missed proof submissions and potential slashing.
+As traffic grows, add relayers behind a load balancer and a standby miner, all pointing at the same Redis. Scaling, sizing, monitoring, and upgrades are covered in [RelayMiner Operations](/node-operators/relayminer-operations).
 
 </Tab>
 <Tab label="Advanced">
 
-The RelayMiner is an off-chain process that runs alongside a staked
-[Supplier](/node-operators/supplier-staking). It receives relay requests from Gateways
-and Applications, forwards them to the actual backend service (the data node),
-and handles claim creation and proof submission on behalf of the Supplier.
-
-Every Supplier must run at least one RelayMiner to serve traffic on Pocket
-Network. The RelayMiner is not an on-chain actor — it is a sidecar process
-that bridges the Pocket protocol with the services being provided.
+This tab deploys the HA RelayMiner, [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner), for a staked Supplier. The examples use release `v0.1.0`; check the [releases page](https://github.com/pokt-network/pocket-relay-miner/releases) for the current version and read its notes before deploying.
 
 ## Prerequisites
 
-- A staked Supplier (see [Supplier Staking](/node-operators/supplier-staking))
-- A `pocketd` binary with the operator's key imported into the keyring
-- Access to a Pocket full node (CometBFT RPC + Cosmos gRPC endpoints)
-- The backend service (data node) running and reachable from the RelayMiner
+| You need | For |
+| --- | --- |
+| A staked Supplier and its **operator** private key | Signing responses, claims, and proofs. See [Supplier Staking](/node-operators/supplier-staking). |
+| A backend for every service the Supplier is staked for, each with a health endpoint the relayer can probe | Answering relays |
+| Redis 8.10 or newer, with `maxmemory` set and `maxmemory-policy noeviction` | Shared state. Both processes refuse to start otherwise. |
+| A Pocket full node: CometBFT RPC and gRPC | Chain queries, and submitting claims and proofs |
+| A funded operator account | Claim and proof transaction fees |
+| Docker with Compose v2, or a Linux host with systemd and cgroup v2 | Running the processes |
 
-## Architecture Overview
+The miner's `block_time_seconds` and `chain_id` must match the network:
 
-The RelayMiner sits between the Pocket Network and your backend service:
+| Network | `chain_id` | `block_time_seconds` | Public endpoints |
+| --- | --- | --- | --- |
+| Beta TestNet | `pocket-lego-testnet` | `30` | `https://sauron-rpc.beta.infra.pocket.network`, `sauron-grpc.beta.infra.pocket.network:443` |
+| MainNet | `pocket` | `60` | `https://sauron-rpc.infra.pocket.network`, `sauron-grpc.infra.pocket.network:443` |
 
+Start on Beta TestNet.
+
+## Invariants
+
+Each of these stops a deployment if it is broken:
+
+1. **The relayer and the miner run the same version.** Mixed versions are not supported.
+2. **Redis 8.10+, `maxmemory` set, `noeviction`.** Checked at process start, not by `validate`.
+3. **`GOMEMLIMIT` and `GOMAXPROCS` set**, or container or systemd memory and CPU limits. Without them each process sizes its pools against the whole host.
+4. **The miner has `block_time_seconds` and the right `pocket_node.chain_id`**, and the node is reachable. Otherwise it exits.
+5. **The miner runs before relays are expected.** The relayer's `/ready` answers 503 until the miner has published its service manifest to Redis.
+6. **`validate` exits 0** on the exact configuration files you start.
+
+## 1. Get the Image or Binary
+
+Docker:
+
+```bash
+docker pull ghcr.io/pokt-network/pocket-relay-miner:v0.1.0
 ```
-Gateway/Application
-        |
-        v
-  RelayMiner (listen_url)
-        |
-        v
-  Backend Service (backend_url)
+
+Or the binary, for a host deployment (`arm64` instead of `amd64` on ARM):
+
+```bash
+curl -sLO https://github.com/pokt-network/pocket-relay-miner/releases/download/v0.1.0/pocket-relay-miner_v0.1.0_linux_amd64.tar.gz
+curl -sLO https://github.com/pokt-network/pocket-relay-miner/releases/download/v0.1.0/checksums.txt
+sha256sum --ignore-missing -c checksums.txt
+tar -xzf pocket-relay-miner_v0.1.0_linux_amd64.tar.gz
+sudo install pocket-relay-miner /usr/local/bin/
 ```
 
-Key responsibilities:
+Clone the repository at the same tag for its example configurations, systemd units, and `config.redis.example.conf`:
 
-- **Relay proxying** — Receives signed relay requests, validates them, and
-  forwards to the configured backend service.
-- **Claim creation** — Builds Sparse Merkle Trees (SMTs) from served relays and
-  submits claims on-chain.
-- **Proof submission** — Generates and submits cryptographic proofs for claims
-  when required.
-- **Session management** — Tracks active sessions and manages relay volume.
+```bash
+git clone --branch v0.1.0 https://github.com/pokt-network/pocket-relay-miner.git
+```
 
-The on-chain Supplier's `publicly_exposed_url` (from the staking config) must
-point to the RelayMiner's `listen_url`. If these do not match, relay requests
-will not be routed correctly.
+## 2. Start Redis
 
-## Configuration File
+Load `config.redis.example.conf` from the repository and set `maxmemory` for your host, leaving headroom below the memory Redis may use. Run Redis on its own; it holds every claim tree and must not be shared with other applications. Never expose it beyond `127.0.0.1` or a private network.
 
-The RelayMiner is configured with a YAML file passed via the `--config` flag.
-The configuration has global options and per-supplier (per-service) sections.
+```bash
+docker run -d --name relay-miner-redis --restart unless-stopped \
+  -p 127.0.0.1:6379:6379 \
+  -v "$PWD/pocket-relay-miner/config.redis.example.conf:/usr/local/etc/redis/redis.conf:ro" \
+  -v relay-miner-redis-data:/data \
+  redis:8.10.1-alpine redis-server /usr/local/etc/redis/redis.conf --maxmemory 4gb
+```
 
-### Minimal Configuration
+Verify:
+
+```bash
+docker exec relay-miner-redis redis-cli --raw INFO server | grep redis_version    # 8.10 or newer
+docker exec relay-miner-redis redis-cli --raw CONFIG GET maxmemory-policy         # noeviction
+```
+
+Distribution packages often ship an older Redis. Use the Redis project's packages or the official image.
+
+## 3. Supplier Keys
+
+Both processes sign with the Supplier's operator key. Configure exactly one key source; setting both is a startup error.
+
+**A keys file**, the simplest start:
 
 ```yaml
-default_signing_key_names: [supplier1]
+# supplier-keys.yaml, mode 0600, readable only by the RelayMiner's user
+keys:
+  - "<operator private key, 64 hex characters>"
+```
 
-smt_store_path: /home/user/.pocket/smt
+Export the key from the keyring it was created in:
+
+```bash
+pocketd keys export <operator-key-name> --unarmored-hex --unsafe --keyring-backend file
+```
+
+**A `pocketd` keyring**, recommended for production. Only the `file` and `test` backends are accepted:
+
+```yaml
+keys:
+  keyring:
+    backend: "file"
+    dir: "/keys/keyring"                    # the directory that CONTAINS keyring-file
+    app_name: "pocket"
+    passphrase_file: "/secrets/keyring-passphrase"
+    key_names: ["operator"]                 # optional; empty loads every key
+```
+
+Keys reload while the processes run (`keys.hot_reload_enabled`, on by default), so adding a Supplier does not need a restart. One relayer and miner pair can sign for many Suppliers: list every operator key.
+
+## 4. Relayer Configuration
+
+The relayer reads its configuration once, at startup. Every key, its default, and why to change it is in [config.relayer.example.yaml](https://github.com/pokt-network/pocket-relay-miner/blob/main/config.relayer.example.yaml).
+
+```yaml
+# relayer.yaml
+listen_addr: "0.0.0.0:8080"                  # relay traffic; the reverse proxy forwards here
+
+redis:
+  url: "redis://127.0.0.1:6379"
 
 pocket_node:
-  query_node_rpc_url: tcp://localhost:26657
-  query_node_grpc_url: tcp://localhost:9090
-  tx_node_rpc_url: tcp://localhost:26657
+  query_node_rpc_url: "https://sauron-rpc.beta.infra.pocket.network"
+  query_node_grpc_url: "sauron-grpc.beta.infra.pocket.network:443"
+  grpc_insecure: false                       # true only for a plain-text gRPC node
 
-suppliers:
-  - service_id: anvil
-    listen_url: http://0.0.0.0:8545
-    service_config:
-      backend_url: http://localhost:8545
-```
+keys:
+  keys_file: "/etc/pocket-relay-miner/supplier-keys.yaml"
 
-### Full Configuration Example
-
-```yaml
-# Signing keys — must match operator addresses of staked Suppliers.
-# These keys must exist in the keyring used to start the RelayMiner.
-default_signing_key_names: [supplier1]
-
-# Path to Sparse Merkle Tree persistent storage.
-# Required. Must be a valid filesystem path.
-smt_store_path: /home/user/.pocket/smt
-
-# Disable SMT Write-Ahead Log and recovery.
-# Default: false. Only set to true for development/testing.
-# WARNING: When true, claims and proofs are lost on restart.
-disable_smt_persistence: false
-
-# Eager validation of relay requests against session state.
-# Default: false (lazy mode — serve first, validate later for unknown sessions).
-enable_eager_relay_request_validation: false
-
-# Allow serving relays beyond what the Application's stake can cover.
-# Default: false (strict rate limiting).
-enable_over_servicing: false
-
-# Prometheus metrics exporter.
-metrics:
-  enabled: true
-  addr: :9090
-
-# Go pprof profiling endpoint.
-pprof:
-  enabled: false
-  addr: localhost:6060
-
-# Health check endpoint — returns 204 if all backend URLs are reachable.
-ping:
-  enabled: false
-  addr: localhost:8081
-
-# Pocket full node connection settings.
-pocket_node:
-  query_node_rpc_url: tcp://localhost:26657
-  query_node_grpc_url: tcp://localhost:9090
-  tx_node_rpc_url: tcp://localhost:26657
-
-# Per-service proxy configurations.
-suppliers:
-  - service_id: anvil
-    listen_url: http://0.0.0.0:8545
-    service_config:
-      backend_url: http://anvil-node:8545
-      authentication:
-        username: user
-        password: pwd
-      headers: {}
-      forward_pocket_headers: true
-
-  - service_id: ollama
-    listen_url: http://0.0.0.0:80
-    service_config:
-      backend_url: http://localhost:11434
-      forward_pocket_headers: false
-```
-
-## Configuration Reference
-
-### Global Options
-
-**`default_signing_key_names`** (required unless overridden per supplier) --
-A list of key names from the keyring. Each name must correspond to the operator
-address of a staked Supplier. The RelayMiner uses these keys to sign relay
-responses and submit claims/proofs.
-
-**`smt_store_path`** (required) — Filesystem path where the Sparse Merkle Tree
-data is persisted using BadgerDB. Use an absolute path for production.
-
-> **New in v0.1.31:** The previously supported `:memory:` value is deprecated.
-> Existing configurations using `:memory:` or `:memory_pebble:` will
-> automatically fall back to `$HOME/.pocket/smt`. Update your configuration to
-> use an explicit path.
-
-**`disable_smt_persistence`** (optional, default: `false`) — When `true`,
-disables SMT Write-Ahead Log and recovery. All relay processing state is lost on
-restart, which means claims and proofs may be lost if the RelayMiner restarts
-before submission. Only use this in development or testing.
-
-**`enable_eager_relay_request_validation`** (optional, default: `false`) --
-Controls when relay requests are validated. In eager mode (`true`), every
-request is validated against the session state before forwarding. In lazy mode
-(`false`, the default), unknown sessions are served optimistically and validated
-after the session data is retrieved.
-
-| Mode  | Behavior                                          | Best For                          |
-|-------|---------------------------------------------------|-----------------------------------|
-| Eager | Validate first, serve later                       | Constrained backends, strict rate limiting |
-| Lazy  | Serve first for unknown sessions, validate later  | Best cold-start latency and throughput     |
-
-**`enable_over_servicing`** (optional, default: `false`) — When `true`, the
-Supplier serves relays beyond what the Application's stake can cover in a
-session. The Supplier will not be compensated on-chain for the extra relays but
-may do this to build goodwill or improve off-chain QoS ratings.
-
-**`metrics`** (optional) — Prometheus metrics exporter.
-
-```yaml
-metrics:
-  enabled: true
-  addr: :9090
-```
-
-**`pprof`** (optional) — Go pprof endpoint for performance profiling.
-
-```yaml
-pprof:
-  enabled: true
-  addr: localhost:6060
-```
-
-**`ping`** (optional) — Health check server that tests connectivity to all
-configured `backend_url`s. Returns HTTP 204 if all backends are reachable.
-
-```yaml
-ping:
-  enabled: true
-  addr: localhost:8081
-```
-
-### Pocket Node Connectivity
-
-```yaml
-pocket_node:
-  query_node_rpc_url: tcp://localhost:26657
-  query_node_grpc_url: tcp://localhost:9090
-  tx_node_rpc_url: tcp://localhost:26657
-```
-
-**`query_node_rpc_url`** (required) — CometBFT JSON-RPC URL. Used for
-WebSocket event subscriptions (blocks, staking events). If omitted, falls back
-to `tx_node_rpc_url`.
-
-**`query_node_grpc_url`** (optional) — Cosmos gRPC URL for querying sessions,
-accounts, and other on-chain state.
-
-**`tx_node_rpc_url`** (required) — CometBFT RPC URL for broadcasting
-transactions (claims, proofs).
-
-### Supplier (Service) Entries
-
-Each entry in the `suppliers` list configures one service that the RelayMiner
-proxies.
-
-**`service_id`** (required, unique) — Must match the `service_id` in the
-Supplier's on-chain staking configuration.
-
-**`signing_key_names`** (optional) — Per-service override for signing keys. If
-not specified, uses `default_signing_key_names`.
-
-**`listen_url`** (required) — The address and port on which the RelayMiner
-listens for incoming relay requests. The scheme determines the server type
-(e.g., `http://`). Multiple suppliers can share a single `listen_url`.
-
-**`request_timeout_seconds`** (optional) — Per-service timeout for relay
-requests. Overrides the global `default_request_timeout_seconds`.
-
-**`max_body_size`** (optional) — Maximum payload size for requests and
-responses. Supports unit suffixes: `B`, `KB`, `MB`, `GB`, `TB`. Default: `20MB`.
-
-**`service_config`** (required) — Default backend configuration:
-
-- `backend_url` (required) — URL of the data node / service node that the
-  RelayMiner proxies requests to.
-- `authentication` (optional) — HTTP Basic Auth credentials:
-  ```yaml
-  authentication:
-    username: user
-    password: pwd
-  ```
-- `headers` (optional) — Static headers added to every request forwarded to
-  the backend (e.g., `Authorization: Bearer <token>`).
-- `forward_pocket_headers` (optional) — When `true`, the following headers are
-  added to backend requests:
-
-| Header                      | Description                              |
-|-----------------------------|------------------------------------------|
-| `Pocket-Supplier`           | Operator address of the Supplier         |
-| `Pocket-Service`            | On-chain Service ID                      |
-| `Pocket-Session-Id`         | Current session identifier               |
-| `Pocket-Application`        | Address of the requesting Application    |
-| `Pocket-Session-Start-Height` | Block height when the session started  |
-| `Pocket-Session-End-Height` | Block height when the session ends       |
-
-### RPC-Type-Specific Backend Configs
-
-For services that expose multiple protocol endpoints (e.g., JSON-RPC, REST,
-CometBFT, WebSocket), use `rpc_type_service_configs` to route requests to
-different backends based on the `Rpc-Type` header in the relay request.
-
-If no matching RPC type is found, the default `service_config` is used as
-fallback.
-
-```yaml
-suppliers:
-  - service_id: xrplevm
-    listen_url: http://0.0.0.0:8545
-
-    # Fallback for requests without an Rpc-Type header
-    service_config:
-      backend_url: http://xrplevm-node:8545
-      forward_pocket_headers: true
-
-    rpc_type_service_configs:
-      json_rpc:
-        backend_url: http://xrplevm-node:8545
-        headers:
-          Authorization: "Bearer xrpl-api-key"
-        forward_pocket_headers: true
-
-      rest:
-        backend_url: http://xrplevm-node:1317
-        authentication:
-          username: restuser
-          password: restpass
-        forward_pocket_headers: true
-
-      comet_bft:
-        backend_url: http://xrplevm-node:26657
-        forward_pocket_headers: true
-
+services:
+  # One entry per service ID the Supplier is staked for.
+  eth:
+    validation_mode: eager
+    default_backend: jsonrpc
+    backends:
+      jsonrpc:
+        urls:
+          - "http://10.0.0.5:8545"
+          - name: backup
+            url: "http://10.0.0.6:8545"
+        health_check:
+          enabled: true
+          endpoint: "/"
+          method: "POST"
+          request_body: '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+          expected_body: '"result"'
+          interval_seconds: 10
+          timeout_seconds: 5
+          unhealthy_threshold: 3
+          healthy_threshold: 2
       websocket:
-        backend_url: ws://xrplevm-node:8546
-        forward_pocket_headers: false
+        url: "ws://10.0.0.5:8546"            # no health_check on websocket or grpc
+
+  my-rest-api:
+    validation_mode: eager
+    timeout_profile: fast                    # streaming for LLMs and SSE
+    default_backend: rest
+    backends:
+      rest:
+        url: "http://10.0.0.7:8080"
+        health_check:
+          enabled: true
+          endpoint: "/v1/health"
+          expected_body: '"ok"'
+
+health_check:
+  enabled: true
+  addr: "127.0.0.1:8081"
+
+metrics:
+  enabled: true
+  addr: "127.0.0.1:9090"
+
+logging:
+  level: "info"
+  format: "json"
 ```
 
-Supported RPC types: `json_rpc`, `rest`, `comet_bft`, `websocket`.
+### Services and Backends
 
-## Running the RelayMiner
+| Key | Meaning |
+| --- | --- |
+| `services.<id>` | An on-chain service ID the Supplier is staked for. A relay for a service not listed here is rejected. Never invent an ID; find the right one from the service's card. |
+| `default_backend` | The backend a relay goes to when it does not name a transport. Defaults to `jsonrpc`, so a REST-only service must set `rest`. |
+| `backends.<transport>` | One backend pool per transport. The key must be `jsonrpc`, `rest`, `websocket`, `grpc`, or `cometbft`. Relays are routed by exact transport, with no fallback. |
+| `url` / `urls` | One backend, or a pool. A `urls` entry is a URL or a `{name, url}` pair. |
+| `load_balancing` | `round_robin` or `first_healthy`. Defaults to round robin for two or more URLs. |
+| `base_path` | A path prefix the backend expects on every request, such as `/ext/bc/C/rpc`. |
+| `headers`, `authentication` | Static headers, and one of `bearer_token`, `plain_token`, or `username` and `password`, sent on every request to the backend. |
+| `health_check` | Active probing. Turn it on for every HTTP backend (`jsonrpc`, `rest`, `cometbft`); leave it off for `websocket` and `grpc`, where the HTTP probe always fails. |
+| `validation_mode` | `eager` validates a relay before serving it; `optimistic` serves first and validates afterwards. The global default is `default_validation_mode: optimistic`. |
+| `timeout_profile` | `fast` (30 s) or `streaming` (600 s, no response-header timeout), or a profile you define under `timeout_profiles`. |
+| `pool_profile` | A per-service connection pool: `low`, `medium`, `high`, or your own under `pool_profiles`. |
+| `max_body_size_bytes` | The body limit for the service. Request bodies are held in Redis until the claim, so this bounds Redis use. |
 
-Start the RelayMiner with:
+The card's transport names map to backend keys like this:
 
-```bash
-pocketd relayminer \
-  --config ./relayminer_config.yaml \
-  --keyring-backend test
-```
+| `rpc_type` (stake file, service card) | Backend key |
+| --- | --- |
+| `JSON_RPC` | `jsonrpc` |
+| `WEBSOCKET` | `websocket` |
+| `REST` | `rest` |
+| `GRPC` | `grpc` |
+| `COMET_BFT` | `cometbft` |
 
-Ensure the operator key is already in the keyring before starting:
+Serve every transport the card expects: one backend per transport here, and one endpoint per transport in the stake file.
 
-```bash
-# Import a key (if not already present)
-pocketd keys add supplier1 --recover --keyring-backend test
+### Why Health Checks Matter
 
-# List available keys
-pocketd keys list --keyring-backend test
-```
+Without an active health check the relayer learns a backend is down only from the relays it forwards: it marks the backend unhealthy after 5 consecutive failures and retries it every 30 seconds with real relays. Each of those failures is a relay a gateway sent you that got an error. With a health check, the relayer probes on its own and routes around a failing backend before a relay reaches it. Probe something that proves the node can answer, not only that its port is open.
 
-## Signing Key Configuration
+## 5. Miner Configuration
 
-There are two levels of signing key configuration:
-
-1. **Global (`default_signing_key_names`)** — Applied to all services unless
-   a service provides its own override.
-2. **Per-service (`signing_key_names`)** — Takes precedence over the global
-   default for a specific service.
+Every key is in [config.miner.example.yaml](https://github.com/pokt-network/pocket-relay-miner/blob/main/config.miner.example.yaml).
 
 ```yaml
-default_signing_key_names: [keyname1, keyname2]
+# miner.yaml
+redis:
+  url: "redis://127.0.0.1:6379"              # the same Redis as the relayer
 
-suppliers:
-  # Uses keyname3 and keyname4 (overrides global)
-  - service_id: llm-model
-    signing_key_names: [keyname3, keyname4]
-    listen_url: http://0.0.0.0:80
-    service_config:
-      backend_url: http://localhost:11434
+pocket_node:
+  query_node_rpc_url: "https://sauron-rpc.beta.infra.pocket.network"
+  query_node_grpc_url: "sauron-grpc.beta.infra.pocket.network:443"
+  chain_id: "pocket-lego-testnet"            # pocket on MainNet
+  grpc_insecure: false
 
-  # Uses keyname1 and keyname2 (from global default)
-  - service_id: ethereum
-    listen_url: http://0.0.0.0:8545
-    service_config:
-      backend_url: http://eth-node:8545
+keys:
+  keys_file: "/etc/pocket-relay-miner/supplier-keys.yaml"
+
+block_time_seconds: 30                       # 60 on MainNet
+
+metrics:
+  enabled: true
+  addr: "127.0.0.1:9092"
+
+logging:
+  level: "info"
+  format: "json"
 ```
 
-Multiple RelayMiners can use the same signing keys for geographic redundancy.
-For example, you might run three RelayMiner instances across US-West, US-East,
-and EU-Central, all signing with the same operator key.
+The miner submits the claims and proofs you are paid for. Public endpoints are fine for a first deployment; a production miner should use a full node you control. The miner's balance monitor logs a warning when the operator balance falls below `balance_monitor.balance_threshold_upokt` (1 POKT by default).
 
-## Full Node Configuration for RelayMiners
+## 6. Validate
 
-Every RelayMiner must connect to a Pocket full node (RPC node). The full node
-requires custom `config.toml` settings to support the RelayMiner's event
-subscriptions.
-
-### Required `config.toml` Adjustments
-
-In your full node's `config.toml` under the `[rpc]` section:
-
-```toml
-# Must be greater than (num_suppliers + num_relayminers)
-max_subscriptions_per_client = 25
-
-# Must be greater than (2 * num_relayminers)
-max_open_connections = 5
-```
-
-### Sizing Guidelines
-
-| Parameter                      | Formula                               |
-|--------------------------------|---------------------------------------|
-| `max_subscriptions_per_client` | > num_suppliers + num_relayminers     |
-| `max_open_connections`         | > 2 x num_relayminers                |
-
-Always add overhead to these values. For example, for 1 RelayMiner managing 20
-Suppliers:
-
-```toml
-# 20 suppliers + 1 relayminer = 21 -> round up to 25
-max_subscriptions_per_client = 25
-
-# 2 x 1 relayminer = 2 -> round up to 5
-max_open_connections = 5
-```
-
-For larger deployments (3 RelayMiners with 2, 3, and 1 Suppliers respectively):
-
-```toml
-# (2 + 3 + 1) suppliers + 3 relayminers = 9 -> round up to 15
-max_subscriptions_per_client = 15
-
-# 2 x 3 relayminers = 6 -> round up to 10
-max_open_connections = 10
-```
-
-If these limits are too low, your RelayMiner may experience disconnections,
-missed events, or other operational issues. For very large deployments, split
-RelayMiners across multiple RPC nodes.
-
-## Testing Your Setup
-
-### 1. Verify the Supplier Is Staked
+Validate both files with the same binary you will run. `--check-stake` also lists staked services that have no backend:
 
 ```bash
-pocketd query supplier show-supplier pokt1operatoraddress... \
-  --network beta
+pocket-relay-miner miner validate --config miner.yaml
+pocket-relay-miner relayer validate --config relayer.yaml --check-stake
 ```
 
-Confirm the output shows the correct `service_id`s and `publicly_exposed_url`s.
+Each should print `config OK: ... would start` and exit 0. `validate` reports every unknown or retired key in one pass, with its line number.
 
-### 2. Check the RelayMiner Logs
+## 7. Start
 
-After starting the RelayMiner, verify it connects to the full node and begins
-listening:
+Start Redis, then the miner, then the relayer.
+
+**Docker Compose.** The repository's [compose example](https://github.com/pokt-network/pocket-relay-miner/tree/main/examples/docker-compose) runs Redis, the miner, and the relayer with memory limits, health checks, and the right startup order, pointed at Beta TestNet. It ships with a public, unstaked key so the stack starts as cloned; replace it with your own keys file before serving.
 
 ```bash
-pocketd relayminer --config ./relayminer_config.yaml --keyring-backend test
+docker compose -p pocket-supplier -f examples/docker-compose/docker-compose.yaml up -d
 ```
 
-Look for log messages indicating successful WebSocket subscription and server
-startup on the configured `listen_url`.
-
-### 3. Use the Ping Health Check
-
-If you enabled the `ping` server, verify backend connectivity:
+**systemd.** The repository ships unit files and an environment file in [examples/host](https://github.com/pokt-network/pocket-relay-miner/tree/main/examples/host). Set `GOMEMLIMIT` and `GOMAXPROCS` in the environment file, then:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/ping
-# Expected: 204 if all backends are reachable
+sudo systemctl enable --now pocket-relay-miner-miner
+sudo systemctl enable --now pocket-relay-miner-relayer
 ```
 
-### 4. Check the Operator Balance
-
-Proof submissions require fees. Make sure the operator account has sufficient
-funds:
+Check that the relayer is ready and each backend is healthy:
 
 ```bash
-pocketd query bank balance pokt1operatoraddress... upokt \
-  --network beta
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8081/ready   # 200 once it can serve
+curl -s http://127.0.0.1:8081/ready/eth                                # each backend's state for one service
 ```
 
-### 5. Monitor Metrics
+## 8. Put a Reverse Proxy in Front
 
-If you enabled the Prometheus metrics exporter, scrape metrics at the configured
-address:
+The relayer speaks plain HTTP. Terminate TLS on a reverse proxy such as Caddy, nginx, or a cloud load balancer, and forward to the relayer's `listen_addr`. The proxy's `https://` hostname is the `publicly_exposed_url` in your stake; gateways can refuse plain-HTTP and raw-IP URLs. Do not add authentication at the proxy; every relay is already signed.
+
+With more than one relayer, the load balancer spreads traffic across them. They share all state through Redis, so no session stickiness is needed.
+
+## 9. Watch Claims and Proofs
+
+After a session with served relays ends, the miner submits its claim and then, in the proof window, its proof. Read the submission record straight from Redis:
 
 ```bash
-curl http://localhost:9090/metrics
+pocket-relay-miner redis --config miner.yaml submissions --supplier <operator address>
 ```
 
-## Payable Proof Submissions
-
-Submitting proofs requires payment of the `proof_submission_fee` governance
-parameter. This fee prevents spam and Sybil attacks. Because proofs are the
-most block-space-consuming primitive in Pocket Network, maintaining sufficient
-operator balance is critical.
-
-Check the current fee:
+Each claimed session shows a row whose claim and proof status turn to success once the proof window has passed. On-chain, confirm with:
 
 ```bash
-pocketd query proof params --network beta
+pocketd query proof list-claims --supplier-operator-address <operator address> --network=beta
 ```
 
-If a claim is submitted but the corresponding proof is not submitted (due to
-insufficient funds or other failures), the Supplier may be slashed. Set up
-automated balance monitoring and alerts for production deployments.
+To test a live relayer without a staked application, the repository's [simulated relays](https://github.com/pokt-network/pocket-relay-miner/blob/main/docs/SIMULATED_RELAYS.md) send a real signed request to a real backend without charging or claiming anything.
+
+## Switching to MainNet
+
+In both files, switch `pocket_node` to the MainNet endpoints; in the miner, also set `chain_id: pocket` and `block_time_seconds: 60`. Validate both again, then restart the miner and then the relayer.
 
 ## Troubleshooting
 
-**RelayMiner cannot connect to the full node** — Verify the `pocket_node` URLs
-in your config. Ensure the full node is running and the ports are accessible.
-Check that `max_subscriptions_per_client` and `max_open_connections` are set
-high enough in the full node's `config.toml`.
+| Symptom | Cause | Action |
+| --- | --- | --- |
+| `Error: config is INVALID` | A key is unknown, retired, or has a bad value | Fix the key `validate` names, and run it again until it exits 0. |
+| `redis maxmemory is 0` or `maxmemory-policy is "..."` | Redis has no memory limit, or evicts | Load `config.redis.example.conf` and set `maxmemory`. |
+| `cannot start without the node's network` | The miner cannot reach the node's gRPC | Check `query_node_grpc_url` and `grpc_insecure`. |
+| `the node reports network "..."` | `chain_id` does not match the node | Set the network's `chain_id`. |
+| `/ready` answers 503 `no service factor manifest` | The miner is not running yet | Start the miner, then wait. |
+| `no memory limit found` | No `GOMEMLIMIT` and no container limit | Set limits. |
+| Relays answered 429 `storage saturated` | Redis is nearly full | Raise `maxmemory`, or let the miner drain. |
+| Relays refused with `no_local_signer` | The relayer does not hold the key for the Supplier the relay names | Add the operator key. |
 
-**Relay requests are not being routed** — Confirm that the `service_id` in the
-RelayMiner config matches the `service_id` in the Supplier's on-chain staking
-config. Verify that the Supplier's `publicly_exposed_url` points to the
-RelayMiner's `listen_url`.
-
-**Claims or proofs are being lost** — Check that `disable_smt_persistence` is
-set to `false` and that `smt_store_path` points to a writable directory with
-sufficient disk space.
-
-**Operator balance is too low** — Proof submissions require fees. Fund the
-operator account and set up balance monitoring. Check fees with
-`pocketd query proof params`.
+Per-relay rejections are logged at debug level only; count them with `ha_relayer_relays_rejected_total` on the relayer's metrics port. The repository's [troubleshooting guide](https://github.com/pokt-network/pocket-relay-miner/blob/main/docs/deploy/TROUBLESHOOTING.md) lists every error message with its fix.
 
 </Tab>
 </Tabs>

@@ -6,7 +6,7 @@ persona: ["node-operator", "gateway-operator", "developer"]
 tabs: false
 status: "draft"
 sources: ["zip4/poktroll/CLAUDE.md", "zip4/igniter/CLAUDE.md", "zip4/pocket-relay-miner/CLAUDE.md"]
-lastUpdated: "2026-04-08"
+lastUpdated: "2026-09-27"
 ---
 
 
@@ -46,10 +46,12 @@ Restrict access to Pocket Network services based on their role. Only expose what
 | 26657 | CometBFT RPC | Restrict to peers and operators |
 | 9090 | gRPC | Restrict to internal / operators |
 | 1317 | REST (LCD) | Restrict to internal / operators |
-| 80/8080 | RelayMiner HTTP | Expose to gateways (this is your service port) |
-| 8081 | RelayMiner health | Internal monitoring only |
-| 9090 | Prometheus metrics | Internal monitoring only |
+| 8080 | RelayMiner relayer | Expose to gateways, through a TLS reverse proxy (this is your service port) |
+| 8081 | Relayer health | Internal monitoring only |
+| 9090 | Relayer metrics | Internal monitoring only |
+| 9092 | Miner metrics | Internal monitoring only |
 | 6060 | pprof | Internal debugging only — never expose publicly |
+| 6379 | Redis | Internal only — never expose |
 
 ### Gateway / PATH
 
@@ -59,19 +61,8 @@ Restrict access to Pocket Network services based on their role. Only expose what
 | 9090 | Prometheus metrics | Internal monitoring only |
 | 26657 | CometBFT RPC (upstream) | Internal — PATH connects to a full node |
 
-### HA RelayMiner
-
-| Port | Service | Exposure |
-|------|---------|----------|
-| 8080 | HTTP relay endpoint | Expose to gateways |
-| 8081 | Health check | Internal monitoring |
-| 9090 | Prometheus metrics | Internal monitoring |
-| 9092 | Miner-specific metrics | Internal monitoring |
-| 6060 | pprof | Internal debugging only |
-| 6379 | Redis | Internal only — never expose |
-
 <Callout type="warning">
-Redis (used by HA RelayMiner for leader election) must never be exposed to the public internet. Use network-level isolation or Redis AUTH at minimum.
+Redis holds every relay the RelayMiner has served until it is claimed and proved, plus the miner's leader lock. It must never be exposed to the public internet. Bind it to `127.0.0.1` or a private network, and add Redis AUTH if anything else can reach it.
 </Callout>
 
 See [Ports & Endpoints](/reference/ports-and-endpoints) for the complete port reference.
@@ -112,4 +103,4 @@ If you discover a security vulnerability in Pocket Network software, please repo
 - [Ports & Endpoints](/reference/ports-and-endpoints) — full port map
 - [Hardware Wallets](/wallets/hardware-wallets) — Ledger + Keplr setup
 - [Self-Custody Best Practices](/wallets/self-custody-best-practices) — wallet security guide
-- [HA RelayMiner](/node-operators/ha-relayminer) — Redis-backed relay miner operations
+- [RelayMiner Operations](/node-operators/relayminer-operations) — Redis-backed relay miner operations

@@ -6,7 +6,7 @@ persona: ["node-operator"]
 tabs: false
 status: "stable"
 sources: ["zip3/supplier-rewards-economics.docx"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 Shannon replaced the old inflationary reward model with a usage-based burn-and-mint system. Suppliers earn POKT directly from work they prove they did — not from protocol inflation.
@@ -34,9 +34,9 @@ When minted POKT is distributed, it splits according to the `mint_equals_burn_cl
 
 | Recipient | Share | Role |
 | --- | --- | --- |
-| **Suppliers** | 79% | Served relays |
-| **Validators** | 14% | Block production |
-| **DAO Treasury** | 4.5% | Ecosystem funding |
+| **Suppliers** | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> | Served relays |
+| **Validators** | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.proposer" format="percent" /> | Block production |
+| **DAO Treasury** | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> | Ecosystem funding |
 | **Source Owners** | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> | Service maintainers |
 
 ## Session Mechanics
@@ -46,7 +46,7 @@ Pocket Network organizes relay work into sessions — time-bounded periods where
 - Sessions are deterministic: the protocol calculates assignments from (Application, Service, block height)
 - You don't apply for sessions — the protocol assigns them
 - Selection among eligible Suppliers is uniform and pseudorandom — stake size does **not** improve your odds
-- Each session lasts approximately a few hours
+- Each session lasts <GovParam module="shared" param="num_blocks_per_session" /> blocks, <GovParam module="shared" param="num_blocks_per_session" format="blocks-minutes" /> on MainNet
 
 ### What Actually Affects How Much You Serve
 
@@ -94,9 +94,9 @@ Use [Owner Staking](https://analytics.pocket.network/owner-staking) to track:
 
 | Parameter | Current Value | Impact |
 | --- | --- | --- |
-| `compute_units_to_tokens_multiplier` (CUTTM) | Check [explorer.pocket.network/params](https://explorer.pocket.network/params) | Core POKT/CU exchange rate |
-| `mint_ratio` | 0.975 | PIP-41 deflation — reduces total mint by 2.5% |
-| `mint_equals_burn_claim_distribution` | 79% Supplier | Your share of each settlement |
-| `num_suppliers_per_session` | 50 | More suppliers = smaller individual share |
+| `compute_units_to_tokens_multiplier` (CUTTM) | <GovParam module="shared" param="compute_units_to_tokens_multiplier" format="commas" /> | Core POKT/CU exchange rate |
+| `mint_ratio` | <GovParam module="tokenomics" param="mint_ratio" /> | PIP-41 deflation — reduces total mint by <GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> |
+| `mint_equals_burn_claim_distribution` | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> Supplier | Your share of each settlement |
+| `num_suppliers_per_session` | <GovParam module="session" param="num_suppliers_per_session" /> | More suppliers = smaller individual share |
 
 Subscribe to governance notifications on [forum.pokt.network](https://forum.pokt.network) to track proposed parameter changes.

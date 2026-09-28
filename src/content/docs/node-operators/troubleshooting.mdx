@@ -6,7 +6,7 @@ persona: ["node-operator", "gateway-operator", "developer"]
 tabs: true
 status: "stable"
 sources: ["zip1/15-troubleshooting-faq.md", "zip2/15-troubleshooting-faq.md"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 <Tabs>
@@ -140,7 +140,7 @@ Think of it this way: the Supplier is your business license posted on the wall. 
 
 ### How do I configure gRPC endpoints for the RelayMiner?
 
-Your RelayMiner needs to connect to a Full Node to stay informed about the state of the blockchain. This connection uses a protocol called gRPC. The configuration depends on whether your Full Node uses encryption (TLS) or not. The technical docs explain the configuration details and how to verify your connection.
+Your RelayMiner needs to connect to a Full Node to stay informed about the state of the blockchain. This connection uses a protocol called gRPC. The configuration depends on whether your Full Node uses encryption (TLS) or not. The technical docs explain the configuration details and how to verify your connection, and [RelayMiner Setup](/node-operators/relayminer-setup) lists the RelayMiner's most common startup errors and their fixes.
 
 ## Application FAQ
 
@@ -494,20 +494,20 @@ pocketd query supplier list-suppliers --dehydrated --network=mainnet --output js
 
 ### What is the difference between a RelayMiner and a Supplier?
 
-A **Supplier** is an onchain actor — a record on the blockchain representing a staked service provider with an address, stake amount, and list of services. A **RelayMiner** is the offchain process that actually proxies relay requests between PATH Gateways and the backend service being supplied. Every Supplier needs a running RelayMiner to earn rewards.
+A **Supplier** is an onchain actor — a record on the blockchain representing a staked service provider with an address, stake amount, and list of services. A **RelayMiner** is the offchain software that proxies relay requests between gateways and the backend service being supplied, and submits the claims and proofs that get the Supplier paid. Every Supplier needs a running RelayMiner to earn rewards; use the [HA RelayMiner](/node-operators/relayminer-setup).
 
 ### How do I configure gRPC endpoints for the RelayMiner?
 
-In the RelayMiner configuration file, the `query_node_grpc_url` specifies how the RelayMiner connects to a Full Node's gRPC endpoint.
+In both the relayer and miner configuration files, `pocket_node.query_node_grpc_url` is the Full Node's gRPC endpoint as `host:port`, and `pocket_node.grpc_insecure` says whether it uses TLS.
 
-If `grpc-insecure=true`, use an HTTP (non-TLS) endpoint:
+If `grpc_insecure: true`, use a plain-text (non-TLS) endpoint:
 
 ```bash
 # Validate a plaintext gRPC endpoint
 grpcurl -plaintext <host>:<port> list
 ```
 
-If `grpc-insecure=false`, use an HTTPS (TLS-terminated) endpoint:
+If `grpc_insecure: false`, use a TLS-terminated endpoint, such as `sauron-grpc.infra.pocket.network:443`:
 
 ```bash
 # Validate a TLS gRPC endpoint
@@ -536,10 +536,9 @@ Re-run the staking command with an updated configuration. The staked amount in t
 
 ```bash
 cat <<EOF > /tmp/stake_app_config.yaml
-stake_amount: 1000000000upokt
+stake_amount: <amount>upokt   # at least your current stake
 service_ids:
-  - anvil
-  - eth
+  - eth                        # exactly one service per Application
 EOF
 
 pocketd tx application stake-application \

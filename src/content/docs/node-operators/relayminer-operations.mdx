@@ -1,0 +1,139 @@
+---
+title: "RelayMiner Operations"
+description: "Run the HA RelayMiner in production: architecture, scaling relayers and miners, sizing Redis, ports, monitoring, and upgrades."
+section: "node-operators"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+sources: ["github.com/pokt-network/pocket-relay-miner v0.1.0: README.md, docs/deploy/README.md, docs/benchmarks/README.md, docs/METRICS_TRIAGE.md, docs/REDIS.md"]
+lastUpdated: "2026-09-27"
+---
+
+This page covers running the HA RelayMiner, [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner), once it is deployed: how it is built, how to scale it, how to size it, and how to watch it. To deploy it, start with [RelayMiner Setup](/node-operators/relayminer-setup).
+
+## Architecture
+
+```text
+                 gateways
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+   ┌─────────┐ ┌─────────┐ ┌─────────┐
+   │ relayer │ │ relayer │ │ relayer │ ──► your backends
+   └────┬────┘ └────┬────┘ └────┬────┘     (stateless: validate, charge, serve, sign)
+        └───────────┼───────────┘
+                    ▼
+               ┌─────────┐
+               │  Redis  │  relays, claim trees, the stake meter
+               └────┬────┘
+            ┌───────┴───────┐
+            ▼               ▼
+      ┌──────────┐    ┌──────────┐
+      │  miner   │    │  miner   │ ──► Pocket chain (claims, proofs)
+      │ (leader) │    │(standby) │
+      └──────────┘    └──────────┘
+```
+
+One binary, two processes, one Redis shared by all of them, every process on the same version.
+
+| Component | Role | State |
+| --- | --- | --- |
+| **Relayer** | Verifies each relay's ring signature and session, charges it against the application's stake before serving it, forwards it to the backend for its service and transport, signs the response with the Supplier's key, and queues the relay in Redis. | None. All of it lives in Redis. |
+| **Miner** | Reads the queued relays, builds one claim tree per session and Supplier, submits the claim and then the proof in their on-chain windows, and watches each until the chain includes it, resubmitting while the window is open. | Leader-elected through Redis. A standby takes over when the leader stops. |
+| **Redis** | Holds every relay until it is claimed and proved, plus the claim trees and the stake meter. | The source of truth. Must never evict. |
+
+Two properties follow from this design:
+
+- **Every relay is charged before it is served.** The relayer does not serve work a session can no longer pay for, and if Redis cannot confirm the budget, the relay is refused rather than served for free.
+- **Claims and proofs survive crashes.** Nothing lives only in a process's memory, so a restart, a rollout, or a miner killed mid-window resumes from Redis. A batch the chain partly refuses is split: the message the chain names leaves the batch and the rest goes through.
+
+### Transports
+
+| Transport | Backend key | Notes |
+| --- | --- | --- |
+| JSON-RPC over HTTP | `jsonrpc` | Blockchain RPC; the default backend when a relay names none. |
+| REST, including SSE streaming | `rest` | HTTP APIs and streaming responses. Use the `streaming` timeout profile for long responses. |
+| WebSocket | `websocket` | Subscriptions. No active health check. |
+| gRPC | `grpc` | No active health check. |
+| CometBFT | `cometbft` | CometBFT RPC. |
+
+## Scaling
+
+- **Relayers scale horizontally.** Add relayers behind a load balancer, all pointing at the same Redis. Size them by CPU: relayer CPU grows with relays per second.
+- **Run a standby miner.** A second miner on the same Redis waits as standby and takes over when the leader stops. Only one miner submits at a time.
+- **Many Suppliers, one fleet.** One relayer and miner fleet can sign for many Suppliers: list every operator key. Keys reload without a restart.
+- **Several fleets, one Redis.** `redis.namespace.base_prefix` gives each fleet its own keyspace. It must match in the miner and every relayer of a fleet.
+
+v0.1.0 was tested on one relayer and one miner, and on two relayers and two miners at lower load. There is no Kubernetes example in v0.1.0; the repository's `tilt/` setup runs the stack on a local kind cluster and is a starting point for your own manifests.
+
+## Sizing
+
+The v0.1.0 capacity run served 10.7 million relays at about 2,400 relays per second on one relayer, one miner, and one Redis, across 6 services and 50 Suppliers per session, and settled 1,501 of 1,501 claims with the miner killed twice on purpose. What each component used:
+
+| Component | Load | Resources used |
+| --- | --- | --- |
+| Relayer | ~2,400 relays/s (the test load, not a ceiling) | At most 3.9 cores and 128 MiB |
+| Miner | 300 to 600 live claim trees | 0.5 cores steady, 1.9 while ~300 claims were built; at most 2.9 GiB |
+| Miner, 1 MiB burst | 128 concurrent 1 MiB requests for 15 s | 6.8 GiB of an 8 GiB limit |
+| Redis | Peak | 4.9 GiB, at most 0.7 cores |
+
+Read these as a reference, not a guarantee; Supplier count, services, validation mode, transports, and hardware all change them.
+
+- **Relayer:** size by CPU.
+- **Miner and Redis:** size by the number of sessions held at once (one claim tree per session and Supplier), not by relays per second.
+- **Redis against request size:** a relay costs roughly 450 bytes of Redis plus its request payload, held for about 40 blocks until the claim. Size `maxmemory` for peak relays per second × average request size × 40 blocks. Raising a service's request body limit lowers the relays per second the same Redis can sustain.
+
+The limits in the repository's Docker Compose example (relayer 2 GB, miner 4 GB, Redis 4 GB, 2 CPUs each) fit a few Suppliers with ordinary traffic. The [capacity report](https://github.com/pokt-network/pocket-relay-miner/tree/main/docs/benchmarks) explains how to scale them.
+
+## Ports
+
+| Process | Port | Serves |
+| --- | --- | --- |
+| Relayer | 8080 | Relay traffic (`listen_addr`). The only port gateways reach, through your TLS proxy. |
+| Relayer | 8081 | `GET /health` (200 while running), `GET /ready` (200 only when it can serve), `GET /ready/<service-id>` (each backend's state) |
+| Relayer | 9090 | Prometheus metrics |
+| Relayer | 6060 | pprof, on `127.0.0.1` by default. Never expose it. |
+| Miner | 9092 | Prometheus metrics and `GET /health` |
+| Redis | 6379 | Never expose it outside the host or private network. |
+
+Relayer metrics on 9090 collide with a full node's gRPC on 9090 when both run on the same host network. Move one of them.
+
+## Monitoring
+
+The repository ships Prometheus and Grafana with seven dashboards (money, claims and proofs, relay flow, relayer, storage and memory, suppliers and chain, process internals) in [examples/observability](https://github.com/pokt-network/pocket-relay-miner/tree/main/examples/observability). Scrape the relayer on `:9090` and the miner on `:9092`.
+
+Read metrics as identities, not single numbers, and start with the money:
+
+| Question | Should hold |
+| --- | --- |
+| Every claim built was submitted | `ha_miner_claims_created_total` = `ha_miner_claims_submitted_total` |
+| Every claim reached a block | `ha_miner_claim_inclusion_outcome_total{outcome="on_chain_found"}` = `ha_miner_claims_created_total` |
+| Every required proof reached a block | `ha_miner_proof_inclusion_outcome_total{outcome="on_chain_found"}` = the settled claims that required a proof, read from the chain |
+| Relays are not being refused | `ha_relayer_relays_rejected_total`, by `reason` |
+| One miner is leading | `ha_miner_leader_status` is 1 on exactly one miner |
+
+Counters are per process and reset on restart. A counter named after a loss, such as `ha_miner_upokt_lost_total`, counts failed attempts and is not evidence of a loss by itself. The repository's [metrics triage guide](https://github.com/pokt-network/pocket-relay-miner/blob/main/docs/METRICS_TRIAGE.md) gives the full order to read them in during an incident.
+
+To see what is in Redis directly, `pocket-relay-miner redis` decodes sessions, streams, claim trees, meters, and every claim and proof submission:
+
+```bash
+pocket-relay-miner redis --config miner.yaml submissions --supplier <operator address>
+```
+
+See also [Monitoring](/node-operators/monitoring) for full node and reward monitoring.
+
+## Upgrading
+
+- Read the release notes of the version you are moving to first. They list changed configuration keys, metrics, and dashboards, and what to do before upgrading.
+- Upgrade the relayer and the miner together; mixed versions are not supported.
+- Validate both configurations with the **new** binary before switching. Retired keys fail `validate`.
+- Restart the miner, then the relayer.
+
+The relayer reads its configuration once, at startup, so every configuration change needs a restart. Supplier keys are the exception: they reload while running.
+
+## Related Pages
+
+- [RelayMiner Setup](/node-operators/relayminer-setup) — deploy it
+- [Supplier Staking](/node-operators/supplier-staking) — the stake the RelayMiner serves
+- [Monitoring](/node-operators/monitoring) — full node and reward monitoring
+- [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner) — the repository, with runbooks, every configuration key, and the capacity report

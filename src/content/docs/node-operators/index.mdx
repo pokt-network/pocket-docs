@@ -6,18 +6,18 @@ persona: ["node-operator"]
 tabs: false
 status: "stable"
 sources: ["zip2/06-supplier-staking.md"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
-Suppliers are the backbone of Pocket Network. They run the infrastructure that serves blockchain data to Applications — and earn POKT rewards for every relay they prove they delivered.
+Suppliers are the backbone of Pocket Network. They run the infrastructure that serves the network's data services, from blockchain RPC to REST APIs, LLM inference, and MCP servers, and earn POKT rewards for every relay they prove they delivered.
 
 ## What Suppliers Do
 
-A Supplier is any entity that stakes POKT and runs a [RelayMiner](/node-operators/relayminer-setup) to serve blockchain data requests. When an Application sends a relay (an API request for blockchain data), the protocol assigns it to a session of Suppliers who compete to serve it. Suppliers that successfully serve relays and submit valid proofs earn POKT rewards.
+A Supplier is any entity that stakes POKT and runs a [RelayMiner](/node-operators/relayminer-setup) to serve requests for the services it is staked on. When an Application sends a relay (an API request to a service), the protocol assigns it to a session of Suppliers who compete to serve it. Suppliers that successfully serve relays and submit valid proofs earn POKT rewards.
 
 ## Why It Matters
 
-Pocket Network's value proposition — decentralized, redundant, multi-chain RPC access — depends entirely on Suppliers. More Suppliers means more geographic diversity, more chain coverage, and more resilience. The protocol's economics are designed to make running Supplier infrastructure profitable for operators who maintain high quality of service.
+Pocket Network's value proposition — decentralized, redundant access to data services, paid per request — depends entirely on Suppliers. More Suppliers means more geographic diversity, more service coverage, and more resilience. Serving the services that AI agents call through the [Agentic Portal](/agent-services) is a growing share of that work. The protocol's economics are designed to make running Supplier infrastructure profitable for operators who maintain high quality of service.
 
 ## Getting Started
 
@@ -29,13 +29,13 @@ Pocket Network's value proposition — decentralized, redundant, multi-chain RPC
 
 1. **Review requirements:** [Hardware & Infrastructure](/node-operators/hardware-requirements) — what specs you need
 2. **Stake as a Supplier:** [Supplier Staking](/node-operators/supplier-staking) — how to stake and configure
-3. **Set up RelayMiner:** [RelayMiner Setup](/node-operators/relayminer-setup) — the relay-serving sidecar
-4. **Configure services:** [Service Management](/services/management) — which chains to serve
+3. **Set up the RelayMiner:** [RelayMiner Setup](/node-operators/relayminer-setup) — deploy the HA RelayMiner in front of your backends
+4. **Choose services:** [Services](/services/) — what a service is, and how to supply one from its card
 5. **Understand rewards:** [Rewards & Economics](/node-operators/rewards-economics) — how you earn
 
 ## For Production Operators
 
-- [HA RelayMiner](/node-operators/ha-relayminer) — Redis-backed, horizontally scalable relay mining for production deployments
+- [RelayMiner Operations](/node-operators/relayminer-operations) — scaling relayers and miners, sizing Redis, and RelayMiner metrics
 - [Monitoring](/node-operators/monitoring) — Prometheus, Grafana, and operational metrics
 - [Upgrades](/node-operators/upgrades) — Cosmovisor, version management, chain halt recovery
 - [F-Chains](/node-operators/f-chains) — earning from PNF-subsidized chain coverage

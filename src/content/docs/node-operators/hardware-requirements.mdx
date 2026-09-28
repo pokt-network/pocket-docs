@@ -6,7 +6,7 @@ persona: ["node-operator"]
 tabs: true
 status: "stable"
 sources: ["zip1/14-hardware-and-infra.md", "zip2/14-hardware-and-infra.md"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 <Tabs>
@@ -30,9 +30,9 @@ If your Full Node also serves as the backbone connection for Gateways and RelayM
 
 ### RelayMiner
 
-A RelayMiner is much lighter. At minimum, it can run on something as modest as a single-core processor with 1 GB of memory and very little disk space. For production use under real traffic, aim for 4 cores and 16 GB of memory.
+A RelayMiner is much lighter than a full node. It runs as two processes, a relayer and a miner, plus a Redis database that holds relays until they are claimed and proved. To start, the three together fit comfortably on a machine with a few cores and around 10 GB of free memory.
 
-The key thing to understand is that RelayMiner resource needs grow with how much work it does. The more services it handles and the more relay traffic it processes, the more computing power and memory it needs. Think of it like a delivery driver: one driver can handle a few packages, but a busy route needs a bigger truck or more drivers.
+The key thing to understand is that RelayMiner resource needs grow with how much work it does. The relayer needs more processor power as relay traffic grows, while the miner and Redis need more memory as the number of Suppliers and sessions grows. Think of it like a delivery service: busier routes need more drivers (relayers), and more customers need a bigger warehouse (Redis).
 
 ### PATH Gateway
 
@@ -125,7 +125,7 @@ This separation improves reliability and ensures that heavy query traffic does n
 
 ## Why Diverse Infrastructure Matters
 
-Pocket Network is designed to be unstoppable and censorship-resistant. A critical part of that design is geographic distribution — nodes spread across different countries, different cloud providers, and different hardware. If all nodes ran on the same provider in the same data center, a single outage could take down the whole network.
+Pocket Network is designed to be self-healing and censorship-resistant. A critical part of that design is geographic distribution — nodes spread across different countries, different cloud providers, and different hardware. If all nodes ran on the same provider in the same data center, a single outage could take down the whole network.
 
 By encouraging operators to use diverse infrastructure, the network becomes self-healing. If nodes in one region go offline, nodes everywhere else continue serving traffic without interruption. This is what makes Pocket Network's decentralized infrastructure genuinely resilient.
 
@@ -157,16 +157,13 @@ Full Nodes that serve as RPC endpoints for Gateways and RelayMiners under high l
 
 ### RelayMiner
 
-| Component    | Minimum | Recommended |
-|------------- |---------|-------------|
-| CPU Cores    | 1       | 4           |
-| RAM          | 1 GB    | 16 GB       |
-| SSD Storage  | 5 GB    | 5 GB        |
+| Process | Minimum | Tested at ~2,400 relays/s |
+|---------|---------|---------------------------|
+| Relayer | 2 CPU, 2 GB RAM | 4 CPU, 8 GB RAM limit (used 3.9 cores, 128 MiB) |
+| Miner   | 2 CPU, 4 GB RAM | 8 GB RAM limit (used up to 2.9 GiB, 6.8 GiB in a burst of 1 MiB requests) |
+| Redis 8.10+ | 2 CPU, 4 GB RAM, persistent SSD | 5 CPU, 16 GB RAM (`maxmemory` 12.8 GiB, peaked at 4.9 GiB) |
 
-Resource requirements for RelayMiner scale linearly with load:
-
-- More suppliers served by a single RelayMiner means higher resource consumption.
-- More relays processed means higher CPU and memory usage.
+The minimums are the limits in the RelayMiner repository's Docker Compose example, which fit a few Suppliers with ordinary traffic. The tested column is the v0.1.0 capacity run with 50 Suppliers per session. Size the relayer by CPU and the miner and Redis by the number of sessions held at once; see [RelayMiner Operations](/node-operators/relayminer-operations#sizing).
 
 ### PATH Gateway
 
@@ -529,7 +526,7 @@ Set up automated disk space monitoring. A simple cron-based alert:
 
 ### Scalability Considerations
 
-- As relay volume grows, scale RelayMiner resources vertically (more CPU/RAM) or horizontally (multiple instances).
+- As relay volume grows, add relayers behind a load balancer; as Suppliers and sessions grow, give the miner and Redis more memory.
 - For high-availability setups, deploy multiple Full Nodes behind a load balancer.
 - Use dedicated RPC nodes separate from your validator to isolate consensus workloads.
 - Implement redundant systems for critical operations to ensure high availability.
