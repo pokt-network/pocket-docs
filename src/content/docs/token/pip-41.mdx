@@ -6,12 +6,12 @@ persona: ["token-holder", "investor", "governance"]
 tabs: false
 status: "stable"
 sources: ["zip3/pip41-deflationary-mechanics.docx"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 ## What PIP-41 Is — In One Sentence
 
-For every 100 POKT burned when applications consume data, only 97.5 POKT is minted back as rewards. The remaining 2.5% is never created — permanently reducing total supply with every relay served.
+For every 100 POKT burned when applications consume data, only <GovParam module="tokenomics" param="mint_ratio" scale={100} format="number" /> POKT is minted back as rewards (the current mint ratio is <GovParam module="tokenomics" param="mint_ratio" />). The remaining <GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> is never created — permanently reducing total supply with every relay served.
 
 ## The Problem It Solved
 
@@ -27,8 +27,8 @@ PIP-41 makes this happen. It is not a special event or one-time action — it is
 
 1. An application sends relays through the network
 2. POKT is burned proportional to the compute units consumed
-3. The protocol mints back **97.5%** of the burned amount as rewards
-4. The remaining **2.5% is never created** — permanently removed from circulation
+3. The protocol mints back **<GovParam module="tokenomics" param="mint_ratio" format="percent" />** of the burned amount as rewards
+4. The remaining **<GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> is never created** — permanently removed from circulation
 
 ### The Auto-Stabilizer
 
@@ -44,18 +44,18 @@ This differentiates PIP-41 from other deflation mechanisms: it's not a scheduled
 | Actor | Impact |
 | --- | --- |
 | **Token holders** | Total supply decreases over time with relay growth. Same number of tokens represents a growing share of total supply. |
-| **Suppliers** | Rewards per relay are 2.5% less than under mint-equals-burn. But fewer total tokens minted means each token is scarcer. |
+| **Suppliers** | Rewards per relay are <GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> less than under a mint ratio of 1.0. But fewer total tokens minted means each token is scarcer. |
 | **Applications** | No change to cost. Relay pricing is USD-denominated — the deflation mechanics are transparent to consumers. |
-| **Governance** | The 97.5% ratio is a governance parameter. The DAO can adjust it via a PUP (Parameter Update Proposal) at any time. |
+| **Governance** | The mint ratio is a governance parameter. The DAO can adjust it via a PUP (Parameter Update Proposal) at any time. |
 
 ## A Starting Point, Not a Permanent Setting
 
-The 97.5% mint ratio is deliberately conservative. The DAO has the authority to adjust this parameter at any time. The Foundation has modeled deflationary scenarios all the way to 50% mint ratios as relay volume scales. Future changes require a governance vote — this parameter cannot be changed unilaterally by PNF or any other actor.
+The first mint ratio set under PIP-41 was deliberately conservative. The DAO has the authority to adjust this parameter at any time. The Foundation has modeled deflationary scenarios all the way down to a mint ratio of 0.5 as relay volume scales. Future changes require a governance vote — this parameter cannot be changed unilaterally by PNF or any other actor.
 
 ## Verifying PIP-41 On-Chain
 
 You can verify the current settings on-chain:
 
-- **Current mint ratio:** [explorer.pocket.network/params](https://explorer.pocket.network/params) → Tokenomics Parameters → `mint_ratio` (should show `0.975`)
+- **Current mint ratio:** [explorer.pocket.network/params](https://explorer.pocket.network/params) → Tokenomics Parameters → `mint_ratio` (currently <GovParam module="tokenomics" param="mint_ratio" /> on MainNet, as of this page's last build)
 - **Reward distribution:** Tokenomics Parameters → `mint_equals_burn_claim_distribution`
 - **Supply evolution:** [Pocket Analytics](https://analytics.pocket.network/?tab=economy) → Economy tab

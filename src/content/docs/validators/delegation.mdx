@@ -5,7 +5,7 @@ section: "validators"
 persona: ["token-holder", "retail-staker"]
 tabs: false
 status: "stable"
-lastUpdated: "2026-09-08"
+lastUpdated: "2026-09-27"
 ---
 
 Delegating is the simplest way to earn POKT from consensus without running infrastructure. You bond POKT to a validator, they sign blocks, and you receive a stake-proportional share of the validator pool's relay settlement income — paid directly to your wallet.
@@ -142,7 +142,7 @@ pocketd tx staking unbond <validator_address> <amount>upokt \
 ```
 
 <Callout type="danger">
-  Unbonding takes **21 days** (`unbonding_time` = <GovParam module="staking" param="unbonding_time" />). During that period your tokens are locked, earn nothing, and the unbonding cannot be cancelled. This is a protocol rule — no validator or pool can shorten it. If you only want to change validators, use redelegation instead, which is instant and keeps you earning.
+  Unbonding takes **<GovParam module="staking" param="unbonding_time" format="days" />** (`unbonding_time` = <GovParam module="staking" param="unbonding_time" />). During that period your tokens are locked, earn nothing, and the unbonding cannot be cancelled. This is a protocol rule — no validator or pool can shorten it. If you only want to change validators, use redelegation instead, which is instant and keeps you earning.
 </Callout>
 
 ## Jailing and Slashing Risk

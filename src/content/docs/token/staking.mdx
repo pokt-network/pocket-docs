@@ -6,7 +6,7 @@ persona: ["token-holder"]
 tabs: false
 status: "stable"
 sources: ["zip3/staking-pokt-retail-guide.docx"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 Staking means locking POKT into the Pocket Network to help it run — and earning rewards in return. Unlike just holding, staking puts your tokens to active use: they secure the network, support relay infrastructure, and generate yield proportional to network activity.
@@ -25,14 +25,14 @@ There is no single "staking" button. The right path depends on how much POKT you
 
 ## Option 1: Join a Staking Pool (Beginner-Friendly)
 
-A staking pool lets you earn rewards without meeting the 60,000 POKT minimum or running any infrastructure. The pool operator aggregates POKT from many participants, runs the node, and distributes rewards proportionally.
+A staking pool lets you earn rewards without meeting the <GovParam module="supplier" param="min_stake" format="pokt" /> POKT Supplier minimum or running any infrastructure. The pool operator aggregates POKT from many participants, runs the node, and distributes rewards proportionally.
 
 ### How It Works
 
 1. **Find a pool.** Browse active staking pools — linked from the [Pocket Network Discord](http://discord.gg/pocket-network), and verify operators on [Pocket Explorer](https://explorer.pocket.network/suppliers). Compare fee structures and track records.
 2. **Deposit your POKT.** Each pool has its own deposit process — typically sending native POKT to the pool's address. Use the verified pool address from the official list.
 3. **Earn rewards.** The pool earns relay rewards and distributes them periodically (weekly or monthly is common), minus the operator's fee.
-4. **Withdraw when ready.** All unstaking on Pocket Network has a 21-day unbonding period — this is a protocol requirement, not a pool choice. Check each pool's specific terms for any additional notice or withdrawal process on top of the standard unbonding.
+4. **Withdraw when ready.** Unstaking a Supplier has an unbonding period of <GovParam module="shared" param="supplier_unbonding_period_sessions" format="sessions-days" /> (<GovParam module="shared" param="supplier_unbonding_period_sessions" format="commas" /> sessions) — this is a protocol requirement, not a pool choice. Check each pool's specific terms for any additional notice or withdrawal process on top of the standard unbonding.
 
 ### What to Look For
 
@@ -64,10 +64,10 @@ For full setup instructions, see [Supplier Staking](/node-operators/supplier-sta
 
 Staking rewards are not a fixed APR — they are dynamic, proportional to relay volume:
 
-- 85% of all newly minted POKT goes to Suppliers. The other 15% goes to the DAO Treasury (10%) and Sequencers (5%).
+- <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> of all newly minted POKT goes to Suppliers. The rest goes to Validators (<GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.proposer" format="percent" />), the DAO Treasury (<GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" />), and service owners (<GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" />).
 - Minting is relay-proportional: more relays = more POKT minted. Your share depends on the relays your node serves.
-- Burn offsets mint: relay fees are burned on-chain. As of April 2026, burn and mint are approximately balanced at ~38,000 POKT/day, meaning net inflation is near zero.
-- Programmatic deflation: [PIP-41](/token/pip-41) embedded a 2.5% deflation rate — at growing relay volumes, total burn outpaces mint.
+- Burn offsets mint: relay fees are burned on-chain. For live daily burn and mint, see [pokt.money](https://pokt.money) or [Pocket Analytics](https://analytics.pocket.network).
+- Programmatic deflation: [PIP-41](/token/pip-41) mints back only <GovParam module="tokenomics" param="mint_ratio" format="percent" /> of what is burned, so <GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> of every settlement is permanently removed.
 
 <Callout type="info">
   There is no fixed annual yield to quote. Reward rates depend on total network relay volume, competing nodes, and POKT/USD price. Published APR estimates from third parties are indicative only — verify against current [Pocket Analytics](https://analytics.pocket.network) data.
@@ -75,17 +75,17 @@ Staking rewards are not a fixed APR — they are dynamic, proportional to relay 
 
 ### Reward Frequency
 
-- **Own node:** Rewards accrue per session (approximately every few hours) and appear in your wallet on a rolling basis.
+- **Own node:** Rewards accrue per session (every <GovParam module="shared" param="num_blocks_per_session" /> blocks, <GovParam module="shared" param="num_blocks_per_session" format="blocks-minutes" /> on MainNet), after the claim and proof windows close and appear in your wallet on a rolling basis.
 - **Node runner:** Depends on your agreement — typically weekly or monthly settlements.
 - **Staking pool:** Varies by pool — weekly or monthly distributions are most common.
 
 ### Lock-up Periods and Unstaking
 
-Once POKT is staked, it is locked — you cannot transfer or sell it until you unstake. The unbonding period is currently **21 days** for Suppliers. During this period, your tokens are not earning rewards and cannot be moved.
+Once POKT is staked, it is locked — you cannot transfer or sell it until you unstake. The unbonding period for Suppliers is currently **<GovParam module="shared" param="supplier_unbonding_period_sessions" format="sessions-days" />** (<GovParam module="shared" param="supplier_unbonding_period_sessions" format="commas" /> sessions). During this period, your tokens are not earning rewards and cannot be moved.
 
 ## Risks to Understand
 
-**Market price risk:** Rewards are paid in POKT. If the POKT/USD price falls while your stake is locked, the USD value of your rewards and principal decreases. The 21-day unstaking period means you cannot react quickly to price movements.
+**Market price risk:** Rewards are paid in POKT. If the POKT/USD price falls while your stake is locked, the USD value of your rewards and principal decreases. The unbonding period means you cannot react quickly to price movements.
 
 **Relay volume risk:** Rewards are proportional to relay volume. If network usage declines, fewer relays are served, less POKT is minted, and rewards fall.
 

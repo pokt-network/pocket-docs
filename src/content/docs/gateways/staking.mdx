@@ -6,7 +6,7 @@ persona: ["gateway-operator"]
 tabs: true
 status: "stable"
 sources: ["zip1/05-gateway-staking.md", "zip2/05-gateway-staking.md"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 <Tabs>
@@ -135,7 +135,7 @@ Operating a Gateway on Pocket Network is a real business opportunity. Here is wh
 - **Competitive differentiation**: Gateway operators compete on latency, uptime, geographic coverage, and supported services. Operators who invest in quality attract more delegations.
 - **Permissionless entry**: Anyone can stake and become a Gateway. There are no gatekeepers deciding who gets to participate — just a minimum stake requirement and the market's judgment of your quality.
 
-By running a Gateway, you become part of Pocket Network's mission to make data access **unstoppable**. Even if one Gateway goes offline, applications can delegate to others. The network routes around failures automatically. This **self-healing** architecture means that the more independent Gateway operators there are, the more resilient the entire ecosystem becomes.
+By running a Gateway, you help keep data access open and resilient. Even if one Gateway goes offline, applications can delegate to others. The network routes around failures automatically. This **self-healing** architecture means that the more independent Gateway operators there are, the more resilient the entire ecosystem becomes.
 
 ## Troubleshooting
 
@@ -208,7 +208,7 @@ the `--config` flag. The file has a single required field:
 
 ```yaml
 # gateway_stake_config.yaml
-stake_amount: 5000000000upokt
+stake_amount: <amount>upokt   # at least the live gateway min_stake
 ```
 
 **Field reference:**
@@ -221,7 +221,7 @@ The `stake_amount` must be:
 
 - Greater than zero.
 - Denominated in `upokt` (no other denoms are accepted).
-- Greater than or equal to the on-chain `min_stake` governance parameter.
+- Greater than or equal to the on-chain `min_stake` governance parameter, currently <GovParam module="gateway" param="min_stake" format="pokt" /> POKT on MainNet.
 - Greater than or equal to the gateway's current stake (if already staked). To
   increase your stake, set a higher value and re-submit the transaction.
 
@@ -258,7 +258,7 @@ The new amount replaces the old stake (it is not additive).
 
 ```yaml
 # gateway_stake_config.yaml  (increased stake)
-stake_amount: 10000000000upokt
+stake_amount: <higher amount>upokt   # more than the current stake
 ```
 
 ```bash
@@ -434,12 +434,12 @@ sure there is no space between the number and the denom:
 
 ```yaml
 # Correct
-stake_amount: 5000000000upokt
+stake_amount: 6000000000upokt
 
 # Wrong — will fail
-stake_amount: 5000000000 upokt
-stake_amount: 5000000000uPOKT
-stake_amount: 5000.0pokt
+stake_amount: 6000000000 upokt
+stake_amount: 6000000000uPOKT
+stake_amount: 6000.0pokt
 ```
 
 ### Stake transaction fails with "stake amount below minimum"

@@ -6,7 +6,7 @@ persona: ["token-holder", "defi-user"]
 tabs: false
 status: "stable"
 sources: ["zip3/liquidity-mining-guide.docx"]
-lastUpdated: "2026-04-08"
+lastUpdated: "2026-09-27"
 ---
 
 Providing DeFi liquidity is a way to put your POKT to work without staking it on Pocket's mainnet. Instead of bridging and locking tokens, you deposit them into a trading pool on a DEX and earn a share of the fees generated every time someone swaps through that pool.
@@ -115,7 +115,7 @@ On Aerodrome, pools that receive veAERO votes get additional AERO token emission
 | **Minimum** | None | <GovParam module="supplier" param="min_stake" format="pokt" /> (own node) or none (pool) |
 | **Yield source** | Swap fees + emissions | Relay rewards |
 | **Main risk** | Impermanent loss | Relay volume decline |
-| **Lock-up** | None (DEX positions withdraw anytime) | 21-day unbonding |
+| **Lock-up** | None (DEX positions withdraw anytime) | <GovParam module="shared" param="supplier_unbonding_period_sessions" format="sessions-days" /> of unbonding |
 | **Complexity** | Moderate (DEX interaction) | Low (pool) to High (own node) |
 
 You don't have to choose — you could provide liquidity with a portion while bridging and staking the rest.

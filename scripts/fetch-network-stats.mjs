@@ -72,6 +72,26 @@ const METRICS = {
       source_url: `${BASE_URL}${path}`,
     };
   },
+
+  // Average seconds per block over the last SAMPLE blocks. Not a governance
+  // parameter, but needed to turn session-denominated params (e.g. supplier
+  // unbonding) into days for readers.
+  async avg_block_time_seconds() {
+    const SAMPLE = 1000;
+    const latest = await fetchJson("/cosmos/base/tendermint/v1beta1/blocks/latest");
+    const h = Number(latest?.block?.header?.height);
+    const t2 = Date.parse(latest?.block?.header?.time);
+    if (!Number.isFinite(h) || !Number.isFinite(t2)) throw new Error("no latest block header");
+    const earlierPath = `/cosmos/base/tendermint/v1beta1/blocks/${h - SAMPLE}`;
+    const earlier = await fetchJson(earlierPath);
+    const t1 = Date.parse(earlier?.block?.header?.time);
+    if (!Number.isFinite(t1)) throw new Error("no earlier block header");
+    return {
+      value: (t2 - t1) / 1000 / SAMPLE,
+      unit: "seconds",
+      source_url: `${BASE_URL}${earlierPath}`,
+    };
+  },
 };
 
 async function main() {

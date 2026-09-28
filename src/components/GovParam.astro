@@ -2,25 +2,55 @@
 /**
  * GovParam — Inline governance parameter display.
  * Reads from data/governance-params.json (built by fetch-governance-params.mjs).
- * 
+ *
  * Usage in MDX:
  *   <GovParam module="application" param="min_stake" format="pokt" />
  *   <GovParam module="shared" param="num_blocks_per_session" />
- *   <GovParam module="tokenomics" param="mint_allocation_percentages.dao" format="percent" />
- * 
- * Formats: raw (default), pokt, upokt, percent, commas
+ *   <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" />
+ *
+ * Derived values (so worked examples never hardcode a parameter):
+ *   complement      — use 1 − value, e.g. the PIP-41 deflation rate from mint_ratio
+ *   times="m.p,…"   — multiply by other params, e.g. a share of the minted amount
+ *   per="m.p,…"     — divide by other params, e.g. the multiplier per granularity
+ *   scale={100}     — multiply by a constant, e.g. "of 100 POKT burned"
+ *   decimals={4}    — max fraction digits for the `number` format
+ *
+ * Formats:
+ *   raw (default), pokt, upokt, percent, commas, number,
+ *   days          — a duration param such as "1814400s" shown as "21 days"
+ *   sessions-days — a session count shown as approximate days, using
+ *                   shared.num_blocks_per_session and the measured block time
+ *                   from data/network-stats.json
+ *   blocks-minutes — a block count shown as approximate minutes, same block time
  */
 import govParams from '../../data/governance-params.json';
+import networkStats from '../../data/network-stats.json';
 
 interface Props {
   module: string;
   param: string;
-  format?: 'raw' | 'pokt' | 'upokt' | 'percent' | 'commas';
+  format?: 'raw' | 'pokt' | 'upokt' | 'percent' | 'commas' | 'number' | 'days' | 'sessions-days' | 'blocks-minutes';
   fallback?: string;
+  complement?: boolean;
+  times?: string;
+  per?: string;
+  scale?: number;
+  decimals?: number;
 }
 
-const { module, param, format = 'raw', fallback = '—' } = Astro.props;
+const {
+  module,
+  param,
+  format = 'raw',
+  fallback = '—',
+  complement = false,
+  times,
+  per,
+  scale,
+  decimals = 4,
+} = Astro.props;
 const UPOKT_PER_POKT = 1_000_000;
+const SECONDS_PER_DAY = 86_400;
 
 function resolveValue(mod: string, p: string): any {
   const m = (govParams as any)?.modules?.[mod];
@@ -30,32 +60,81 @@ function resolveValue(mod: string, p: string): any {
   return undefined;
 }
 
-function formatNumber(n: number): string {
-  return n.toLocaleString('en-US');
+function toNumber(v: any): number {
+  if (v && typeof v === 'object' && 'amount' in v) return Number(v.amount);
+  if (typeof v === 'string' && /^\d+(\.\d+)?s$/.test(v)) return Number(v.slice(0, -1));
+  return Number(v);
 }
 
-const value = resolveValue(module, param);
+function formatNumber(n: number, maxDecimals = 0): string {
+  return n.toLocaleString('en-US', { maximumFractionDigits: maxDecimals });
+}
+
+let value = resolveValue(module, param);
+const derived = complement || times || per || scale !== undefined;
+
+if (value !== undefined && value !== null && derived) {
+  let n = toNumber(value);
+  if (complement) n = 1 - n;
+  for (const ref of (times ?? '').split(',').map((s) => s.trim()).filter(Boolean)) {
+    const dot = ref.indexOf('.');
+    const factor = resolveValue(ref.slice(0, dot), ref.slice(dot + 1));
+    n = factor === undefined ? NaN : n * toNumber(factor);
+  }
+  for (const ref of (per ?? '').split(',').map((s) => s.trim()).filter(Boolean)) {
+    const dot = ref.indexOf('.');
+    const divisor = resolveValue(ref.slice(0, dot), ref.slice(dot + 1));
+    n = divisor === undefined ? NaN : n / toNumber(divisor);
+  }
+  if (scale !== undefined) n *= scale;
+  value = Number.isFinite(n) ? parseFloat(n.toPrecision(12)) : undefined;
+}
+
 let display = fallback;
 
 if (value !== undefined && value !== null) {
   switch (format) {
     case 'pokt': {
-      const amount = typeof value === 'object' && value.amount ? value.amount : String(value);
-      display = formatNumber(Number(amount) / UPOKT_PER_POKT);
+      display = formatNumber(toNumber(value) / UPOKT_PER_POKT, 6);
       break;
     }
     case 'upokt': {
-      const amount = typeof value === 'object' && value.amount ? value.amount : String(value);
-      display = `${amount}upokt`;
+      display = `${toNumber(value)}upokt`;
       break;
     }
     case 'percent': {
-      const pct = Number(value) * 100;
+      const pct = toNumber(value) * 100;
       display = `${parseFloat(pct.toPrecision(10))}%`;
       break;
     }
     case 'commas': {
-      display = formatNumber(Number(value));
+      display = formatNumber(toNumber(value));
+      break;
+    }
+    case 'number': {
+      display = formatNumber(toNumber(value), decimals);
+      break;
+    }
+    case 'days': {
+      const days = toNumber(value) / SECONDS_PER_DAY;
+      display = `${formatNumber(days, 1)} days`;
+      break;
+    }
+    case 'sessions-days': {
+      const blocks = toNumber(resolveValue('shared', 'num_blocks_per_session'));
+      const blockTime = Number((networkStats as any)?.metrics?.avg_block_time_seconds?.value);
+      const sessions = toNumber(value);
+      display = Number.isFinite(blocks) && Number.isFinite(blockTime) && blockTime > 0
+        ? `about ${formatNumber((sessions * blocks * blockTime) / SECONDS_PER_DAY)} days`
+        : `${formatNumber(sessions)} sessions`;
+      break;
+    }
+    case 'blocks-minutes': {
+      const blockTime = Number((networkStats as any)?.metrics?.avg_block_time_seconds?.value);
+      const blocks = toNumber(value);
+      display = Number.isFinite(blockTime) && blockTime > 0
+        ? `about ${formatNumber((blocks * blockTime) / 60)} minutes`
+        : `${formatNumber(blocks)} blocks`;
       break;
     }
     default: {

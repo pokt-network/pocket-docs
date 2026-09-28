@@ -6,7 +6,7 @@ persona: ["token-holder", "investor"]
 tabs: false
 status: "stable"
 sources: ["zip3/pokt-tokenomics-explained.docx"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 POKT is the native token of Pocket Network. It's not just a governance token or speculative asset — it's the fuel that runs a live, global data network. Every relay served burns POKT. Every node operator earns POKT.
@@ -22,9 +22,9 @@ The total supply above is fetched live from the chain on every build. For real-t
 ## The Token Flow
 
 1. **Applications** burn POKT to pay for data access (relay fees)
-2. **The protocol** mints 97.5% of what was burned ([PIP-41](/token/pip-41) removes the other 2.5%)
-3. **Suppliers** receive 79% of minted tokens for serving relays
-4. **Validators, DAO, and Source Owners** split the remaining 21%
+2. **The protocol** mints <GovParam module="tokenomics" param="mint_ratio" format="percent" /> of what was burned ([PIP-41](/token/pip-41) removes the other <GovParam module="tokenomics" param="mint_ratio" complement format="percent" />)
+3. **Suppliers** receive <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> of minted tokens for serving relays
+4. **Validators, DAO, and Source Owners** split the remaining <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" complement format="percent" />
 
 More usage → more burn → less supply → increased scarcity.
 

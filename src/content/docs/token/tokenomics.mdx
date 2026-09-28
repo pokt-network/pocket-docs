@@ -6,7 +6,7 @@ persona: ["token-holder", "investor", "developer", "node-operator"]
 tabs: true
 status: "stable"
 sources: ["zip1/10-tokenomics-overview.md", "zip3/pokt-tokenomics-explained.docx"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 <Tabs>
@@ -20,9 +20,9 @@ New POKT enters circulation as rewards to the actors who keep the network runnin
 
 | Recipient | Share | Role |
 | --- | --- | --- |
-| **Suppliers** | ~79% | Serve relays to applications |
-| **Validators** | ~14% | Propose and validate blocks |
-| **DAO Treasury** | ~4.5% | Fund grants and ecosystem development |
+| **Suppliers** | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> | Serve relays to applications |
+| **Validators** | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.proposer" format="percent" /> | Propose and validate blocks |
+| **DAO Treasury** | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> | Fund grants and ecosystem development |
 | **Source Owners** | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> | Maintain service definitions |
 
 Minting is demand-driven, not time-driven. If relay volume drops, fewer tokens are minted. If volume grows, more are minted — but burn also increases proportionally, keeping the system balanced.
@@ -41,7 +41,7 @@ Gateways pay POKT to access the network. Those fees are burned on-chain — perm
 
 ### 2. Programmable Deflation (PIP-41)
 
-[PIP-41](https://forum.pokt.network/t/pip-41-introducing-a-deflationary-mint-mechanism-for-shannon-tokenomics/5622) activated a structural burn mechanism: for every 100 POKT burned by applications, only 97.5 POKT is minted back. The remaining 2.5% is permanently removed from circulation.
+[PIP-41](https://forum.pokt.network/t/pip-41-introducing-a-deflationary-mint-mechanism-for-shannon-tokenomics/5622) activated a structural burn mechanism: for every 100 POKT burned by applications, only <GovParam module="tokenomics" param="mint_ratio" scale={100} format="number" /> POKT is minted back. The remaining <GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> is permanently removed from circulation.
 
 ## The Supply Flywheel
 
@@ -59,7 +59,7 @@ Staking removes POKT from circulating supply while it's actively securing the ne
 
 - Minimum stake to run a Supplier node: <GovParam module="supplier" param="min_stake" format="pokt" /> POKT
 - Total network supply: <NetworkStat metric="total_supply" format="billions" fallback="see Pocket Analytics" /> POKT (live from chain). For current staked supply and the staked percentage, see [Pocket Analytics](https://analytics.pocket.network)
-- Staked tokens are locked and cannot be traded until unstaked (21-day unbonding period)
+- Staked tokens are locked and cannot be traded until unstaked. Supplier unbonding takes <GovParam module="shared" param="supplier_unbonding_period_sessions" format="sessions-days" />
 
 A higher staked percentage means less liquid supply available to trade — which, combined with burn, reduces effective circulating supply over time.
 
@@ -71,11 +71,11 @@ At mainnet launch in July 2020, 650 million POKT were created and distributed ac
 
 **For token holders:** The combination of relay fee burn, programmable deflation, and locked staking supply creates compounding downward pressure on circulating supply. As network usage grows, total supply shrinks.
 
-**For Suppliers:** Earn ~79% of all newly minted POKT. Rewards are proportional to relay volume.
+**For Suppliers:** Earn <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> of all newly minted POKT. Rewards are proportional to relay volume.
 
 **For Gateways and developers:** Relay fees paid in POKT are burned. Every unit of demand directly reduces token supply.
 
-**For the DAO:** 4.5% of all Mint=Burn settlement flows to the DAO Treasury, funding grants and ecosystem development. Balances are publicly visible on [Pocket Explorer](https://explorer.pocket.network).
+**For the DAO:** <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> of all Mint=Burn settlement flows to the DAO Treasury, funding grants and ecosystem development. Balances are publicly visible on [Pocket Explorer](https://explorer.pocket.network).
 
 </Tab>
 <Tab label="Advanced">
@@ -115,25 +115,27 @@ The fundamental economic mechanism for paying Suppliers.
 
 ### Distribution
 
-| Recipient | Default | Description |
+| Recipient | Current | Description |
 | --- | --- | --- |
-| `supplier` | 79% | Distributed among the Supplier's revenue shareholders |
-| `proposer` | 14% | Distributed to validators weighted by stake |
-| `dao` | 4.5% | Sent to DAO treasury address |
+| `supplier` | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> | Distributed among the Supplier's revenue shareholders |
+| `proposer` | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.proposer" format="percent" /> | Distributed to validators weighted by stake |
+| `dao` | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> | Sent to DAO treasury address |
 | `source_owner` | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> | Sent to service definition owner |
-| `application` | 0% | Returned to Application (typically zero) |
+| `application` | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.application" format="percent" /> | Returned to Application (typically zero) |
 
 ### Example: With PIP-41 Deflation
 
-Settlement of 100 POKT with `mint_ratio = 0.975`:
+Settlement of 100 POKT with the current `mint_ratio` of <GovParam module="tokenomics" param="mint_ratio" />:
 
 - **Burned from Application**: 100 POKT
-- **Minted for distribution**: 97.5 POKT
-- **Permanently removed**: 2.5 POKT
-- **Supplier receives**: 77.025 POKT (79% of 97.5)
-- **Validators receive**: 13.65 POKT (14% of 97.5)
-- **DAO receives**: 4.3875 POKT (4.5% of 97.5)
-- **Source Owner receives**: 2.4375 POKT (2.5% of 97.5)
+- **Minted for distribution**: <GovParam module="tokenomics" param="mint_ratio" scale={100} format="number" /> POKT
+- **Permanently removed**: <GovParam module="tokenomics" param="mint_ratio" complement scale={100} format="number" /> POKT
+- **Supplier receives**: <GovParam module="tokenomics" param="mint_ratio" times="tokenomics.mint_equals_burn_claim_distribution.supplier" scale={100} format="number" /> POKT (<GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> of the minted amount)
+- **Validators receive**: <GovParam module="tokenomics" param="mint_ratio" times="tokenomics.mint_equals_burn_claim_distribution.proposer" scale={100} format="number" /> POKT (<GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.proposer" format="percent" />)
+- **DAO receives**: <GovParam module="tokenomics" param="mint_ratio" times="tokenomics.mint_equals_burn_claim_distribution.dao" scale={100} format="number" /> POKT (<GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" />)
+- **Source Owner receives**: <GovParam module="tokenomics" param="mint_ratio" times="tokenomics.mint_equals_burn_claim_distribution.source_owner" scale={100} format="number" /> POKT (<GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" />)
+
+Every figure above is computed from the live parameters when this page is built.
 
 ## PIP-41: mint_ratio
 
@@ -145,7 +147,7 @@ MintedAmount    = SettlementAmount * mint_ratio
 ```
 
 - `mint_ratio = 1.0`: No deflation (pre-PIP-41 behavior)
-- `mint_ratio = 0.975`: 2.5% deflation per settlement
+- Current `mint_ratio` of <GovParam module="tokenomics" param="mint_ratio" />: <GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> deflation per settlement
 
 ### Querying mint_ratio
 
@@ -153,24 +155,9 @@ MintedAmount    = SettlementAmount * mint_ratio
 pocketd query tokenomics params --network=main
 ```
 
-```yaml
-params:
-  dao_reward_address: "pokt1eeeksh2tvkh7wzmfrljnhw4wrhs55lcuvmekkw"
-  mint_equals_burn_claim_distribution:
-    dao: 0.1
-    proposer: 0
-    supplier: 0.8
-    source_owner: 0.1
-    application: 0
-  global_inflation_per_claim: 0.000001
-  mint_equals_burn_claim_distribution:
-    dao: 0.045
-    proposer: 0.14
-    supplier: 0.79
-    source_owner: 0.025
-    application: 0
-  mint_ratio: 0.975
-```
+Current MainNet values:
+
+<GovParamBlock module="tokenomics" />
 
 ## Global Mint TLM
 
@@ -178,7 +165,7 @@ Mints additional inflationary tokens per claim. Designed as a bootstrap mechanis
 
 1. Compute: `InflationAmount = SettlementAmount * global_inflation_per_claim`
 2. Mint new tokens equal to the inflation amount
-3. Distribute according to `mint_equals_burn_claim_distribution` (Supplier 80%, Source Owner 10%, DAO 10%)
+3. Distribute according to `mint_allocation_percentages`, a separate parameter from the Mint=Burn split (currently Supplier <GovParam module="tokenomics" param="mint_allocation_percentages.supplier" format="percent" />, Source Owner <GovParam module="tokenomics" param="mint_allocation_percentages.source_owner" format="percent" />, DAO <GovParam module="tokenomics" param="mint_allocation_percentages.dao" format="percent" />, Proposer <GovParam module="tokenomics" param="mint_allocation_percentages.proposer" format="percent" />)
 4. Application is overcharged by the inflation amount
 
 ### Self-Dealing Prevention
@@ -225,7 +212,7 @@ pocketd query service relay-mining-difficulty-history eth --network=main
 for ((h=205950; h<=210000; h+=30)); do
   echo -n "Height $h: "
   curl -s -H "x-cosmos-block-height: $h" \
-    https://shannon-grove-api.mainnet.poktroll.com/cosmos/bank/v1beta1/balances/pokt1youraddresshere \
+    https://sauron-api.infra.pocket.network/cosmos/bank/v1beta1/balances/pokt1youraddresshere \
     | jq -r '.balances[0].amount // "0"'
 done
 ```
@@ -251,13 +238,13 @@ pocketd query proof list-proofs --network=main
 
 ## Tokenomics Parameters Reference
 
-| Parameter | Type | Default | Description |
+| Parameter | Type | Current | Description |
 | --- | --- | --- | --- |
-| `dao_reward_address` | bech32 | `pokt1eeeksh...` | DAO rewards destination |
-| `global_inflation_per_claim` | float64 | 0.000001 | Inflation percentage per claim |
-| `mint_equals_burn_claim_distribution` | object | See above | Global Mint distribution |
+| `dao_reward_address` | bech32 | <GovParam module="tokenomics" param="dao_reward_address" /> | DAO rewards destination |
+| `global_inflation_per_claim` | float64 | <GovParam module="tokenomics" param="global_inflation_per_claim" format="number" decimals={8} /> | Global Mint amount per claim, as a fraction of the settlement |
+| `mint_allocation_percentages` | object | See above | Global Mint distribution |
 | `mint_equals_burn_claim_distribution` | object | See above | Mint=Burn distribution |
-| `mint_ratio` | float64 | 0.975 | Proportion of burned tokens to mint |
+| `mint_ratio` | float64 | <GovParam module="tokenomics" param="mint_ratio" /> | Proportion of burned tokens to mint |
 
 </Tab>
 </Tabs>

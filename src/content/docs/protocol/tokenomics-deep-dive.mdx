@@ -6,14 +6,14 @@ persona: ["core-developer", "protocol-economist"]
 tabs: false
 status: "draft"
 sources: ["zip4/poktroll/docusaurus/3_protocol/tokenomics/", "zip4/poktroll/.serena/memories/"]
-lastUpdated: "2026-04-08"
+lastUpdated: "2026-09-27"
 ---
 
 
 This page covers the internal economics of Shannon at the protocol level — Token Logic Modules, settlement math, relay mining difficulty, and mint allocation. If you're looking for a token holder overview of POKT economics, see [Tokenomics](/token/tokenomics) instead.
 
 <Callout type="info">
-All tokenomics parameters are governance-controlled and can change via on-chain proposals. The values shown here are defaults — check current chain state with `pocketd query shared params` and `pocketd query tokenomics params`.
+All tokenomics parameters are governance-controlled and can change via on-chain proposals. Every value on this page is read from MainNet when the docs are built. To check the chain yourself, run `pocketd query shared params` and `pocketd query tokenomics params`.
 </Callout>
 
 ## Token Logic Modules (TLMs)
@@ -29,7 +29,7 @@ burn_amount = compute_units × compute_units_to_tokens_multiplier
 mint_amount = burn_amount × (1 - deflation_rate)
 ```
 
-The key property: **burn ≥ mint**. Since the passage of **PIP-41** (January 2026, implemented in v0.1.31), the global mint ratio is set to **0.975** — meaning only 97.5% of burned POKT is minted back. The remaining 2.5% is never created, producing permanent on-chain deflation that scales with network usage.
+The key property: **burn ≥ mint**. Since the passage of **PIP-41** (January 2026, implemented in v0.1.31), the global mint ratio is below 1 — currently **<GovParam module="tokenomics" param="mint_ratio" />**, meaning only <GovParam module="tokenomics" param="mint_ratio" format="percent" /> of burned POKT is minted back. The remaining <GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> is never created, producing permanent on-chain deflation that scales with network usage.
 
 ### Source Boost TLM
 
@@ -41,17 +41,20 @@ Maintains competitive staking APR during low-volume periods. Provides additional
 
 ## Mint Allocation
 
-When tokens are minted during settlement, they're distributed according to configurable percentages:
+Two separate governance parameters split minted tokens. They are easy to confuse:
 
-| Recipient | Default % | Description |
-|-----------|-----------|-------------|
-| Supplier | 70% | Reward for servicing relays — the primary incentive |
-| Source Owner | 15% | Reward for registering and maintaining the service definition |
-| DAO | 10% | Protocol treasury for ecosystem funding |
-| Proposer | 5% | Block validator reward — standard Cosmos validator incentive |
-| Application | 0% | Applications burn, they don't earn |
+- **`mint_equals_burn_claim_distribution`** splits the Mint=Burn settlement, which is how relays are paid.
+- **`mint_allocation_percentages`** splits only the Global Mint amount (`global_inflation_per_claim`).
 
-These percentages are stored on-chain as `MintAllocationPercentages` in the tokenomics module params and are modifiable through governance.
+| Recipient | Mint=Burn share | Global Mint share | Description |
+|-----------|-----------------|-------------------|-------------|
+| Supplier | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> | <GovParam module="tokenomics" param="mint_allocation_percentages.supplier" format="percent" /> | Reward for servicing relays — the primary incentive |
+| Proposer | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.proposer" format="percent" /> | <GovParam module="tokenomics" param="mint_allocation_percentages.proposer" format="percent" /> | Validator reward, split across bonded validators by stake |
+| DAO | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> | <GovParam module="tokenomics" param="mint_allocation_percentages.dao" format="percent" /> | Protocol treasury for ecosystem funding |
+| Source Owner | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> | <GovParam module="tokenomics" param="mint_allocation_percentages.source_owner" format="percent" /> | Reward for registering and maintaining the service definition |
+| Application | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.application" format="percent" /> | <GovParam module="tokenomics" param="mint_allocation_percentages.application" format="percent" /> | Applications burn, they don't earn |
+
+Both are stored in the tokenomics module params and are modifiable through governance. Values are live from MainNet.
 
 ```protobuf
 message MintAllocationPercentages {
@@ -81,10 +84,10 @@ claimed_compute_units = claim.root_hash.sum
 
 ### Step 3: Token Conversion
 
-Compute units are converted to token amounts using the `compute_units_to_tokens_multiplier` (CUTTM) parameter from `x/shared`. On mainnet, the initial CUTTM was set to approximately 495 picoPOKT per CU — a governance-adjustable value designed to match relay pricing to real-world demand.
+Compute units are converted to token amounts using the `compute_units_to_tokens_multiplier` (CUTTM) and `compute_unit_cost_granularity` parameters from `x/shared`. On MainNet one compute unit currently costs <GovParam module="shared" param="compute_units_to_tokens_multiplier" per="shared.compute_unit_cost_granularity" format="number" decimals={6} /> uPOKT. Governance adjusts the multiplier so that compute units keep a fixed dollar value as the POKT price moves.
 
 ```
-token_amount = claimed_compute_units × CUTTM
+upokt_amount = claimed_compute_units × CUTTM ÷ compute_unit_cost_granularity
 ```
 
 TLM modifiers are then applied based on the service and current network state.
@@ -95,7 +98,7 @@ POKT is burned from the Application's staked balance. If the Application's remai
 
 ### Step 5: Mint to Recipients
 
-The final mint amount is split according to `MintAllocationPercentages` and distributed:
+The final mint amount is split according to `mint_equals_burn_claim_distribution` and distributed:
 
 - Supplier operator address receives the supplier share
 - Source Owner of the service receives the source owner share
@@ -141,54 +144,30 @@ Relay mining difficulty is stored per-service in `x/service` as `RelayMiningDiff
 
 ## Deflation Mechanics (PIP-41)
 
-Since v0.1.31 (February 2026), Shannon is **actively deflationary**. PIP-41 set the global mint ratio to 0.975, meaning for every 100 POKT burned by applications, only 97.5 POKT is minted to network participants. The remaining 2.5% is never created.
+Since v0.1.31 (February 2026), Shannon is **actively deflationary**. PIP-41 introduced the mint ratio, currently <GovParam module="tokenomics" param="mint_ratio" />: for every 100 POKT burned by applications, only <GovParam module="tokenomics" param="mint_ratio" scale={100} format="number" /> POKT is minted to network participants. The remaining <GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> is never created.
 
-At current relay volumes, this removes approximately 900,000 POKT from supply annually. At 10x current traffic, that rises to over 9 million POKT per year. The more the network is used, the more deflationary it becomes.
+The amount removed scales with relay volume: the more the network is used, the more deflationary it becomes. For live burn and mint figures, see [pokt.money](https://pokt.money) or [Pocket Analytics](https://analytics.pocket.network).
 
-The mint ratio is governance-controlled. The DAO can vote to adjust it — the Foundation has modeled dynamics down to 50%. The 97.5% starting point was chosen to minimize impact on active suppliers (only a 1.24% reduction in rewards) while establishing the deflationary mechanism.
+The mint ratio is governance-controlled. The DAO can vote to adjust it, and the Foundation has modeled dynamics down to a ratio of 0.5. The first value was chosen to minimize the impact on active suppliers while establishing the deflationary mechanism.
 
 ```
 For each relay settlement cycle:
-  burn_amount   = compute_units × CUTTM           (100% burned)
-  mint_amount   = burn_amount × global_mint_ratio  (97.5% minted)
-  deflation     = burn_amount × 0.025              (2.5% permanent removal)
+  burn_amount   = compute_units × CUTTM ÷ granularity   (all of it burned)
+  mint_amount   = burn_amount × mint_ratio              (minted back)
+  deflation     = burn_amount × (1 − mint_ratio)        (permanently removed)
 ```
 
 ## Key Parameters Reference
 
+Current MainNet values, read from chain when this page was built. Beta TestNet and local networks use different values.
+
 ### Shared Parameters
 
-```yaml
-shared:
-  num_blocks_per_session: 10
-  grace_period_end_offset_blocks: 1
-  claim_window_open_offset_blocks: 1
-  claim_window_close_offset_blocks: 4
-  proof_window_open_offset_blocks: 0
-  proof_window_close_offset_blocks: 4
-  supplier_unbonding_period_sessions: 1
-  application_unbonding_period_sessions: 1
-  gateway_unbonding_period_sessions: 1
-  compute_units_to_tokens_multiplier: ...  # See note below
-```
-
-<Callout type="warning">
-The `compute_units_to_tokens_multiplier` (CUTTM) is the pricing parameter that converts compute units to POKT. On mainnet, the initial CUTTM was set to 1 CU ≈ 495 picoPOKT (0.000000495 POKT). This value is governance-adjustable. Always query `pocketd query shared params` for the current mainnet value — the value above is illustrative only and differs significantly from test/dev configs.
-</Callout>
+<GovParamBlock module="shared" />
 
 ### Tokenomics Parameters
 
-```yaml
-tokenomics:
-  mint_equals_burn_claim_distribution:
-    dao: 0.1
-    proposer: 0.05
-    supplier: 0.7
-    source_owner: 0.15
-    application: 0.0
-  global_mint_ratio: 0.975           # PIP-41: 97.5% mint, 2.5% permanent deflation
-  dao_reward_address: "pokt1..."
-```
+<GovParamBlock module="tokenomics" />
 
 ### Service Parameters
 
@@ -199,8 +178,8 @@ service:
     target_hash: "..."              # Per-service difficulty target
 ```
 
-<Callout type="warning">
-These are default values. All parameters are governance-controlled and may differ on the live network. Always query chain state for current values.
+<Callout type="info">
+`compute_units_per_relay` is set per service by its owner, not by governance. Query it with `pocketd query service show-service <service_id>`.
 </Callout>
 
 ## Debugging Tokenomics

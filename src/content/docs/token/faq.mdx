@@ -6,7 +6,7 @@ persona: ["token-holder", "investor"]
 tabs: false
 status: "stable"
 sources: ["zip3/faq-token-holders-investors.docx"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 <Callout type="info">
@@ -33,13 +33,13 @@ No. Shannon stores a complete archive of all Morse balances. You need to claim y
 ## Tokenomics and Supply
 
 **Is POKT inflationary or deflationary?**
-Deflationary since [PIP-41](/token/pip-41) (February 2026). For every relay served, 100% of the POKT fee is burned but only 97.5% is re-minted. The remaining 2.5% is permanently removed. More relay volume = more deflation. This is automatic — no governance vote needed per burn.
+Deflationary since [PIP-41](/token/pip-41) (February 2026). For every relay served, all of the POKT fee is burned but only <GovParam module="tokenomics" param="mint_ratio" format="percent" /> is re-minted. The remaining <GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> is permanently removed. More relay volume = more deflation. This is automatic — no governance vote needed per burn.
 
 **What is the total supply?**
-Approximately 2.4 billion POKT as of April 2026, and declining. There is no fixed maximum supply cap, but under PIP-41, supply contracts with every relay served.
+About <NetworkStat metric="total_supply" format="billions" fallback="see Pocket Analytics" /> POKT, and declining. There is no fixed maximum supply cap, but under PIP-41, supply contracts with every relay served.
 
 **How does burn-and-mint work?**
-Applications burn POKT to pay for relays. The protocol mints 97.5% back and distributes it: 79% to Suppliers, 14% to Validators, 4.5% to DAO, 2.5% to Service Owners. The remaining 2.5% of the original burn is never created. See [Tokenomics](/token/tokenomics) for the full model.
+Applications burn POKT to pay for relays. The protocol mints <GovParam module="tokenomics" param="mint_ratio" format="percent" /> back and distributes it: <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> to Suppliers, <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.proposer" format="percent" /> to Validators, <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> to the DAO, and <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> to service owners. The remaining <GovParam module="tokenomics" param="mint_ratio" complement format="percent" /> of the original burn is never created. See [Tokenomics](/token/tokenomics) for the full model.
 
 **What is the CUTTM?**
 The Compute Unit to Token Multiplier — the exchange rate converting compute units to POKT. Since relay pricing is pegged to USD (1 billion CUs ≈ $1), the DAO adjusts CUTTM as POKT's price changes to keep dollar costs stable. A lower POKT price → higher CUTTM → more POKT burned per relay → faster deflation (natural price support).
@@ -47,13 +47,13 @@ The Compute Unit to Token Multiplier — the exchange rate converting compute un
 ## Staking
 
 **Can I earn yield?**
-Yes, by running a Supplier node or delegating stake. Suppliers earn 79% of minted POKT from every relay they serve. There is no fixed APY — earnings are proportional to work served. See [Staking](/token/staking).
+Yes, by running a Supplier node or delegating stake. Suppliers earn <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> of minted POKT from every relay they serve. There is no fixed APY — earnings are proportional to work served. See [Staking](/token/staking).
 
 **What are my staking options?**
 Run your own node (<GovParam module="supplier" param="min_stake" format="pokt" /> POKT minimum + server infrastructure), delegate to a noderunner (they run infrastructure, you provide stake), or join a staking pool (smaller amounts, pooled model). See [Staking](/token/staking) for details on each.
 
 **How long to unstake?**
-Approximately 21 days (504 sessions). You cannot access staked POKT during the unbonding period.
+For Suppliers, <GovParam module="shared" param="supplier_unbonding_period_sessions" format="sessions-days" /> (<GovParam module="shared" param="supplier_unbonding_period_sessions" format="commas" /> sessions). For validator delegations, <GovParam module="staking" param="unbonding_time" format="days" />. You cannot access staked POKT during the unbonding period.
 
 **What's the minimum stake?**
 <GovParam module="supplier" param="min_stake" format="pokt" /> POKT is the protocol minimum for Suppliers. Applications require <GovParam module="application" param="min_stake" format="pokt" /> POKT, and Gateways require <GovParam module="gateway" param="min_stake" format="pokt" /> POKT.
@@ -64,7 +64,7 @@ Approximately 21 days (504 sessions). You cannot access staked POKT during the u
 Yes, through the CREDS governance system. The DAO has two Houses: Builder House (80% weight, one-person-one-vote for verified contributors) and Staker House (20%, stake-weighted). Voting happens on [Snapshot](https://snapshot.org/#/pokt-dao.eth). See [Governance](/governance/).
 
 **What does the DAO control?**
-All key protocol parameters (relay pricing, mint ratio, reward splits, staking requirements) plus the DAO treasury (funded by 4.5% of all minted POKT).
+All key protocol parameters (relay pricing, mint ratio, reward splits, staking requirements) plus the DAO treasury (funded by <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> of all minted POKT).
 
 ## The Network
 
@@ -72,7 +72,7 @@ All key protocol parameters (relay pricing, mint ratio, reward splits, staking r
 The codename for Pocket Network's current protocol — a full Cosmos SDK rebuild launched June 2025. It replaced Morse with permissionless gateways, usage-based pricing, burn-and-mint tokenomics, and support for any open data service. Named after Claude Shannon, the founder of information theory.
 
 **What chains does Pocket support?**
-60+ blockchain networks and L2s. See the full list at [api.pocket.network](https://api.pocket.network) or [explorer.pocket.network/services](https://explorer.pocket.network/services). New chains can be added permissionlessly under Shannon.
+Dozens of blockchain networks and L2s. The public RPC list is on [Supported Chains](/developers/supported-chains), and every registered service is at [explorer.pocket.network/services](https://explorer.pocket.network/services). New chains can be added permissionlessly under Shannon.
 
 **Is Pocket just for blockchain data?**
-No. Since Shannon, Pocket can serve any HTTP-based data service as a "Source" — including AI inference endpoints, oracles, and Web2 APIs. Blockchain RPC is the current primary use case, but the protocol is service-agnostic.
+No. Pocket serves any HTTP data service: data APIs, LLM inference, document tools, MCP servers, and blockchain RPC. Most new services are built for AI agents, which find them and pay per call on the [Agentic Portal](/agent-services). To publish your own, see [Services](/services/).
