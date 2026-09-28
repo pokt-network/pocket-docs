@@ -5,7 +5,7 @@ section: "services"
 persona: ["node-operator", "developer"]
 tabs: true
 status: "stable"
-lastUpdated: "2026-09-11"
+lastUpdated: "2026-09-27"
 ---
 
 <Tabs>
@@ -24,7 +24,7 @@ Every service has four key properties:
 
 Services are the connective tissue of the network. Applications request access to specific services. Suppliers stake against the services they want to provide. Gateways route traffic to the right suppliers. Everything revolves around the service registry, which you can browse at [explorer.pocket.network/services](https://explorer.pocket.network/services).
 
-This page is the reference for the `pocketd` commands that manage services. If you are bringing a new service to the network, start with the step-by-step guides instead: [Register a Service](/services/register) and [Deploy a Service](/services/deploy).
+This page is the reference for the `pocketd` commands that manage services. If you are bringing a new service to the network, start with the step-by-step guides instead: [Register a Service](/services/register) and [Deploy a Service](/services/deploy). The [Pocket Service Builder skill](https://github.com/pokt-network/pocket-network-resources/blob/main/service-builder/pocket-service-builder.skill) for Claude, and [PSM4Win](https://github.com/pokt-network/PSM4Win) on Windows, run these commands for you.
 
 ## Prerequisites
 
@@ -72,7 +72,7 @@ Services can carry a **card**: on-chain metadata attached directly to the servic
 ### How Cards Work
 
 - A card is a single JSON document following the `pocket-service-card/v1` schema. Only the `schema` field is required; everything else is optional.
-- It is stored on-chain as part of the service record, byte for byte. The maximum size is 256 KiB, and a good card is well under 4 KiB.
+- It is stored on-chain as part of the service record, byte for byte. The maximum size is 256 KiB, but a card must be under 4 KiB to pass the [Service Audit](https://mcp.pocketmcp.network/audit) for the Agentic Portal.
 - The chain checks only the size. Every other field is the owner's assertion, so `pocketd` validates the card against the schema locally before it is broadcast.
 - Only the service owner can publish or replace a card. An update that omits the card leaves the stored one untouched, and there is no way to clear a card back to empty.
 
@@ -144,7 +144,7 @@ The rules for service identifiers and names are straightforward:
 - **Service identifiers** are permanent labels up to 42 characters long. They can contain letters, numbers, hyphens, and underscores. Once set, they cannot be changed.
 - **Service names** are human-readable descriptions up to 169 characters long. They can contain letters, numbers, hyphens, underscores, and spaces. The owner can change the name at any time.
 
-The permanence of identifiers is intentional. Every supplier, application, and gateway on the network references services by their identifier. Changing an identifier would break those references and disrupt the network. This stability is part of what makes Pocket Network a reliable, unstoppable infrastructure layer.
+The permanence of identifiers is intentional. Every supplier, application, and gateway on the network references services by their identifier. Changing an identifier would break those references and disrupt the network. This stability is part of what makes Pocket Network a reliable infrastructure layer.
 
 ## Quick Reference
 
@@ -308,7 +308,7 @@ pocketd query service card eth --raw --network=beta > eth-card.json
 
 ### Card Constraints
 
-- The payload must be a single UTF-8 JSON object with a `schema` field. Target under 4 KiB; the hard limit is **256 KiB** (262,144 bytes) decoded.
+- The payload must be a single UTF-8 JSON object with a `schema` field. Keep it under 4 KiB, which the Service Audit requires; the chain's hard limit is **256 KiB** (262,144 bytes) decoded.
 - `--card-file` and `--card-base64` are **mutually exclusive**.
 - The card is stored byte for byte, so reformatting a card counts as a change.
 - Only the service owner can publish or replace a card.

@@ -5,12 +5,16 @@ section: "services"
 persona: ["node-operator", "developer"]
 tabs: false
 status: "stable"
-lastUpdated: "2026-09-11"
+lastUpdated: "2026-09-27"
 ---
 
 This guide takes you from an idea for a service to a registered service ID with a published metadata card. Budget about an hour, most of it spent writing the card. Registering itself is one transaction.
 
 Registration creates an on-chain record only. Nothing is reachable until at least one supplier stakes on the service and runs a RelayMiner in front of a backend. That is covered in [Deploy a Service](/services/deploy).
+
+<Callout type="tip">
+  The [Pocket Service Builder skill](https://github.com/pokt-network/pocket-network-resources/blob/main/service-builder/pocket-service-builder.skill) for Claude does most of this page for you: it checks your proposed ID against the catalog, fetches the live fee and pricing parameters, and writes and validates the card. On Windows, [PSM4Win](https://github.com/pokt-network/PSM4Win) registers the service from a button. See [Tools for Service Builders](/services/#tools-for-service-builders).
+</Callout>
 
 <Callout type="warning">
   **The service ID is permanent.** It cannot be renamed or deleted once registered. The name, price, and metadata card can be updated by the owner at any time. Choose the ID carefully.
@@ -52,7 +56,7 @@ Three values go on-chain with the registration.
 | Field | Rules | Guidance |
 | --- | --- | --- |
 | **Service ID** | 1 to 42 characters, `a-z A-Z 0-9 - _`. Immutable. | Lowercase kebab-case, named for the capability rather than your product: `text-generation`, `qwen3-embedding-0-6b`, `pocket-charts`. Check [explorer.pocket.network/services](https://explorer.pocket.network/services) for collisions first. |
-| **Name** | Up to 169 characters, `a-z A-Z 0-9 - _` and spaces. No other punctuation. Updatable. | A one-line human description. Longer prose belongs in the card. |
+| **Name** | Up to 169 characters, `a-z A-Z 0-9 - _` and spaces. No other punctuation. Updatable. | A human-readable display name, not a slug or a copy of the ID; the Agentic Portal shows it, and the Service Audit flags one that is not readable. Longer prose belongs in the card. |
 | **Compute units per relay** | Integer from 1 to 1,048,576. Updatable; a change takes effect at the next session boundary. | See below. |
 
 ### Setting the Price
@@ -73,7 +77,7 @@ On MainNet, `compute_units_to_tokens_multiplier` is currently <GovParam module="
 
 Price is charged **per relay, not per byte or per second**. A request that carries a hundred inputs costs the same as one that carries one. Set the price for the expected cost of a typical request, and say in the card what a typical request looks like. For a sense of scale, browse [explorer.pocket.network/services](https://explorer.pocket.network/services): blockchain RPC services cluster in the low thousands of compute units, while embeddings and LLM inference services run one to two orders of magnitude higher.
 
-Applications pay this price from their stake, and suppliers earn it. A price too high attracts no applications; a price too low attracts no suppliers. You can adjust it later, but every change reprices the service for everyone at once.
+Applications pay this price from their stake, and suppliers earn it. A price too high attracts no applications; a price too low attracts no suppliers. You can adjust it later, but every change reprices the service for everyone at once. The Service Audit places your price in the catalog and flags one above the 95th percentile; an outlier is not wrong, but you should be able to say why.
 
 ## Write the Metadata Card
 
@@ -87,9 +91,9 @@ The schema is `pocket-service-card/v1`. Only the `schema` field is required, and
 | --- | --- |
 | `schema` | `"pocket-service-card/v1"`. Required. |
 | `description` | Prose, up to 2,048 characters. What the service does, the request shape, the response shape, and whether every supplier returns the same output for the same input. |
-| `rpc_types[]` | The transports you expect suppliers to serve. For an HTTP API this is one entry: `{"type": "REST", "intent": "expected", "backend_hint": "...", "notes": "..."}`. The `type` value is the on-chain enum name (`REST`, `JSON_RPC`, `WEBSOCKET`, `GRPC`, `COMET_BFT`); lowercased, it is also the key suppliers use in their RelayMiner config. Use `intent`, never `required`. Nothing enforces intent; it tells suppliers what serving the service well looks like. |
-| `apis[]` | Short contract names in lowercase kebab-case, `<service>-<api-family>`. Consumers categorize services by these. |
-| `specs[]` | Where the full API specification lives. For a REST service, an OpenAPI 3.x document: `{"kind": "openapi", "api": "<one of your apis[]>", "url": "...", "sha256": "..."}`. Put `sha256` only on a URL that is version-addressed and will never be overwritten in place; its presence tells consumers to reject any content that does not match. Use `"kind": "docs"` if you only have human-readable documentation. |
+| `rpc_types[]` | The transports you expect suppliers to serve. For an HTTP API this is one entry: `{"type": "REST", "intent": "expected", "backend_hint": "...", "notes": "..."}`. The `type` value is the on-chain enum name (`REST`, `JSON_RPC`, `WEBSOCKET`, `GRPC`, `COMET_BFT`); suppliers use the matching backend key in their RelayMiner config (`rest`, `jsonrpc`, `websocket`, `grpc`, `cometbft`). Use `intent`, never `required`. Nothing enforces intent; it tells suppliers what serving the service well looks like. |
+| `apis[]` | Short contract names in lowercase kebab-case, `<service>-<api-family>`. Consumers and gateways group interchangeable services by these, so each value must not already be claimed by another service's card on the same network; the Service Audit fails a duplicate. |
+| `specs[]` | Where the full API specification lives. For a REST service, an OpenAPI 3.x document: `{"kind": "openapi", "api": "<one of your apis[]>", "url": "...", "sha256": "..."}`. Put `sha256` only on a URL that is version-addressed and will never be overwritten in place; its presence tells consumers to reject any content that does not match. Use `"kind": "docs"` if you only have human-readable documentation, but a service listed on the Agentic Portal needs a machine-readable `openapi` spec, specific to this service, before MainNet. |
 | `access` | `"public"`, or `"gated"` if suppliers need credentials to run the backend. |
 | `results` | `"deterministic"` if any two suppliers return identical bytes for identical input. `"variable"` if they legitimately differ, for example because each supplier runs its own model, or because output contains timestamps. Consumers use this to decide whether they can retry across suppliers and cross-check answers. |
 | `serving.backend` | What a supplier deploys, in one paragraph. |
@@ -107,7 +111,7 @@ The schema is `pocket-service-card/v1`. Only the `schema` field is required, and
 
 Follow the pattern the foundation cards use, in this order:
 
-1. **Identity.** A request whose answer pins the backend to this service. A stake only asserts that an operator intends to serve your service; it does not verify what is actually behind the URL. The foundation added this probe after a supplier staked for `tron` was found serving a Base node under that ID. For a REST service, a version or info endpoint that returns the service name does the same job and catches the wrong container behind the right service ID.
+1. **Identity.** A request whose answer pins the backend to this service, with an `expect` that matches the service ID itself. A stake only asserts that an operator intends to serve your service; it does not verify what is actually behind the URL. The foundation added this probe after a supplier staked for `tron` was found serving a Base node under that ID. For a REST service, a version or info endpoint that returns the service name does the same job and catches the wrong container behind the right service ID.
 2. **Readiness.** A health endpoint that returns a fixed value when the backend is ready to serve.
 3. **A real request, when readiness is not proof of correctness.** A health endpoint can return ok while a model failed to load or a render pipeline is broken. If that can happen to your backend, add one small functional call with a deterministic answer. Keep it cheap, because it runs against every supplier on a schedule. Skip it if the readiness check already proves the service produces correct output.
 
@@ -186,7 +190,7 @@ A `POST` probe adds a `body` object to `request`. `matches` is a regular express
 
 ### Card Rules
 
-- One UTF-8 JSON object. Target under 4 KiB; the hard limit is 256 KiB.
+- One UTF-8 JSON object under 4 KiB. The chain's hard limit is 256 KiB, but the Service Audit fails any card of 4 KiB or more.
 - Never inline the full API specification. Point at it with `specs[]`.
 - Prefer immutable, version-addressed URLs for specs and docs so a pinned hash never goes stale.
 - The card is stored byte for byte. Reformatting it counts as a change when you publish.
@@ -199,7 +203,7 @@ The chain does not check the card's contents, so this is the only place a malfor
 pocketd tx service validate-card ./card.json
 ```
 
-Fix every reported violation. The command runs automatically inside `add-service`, but running it on its own is faster while you iterate.
+Fix every reported violation. The command runs automatically inside `add-service`, but running it on its own is faster while you iterate. The Service Builder skill and the Pocket MCP server's `validate_card` tool run the same schema check without `pocketd`.
 
 ## Register the Service
 
@@ -266,11 +270,12 @@ The new owner gains the sole right to update the service and receives the owner'
 
 ## Going to MainNet
 
-Repeat the registration with `--network=main`. The fee is higher, the same card works unchanged, and you should register only after the service has been supplied and tested end to end on Beta as described in [Deploy a Service](/services/deploy).
+Repeat the registration with `--network=main`. The fee is higher, the same card works unchanged, and you should register only after the service has been supplied and tested end to end on Beta as described in [Deploy a Service](/services/deploy). Before you ask for a listing on the Agentic Portal, run the [Service Audit](https://mcp.pocketmcp.network/audit) against MainNet; see [List Your Service](/agent-services/list-your-service).
 
 ## Related Pages
 
 - [Deploy a Service](/services/deploy) — supply the service you just registered
+- [List Your Service](/agent-services/list-your-service) — the Agentic Portal's listing criteria
 - [Service Management](/services/management) — the full `pocketd tx service` and `pocketd query service` reference
 - [Networks](/get-started/networks) — chain IDs, endpoints, and faucets
 - [Governance Parameters](/governance/parameters) — every live parameter, including the fee and pricing multipliers

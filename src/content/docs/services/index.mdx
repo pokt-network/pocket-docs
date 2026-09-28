@@ -5,7 +5,7 @@ section: "services"
 persona: ["node-operator", "developer"]
 tabs: false
 status: "stable"
-lastUpdated: "2026-09-11"
+lastUpdated: "2026-09-27"
 ---
 
 A **service** is any API that can be reached through Pocket Network. Blockchain RPC endpoints are the best-known examples, but a service can be anything that answers an HTTP request: an LLM inference endpoint, an embeddings model, a data aggregator, a rendering API, an MCP server. Pocket does not care what the service does. It cares that a request was signed by a paying application, that a staked supplier answered it, and that the supplier can prove it did.
@@ -18,6 +18,8 @@ Anyone can register a service, and anyone can supply one. There is no allowlist,
 
 The consequence is that quality is decided by the market, not by the protocol. Gateways score suppliers on the responses they return, applications choose which gateways and services to use, and a service that is badly specified or badly served simply attracts no traffic. The guides in this section exist so a service you register is specified and served well from the first relay.
 
+Being on the network and being listed are different things. Portals, such as the Pocket Network Foundation's [Agentic Portal](/agent-services), curate which services they put in front of their users. Registering needs nobody's permission; being listed on a portal means meeting that portal's criteria.
+
 ## How the Pieces Fit Together
 
 Six pieces are involved in every relay. Three are on-chain records, two are running software, and a gateway is both.
@@ -26,7 +28,7 @@ Six pieces are involved in every relay. Three are on-chain records, two are runn
 | --- | --- | --- |
 | **Service** | An on-chain record: a service ID, a human-readable name, a price in compute units per relay, an owner address, and an optional metadata card describing the API. Nothing runs here. | The service owner, who registered it and is the only account that can update it. |
 | **Service backend** | The running software that actually answers requests. A web server, a model server, a node. It knows nothing about Pocket. | Each supplier runs their own. |
-| **RelayMiner** | The software that sits in front of a backend, receives signed relay requests from the network, forwards them to the backend as plain HTTP, signs the responses, and submits claims and proofs on-chain so the supplier gets paid. | Each supplier runs their own. |
+| **RelayMiner** | The software that sits in front of a backend, receives signed relay requests from the network, forwards them to the backend as plain HTTP, signs the responses, and submits claims and proofs on-chain so the supplier gets paid. Use the [HA RelayMiner](https://github.com/pokt-network/pocket-relay-miner); the single-process RelayMiner in `pocketd` is legacy. | Each supplier runs their own. |
 | **Supplier stake** | An on-chain record that says "this operator serves service X at this public URL." Requires a stake in POKT. A supplier can serve many services, and a service can have many suppliers. | The supplier's owner and operator accounts. |
 | **Application stake** | An on-chain record that says "this account pays for relays to service X." Requires a stake in POKT that is drawn down as relays settle. | The application's account. |
 | **Gateway** | Optional running software plus an on-chain stake. A gateway holds application keys, signs relays on behalf of applications, selects suppliers, retries failures, and scores supplier quality. Most end users reach services through a gateway rather than signing relays themselves. | The gateway operator. |
@@ -70,6 +72,33 @@ The rules that matter are covered in [Deploy a Service](/services/deploy), but t
 - Client errors are 4xx with a JSON body. Server errors are 5xx and are never paid.
 - The service has a metadata card that describes the API accurately, including health checks a supplier can run before staking. Cards are how services will be discovered on the network, including by the agentic portal, and a service without one will not be found.
 
+## Build for the Agentic Portal
+
+Most new services are built to be called by AI agents, and the [Agentic Portal](/agent-services) at [agent.pocket.network](https://agent.pocket.network/) is where agents find them and pay per call. Design for it from the start, following the structure on [Build a Service](https://pocket.network/build-a-service/):
+
+1. **Build.** Design the endpoints around the rules above and describe the service in its card. Every response is a JSON object, including errors.
+2. **Test on Beta TestNet.** Register, supply, and send real relays with free test POKT.
+3. **Go live on MainNet.** Register the service and stake a supplier.
+4. **Verify.** Run the [Service Audit](https://mcp.pocketmcp.network/audit). It checks the service on the live network against the portal's acceptance rules, including at least one settled claim. A service must pass it to be listed.
+5. **Get listed.** Email [directors@pokt.foundation](mailto:directors@pokt.foundation) to request a listing. The criteria are on [List Your Service](/agent-services/list-your-service).
+
+## Tools for Service Builders
+
+You can do everything in this section by hand with `pocketd`, but you do not have to.
+
+| Tool | What it does | Where |
+| --- | --- | --- |
+| **Pocket Service Builder skill** (recommended) | A skill for Claude that takes a service from idea to deployment on any OS: it checks the catalog for ID collisions, fetches live fees and prices, lints your backend against the gateway rules, writes and validates the card, renders every stake, RelayMiner, reverse-proxy, and gateway file, and runs the Service Audit before you submit. Download the `.skill` file and add it to Claude. | [pocket-service-builder.skill](https://github.com/pokt-network/pocket-network-resources/blob/main/service-builder/pocket-service-builder.skill) |
+| **PSM4Win** | A Windows 10/11 desktop app that writes the card, registers the service, stakes the supplier and a test application, deploys the RelayMiner to your server, and tests real relays, each from a button. Its Claude integration lets Claude Code drive the app, with every spend confirmed in the app window. Requires Docker Desktop; installed with Scoop. | [github.com/pokt-network/PSM4Win](https://github.com/pokt-network/PSM4Win) |
+| **Pocket MCP server** | Read-only tools for Claude and other MCP clients: catalog search, service ID checks, live parameters, card validation and diffs, supplier, session, and claim state, and the Service Audit. It never signs or spends. Pairs with the skill. | `https://mcp.pocketmcp.network/mcp` |
+| **Service Audit** | The portal's acceptance rules, run against the live network. Enter service IDs, a network, and optionally your operator address. | [mcp.pocketmcp.network/audit](https://mcp.pocketmcp.network/audit) |
+
+To add the MCP server to Claude Code:
+
+```bash
+claude mcp add --transport http pocket https://mcp.pocketmcp.network/mcp
+```
+
 <Callout type="tip">
   Register and supply on Beta TestNet first. The registration fee there is a fraction of MainNet's, the same card and configuration carry over unchanged, and mistakes are cheap. See [Networks](/get-started/networks) for endpoints and faucets.
 </Callout>
@@ -77,7 +106,8 @@ The rules that matter are covered in [Deploy a Service](/services/deploy), but t
 ## Where to Go Next
 
 - **[Register a Service](/services/register)** — create the on-chain service record, choose its price, and publish its metadata card
-- **[Deploy a Service](/services/deploy)** — build a backend that works well behind a RelayMiner, stake a supplier, run the RelayMiner, and test end to end
+- **[Deploy a Service](/services/deploy)** — build a backend that works well behind a RelayMiner, stake a supplier, run the HA RelayMiner, and test end to end
+- **[List Your Service](/agent-services/list-your-service)** — what the Agentic Portal lists and how to request a listing
 - **[Supplier Staking](/node-operators/supplier-staking)** — the owner-operator model and the full stake configuration reference
 - **[Application Staking](/developers/application-staking)** — how the paying side of a relay works
 - **[Gateway Operators](/gateways/)** — the access layer most users reach services through

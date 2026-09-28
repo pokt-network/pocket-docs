@@ -1,19 +1,23 @@
 ---
 title: "Deploy a Service"
-description: "Build a backend that works well behind a RelayMiner, stake a supplier, run the RelayMiner, test end to end, and hand gateway operators what they need to route to you."
+description: "Build a backend that works well behind a RelayMiner, stake a supplier, run the HA RelayMiner, test end to end, pass the Service Audit, and hand gateway operators what they need to route to you."
 section: "services"
 persona: ["node-operator"]
 tabs: false
 status: "stable"
-lastUpdated: "2026-09-11"
+lastUpdated: "2026-09-27"
 ---
 
 This guide takes you from a registered service ID to a supplier serving real relays. Budget a day: a few hours to build and test the backend against the rules below, an hour for staking and the RelayMiner, and a session or two of waiting for the network to pick your supplier up.
 
 It assumes the service is already registered. If it is not, start with [Register a Service](/services/register). It also assumes you are the first supplier. A later supplier follows the same steps from [Stake a Supplier](#stake-a-supplier) onward, reading the service's metadata card instead of writing it.
 
+<Callout type="tip">
+  **Let the tooling do the typing.** The [Pocket Service Builder skill](https://github.com/pokt-network/pocket-network-resources/blob/main/service-builder/pocket-service-builder.skill) for Claude lints your backend against the rules below and renders every file this guide describes: the stake configs, the HA RelayMiner configs and compose file, the reverse proxy, and the gateway snippets. On Windows, [PSM4Win](https://github.com/pokt-network/PSM4Win) turns staking, deployment, and relay testing into buttons. See [Tools for Service Builders](/services/#tools-for-service-builders).
+</Callout>
+
 <Callout type="danger">
-  **Every relay a supplier serves is signed with the operator key.** A lost operator key cannot be replaced on an existing supplier stake; the operator address is immutable. Back it up before staking and never run two RelayMiners with the same key against the same service unless you intend them as replicas.
+  **Every relay a supplier serves is signed with the operator key.** A lost operator key cannot be replaced on an existing supplier stake; the operator address is immutable. Back it up before staking.
 </Callout>
 
 ## Prerequisites
@@ -25,8 +29,9 @@ It assumes the service is already registered. If it is not, start with [Register
    pocketd query supplier params --network=beta
    ```
    On Beta, request funds from the faucet listed on the [Networks](/get-started/networks) page. The operator account also needs a small working balance for claim and proof transaction fees.
-4. **A public endpoint.** Suppliers publish a URL that clients connect to. The protocol accepts `http://` or `https://`, but gateways can be configured to refuse plain-HTTP or raw-IP URLs, so for gateway traffic use `https://` with a publicly trusted certificate, terminated by a reverse proxy you control, because the RelayMiner itself speaks plain HTTP.
-5. **Access to a Pocket full node**, either your own or a public RPC and gRPC endpoint from the [Networks](/get-started/networks) page. A RelayMiner needs both.
+4. **A public endpoint.** Suppliers publish a URL that clients connect to. Use `https://` on a hostname with a publicly trusted certificate, terminated by a reverse proxy you control, because the RelayMiner itself speaks plain HTTP. The protocol accepts plain HTTP, but gateways can refuse plain-HTTP or raw-IP URLs, and the [Service Audit](https://mcp.pocketmcp.network/audit) fails a service whose staked endpoint is either.
+5. **A Linux host with Docker** (or systemd, if you prefer binaries) for the HA RelayMiner and Redis. See [Minimal Server Specifications](#minimal-server-specifications).
+6. **Access to a Pocket full node**, either your own or a public RPC and gRPC endpoint from the [Networks](/get-started/networks) page. The RelayMiner needs both.
 
 ### Set Up Environment
 
@@ -42,7 +47,7 @@ export TX_FLAGS="--network=$NETWORK --gas auto --gas-prices 1upokt --gas-adjustm
 
 The protocol puts no constraints on the shape of a request or a response. A RelayMiner forwards whatever HTTP request arrives to your backend, signs whatever bytes the backend returns, status code and body included, and passes them back unaltered. A client that signs its own relays, such as an application using the SDK directly, could exchange any format with your backend.
 
-In practice, almost all traffic reaches services through a gateway such as [SAGE](https://github.com/pokt-network/sage) or [PATH](/path/). Gateways hold application keys for many users, select suppliers, retry failures, and score every supplier on the responses it returns. That scoring is what the rules in the next section are about. They are gateway rules rather than protocol rules, and a gateway operator can relax them per service, but a service designed for them works everywhere, and a service designed without them will not be routed to by the gateways that carry the network's traffic.
+In practice, almost all traffic reaches services through a gateway such as [SAGE](https://github.com/pokt-network/sage) or [PATH](/path/), and agents reach them through portals such as the [Agentic Portal](/agent-services), which sits in front of a gateway. Gateways hold application keys for many users, select suppliers, retry failures, and score every supplier on the responses it returns. That scoring is what the rules in the next section are about. They are gateway rules rather than protocol rules, and a gateway operator can relax them per service, but a service designed for them works everywhere, and a service designed without them will not be routed to by the gateways that carry the network's traffic.
 
 ## Build the Backend
 
@@ -67,11 +72,11 @@ Plain JSON string escaping is sufficient. Base64 is not needed and doubles the s
 
 ### All Inputs Arrive in the Body
 
-The relay format can carry headers, and the RelayMiner copies whatever arrives onto the backend request, but you cannot rely on them arriving. SAGE forwards the HTTP method, the path, and the query string only; it drops every caller header and sets `Content-Type: application/json` on the request your backend sees. Self-signing clients forward most headers but strip credentials, and older gateways drop the query string as well. Design every endpoint to take its inputs from a JSON request body, including bulk data such as CSV, and use `POST` for anything with inputs.
+The relay format can carry headers, and the RelayMiner copies some of them onto the backend request, but you cannot rely on the caller's headers arriving. SAGE forwards the HTTP method, the path, and the query string only; it drops every caller header and sets `Content-Type: application/json` on the request your backend sees. Self-signing clients forward most headers but strip credentials, and older gateways drop the query string as well. Design every endpoint to take its inputs from a JSON request body, including bulk data such as CSV, and use `POST` for anything with inputs.
 
 ### No Caller Authentication
 
-Relays are paid for by the application's stake, not by a credential. Gateways and application-side relay clients strip `Authorization`, `Api-Key`, `X-Api-Key`, and `Cookie` headers before forwarding. If your backend needs a credential to reach something behind it, the RelayMiner can inject static headers or HTTP basic auth toward the backend; the caller never supplies one.
+Relays are paid for by the application's stake, not by a credential. Gateways and application-side relay clients strip `Authorization`, `Api-Key`, `X-Api-Key`, and `Cookie` headers before forwarding. If your backend needs a credential to reach something behind it, the HA RelayMiner can add static headers or a bearer token, plain token, or basic-auth credential to every request toward the backend; the caller never supplies one.
 
 ### Status Codes
 
@@ -90,15 +95,15 @@ Gateways also scan the first 2 KB of a body for substrings that indicate an upst
 
 ### Respond Within the Session
 
-Gateways bound each relay attempt with a per-service timeout; the gateway configuration later in this guide uses 30 seconds. A relay whose backend call finishes after the session ends, plus the grace period of <GovParam module="shared" param="grace_period_end_offset_blocks" /> blocks, is not paid. Long-running work should return quickly with a handle rather than blocking, unless you deliberately target streaming-capable clients through the HA RelayMiner.
+Gateways bound each relay attempt with a per-service timeout; the gateway configuration later in this guide uses 30 seconds, which matches the RelayMiner's default `fast` timeout profile. A relay whose backend call finishes after the session ends, plus the grace period of <GovParam module="shared" param="grace_period_end_offset_blocks" /> blocks, is not paid. Long-running work should return quickly with a handle rather than blocking. If the service genuinely streams, such as LLM token output over SSE, put it on the RelayMiner's `streaming` timeout profile and say so in the card's `serving.notes`, because every gateway in the path has to allow for it too.
 
 ### Serve Identity Encoding
 
-Some relay clients force `Accept-Encoding: identity`. Do not gzip responses.
+The RelayMiner asks your backend for `Accept-Encoding: identity` and signs the exact bytes it gets back. Do not gzip responses.
 
-### Provide the Three Probe Endpoints
+### Provide the Probe Endpoints
 
-Your metadata card's `serving.healthcheck` names an identity endpoint, a readiness endpoint, and a cheap functional request. Implement them exactly as the card describes; suppliers and gateways will run them.
+Your metadata card's `serving.healthcheck` names an identity endpoint, a readiness endpoint, and a cheap functional request. Implement them exactly as the card describes; suppliers, the RelayMiner's own health checks, gateways, and the Service Audit all run them. The identity endpoint must return the service ID itself, because the audit checks that the identity probe pins the response to this service.
 
 ```text
 GET  /v1/version   → {"service": "<service-id>", "version": "1.2.0"}
@@ -108,99 +113,174 @@ POST /v1/<resource> with a minimal body → a deterministic answer
 
 ### Test the Backend Directly
 
-Before involving the network, run the card's health checks against the backend with `curl`, and confirm that every response, including error responses, starts with `{`.
+Before involving the network, run the card's health checks against the backend with `curl`, and confirm that every response, including error responses, starts with `{`. The Service Builder skill's backend linter does this for you against a running backend and reports every rule it breaks.
 
-## Choose a RelayMiner
+## Run the HA RelayMiner
 
-Two implementations exist. Both speak the same protocol and both serve REST backends.
+The RelayMiner is the software that sits in front of your backend, verifies each signed relay, forwards it to the backend, signs the response, and turns what it served into claims and proofs so the supplier gets paid. Use the **HA RelayMiner**, [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner). It is the only RelayMiner recommended for new services: it serves REST, JSON-RPC, WebSocket, gRPC, streaming (SSE), and CometBFT backends; actively health-checks each backend; and scales from one machine to many replicas without changing the supplier stake.
 
-| | RelayMiner (`pocketd relayminer`) | HA RelayMiner |
-| --- | --- | --- |
-| Shape | One process | Stateless relayers plus a miner, coordinated through Redis |
-| Fits | A first deployment, a single machine, moderate traffic | Production, multiple replicas, failover, high volume |
-| Streaming responses | No | Yes |
-| Backend health checks | Reachability only | Active per-backend checks and circuit breaking |
-| Documentation | [RelayMiner Setup](/node-operators/relayminer-setup) | [HA RelayMiner](/node-operators/ha-relayminer) |
+<Callout type="deprecated">
+  The single-process RelayMiner built into `pocketd` (`pocketd relayminer`) is legacy. It struggles with REST services and is no longer recommended for supplying a service. Existing deployments can move to the HA RelayMiner without touching the supplier stake.
+</Callout>
 
-Start with the single-process RelayMiner unless you already know you need HA. Moving to HA later does not touch the supplier stake.
+One deployment is one binary run as two processes, plus one Redis that both share:
 
-## Run the RelayMiner
-
-The examples use the single-process RelayMiner. The HA equivalent is noted where it differs.
-
-### Configuration
-
-```yaml
-# relayminer_config.yaml
-default_signing_key_names: [operator]        # the operator key's name in the keyring
-smt_store_path: /var/lib/pocket/smt          # must persist across restarts
-default_request_timeout_seconds: 30
-default_max_body_size: 20MB
-
-pocket_node:
-  query_node_rpc_url: https://sauron-rpc.beta.infra.pocket.network
-  query_node_grpc_url: https://sauron-grpc.beta.infra.pocket.network:443
-  tx_node_rpc_url: https://sauron-rpc.beta.infra.pocket.network
-
-metrics:
-  enabled: true
-  addr: :9090
-ping:
-  enabled: true
-  addr: :8081
-
-suppliers:
-  - service_id: <your-service-id>
-    listen_url: http://0.0.0.0:8545           # the reverse proxy forwards here
-    service_config:
-      backend_url: http://127.0.0.1:8080      # your backend
-      forward_pocket_headers: true
-    rpc_type_service_configs:
-      rest:
-        backend_url: http://127.0.0.1:8080
+```text
+gateways ──► relayer :8080 ──► your backend
+                │
+                ▼
+              Redis   (served relays, claim trees, the stake meter)
+                ▲
+                │
+              miner ──► Pocket chain (claims, proofs)
 ```
 
-Points that matter for a REST backend:
+- **Relayer.** Stateless. Verifies each relay's ring signature and session, charges it against the application's stake, forwards it to the backend for its service, signs the response, and queues the relay in Redis. Run one or several behind a load balancer.
+- **Miner.** Reads the queued relays, builds one claim per session and supplier, and submits the claim and then the proof in their on-chain windows. Run a second as a standby; miners elect a leader through Redis.
+- **Redis.** Holds every relay until it is claimed and proved. It is not a cache: a lost key is a claim that cannot be proved, so it must never evict.
 
-- The key under `rpc_type_service_configs` is the card's `rpc_types[].type`, lowercased. `REST` in the card becomes `rest` here.
-- The path the client requested is appended to `backend_url`. With `backend_url: http://127.0.0.1:8080/api`, a request for `/v1/chart` reaches the backend at `/api/v1/chart`. Trailing slashes are normalized away.
-- `forward_pocket_headers: true` adds `Pocket-Supplier`, `Pocket-Service`, `Pocket-Session-Id`, `Pocket-Application`, `Pocket-Session-Start-Height`, and `Pocket-Session-End-Height` to each backend request. They are the only per-request identity your backend will ever see, and they are useful for logging and per-application rate limiting.
-- `smt_store_path` holds the relays you have served but not yet claimed. If it is lost, those relays are unpaid.
+The repository's [deployment guide](https://github.com/pokt-network/pocket-relay-miner/tree/main/docs/deploy) has step-by-step runbooks for Docker Compose and for a host with systemd, a troubleshooting guide, and ready Grafana dashboards. The rest of this section is the part that is specific to supplying a REST service.
 
-For the HA RelayMiner the same service is declared as:
+### Requirements That Stop It Starting
+
+- **The same version everywhere.** The relayer and the miner must run the same release, for example `ghcr.io/pokt-network/pocket-relay-miner:v0.1.0`. Check the [releases page](https://github.com/pokt-network/pocket-relay-miner/releases) for the current one and read its notes before upgrading.
+- **Redis 8.10 or newer**, with `maxmemory` set and `maxmemory-policy noeviction`. Both processes refuse to start otherwise. The repository's `config.redis.example.conf` is a starting point, and Redis data must be on a persistent volume.
+- **A CPU and memory budget.** Set `GOMAXPROCS` and `GOMEMLIMIT`, or run each process in a container with CPU and memory limits. Without them each process sizes itself against the whole host.
+- **The miner's `chain_id` and `block_time_seconds` match the network**: `pocket-lego-testnet` and `30` on Beta TestNet, `pocket` and `60` on MainNet.
+
+### Supplier Keys
+
+Both processes sign with the supplier's **operator** key, read from a keys file or a `pocketd` keyring. The keys file is the simplest start:
 
 ```yaml
+# supplier-keys.yaml, mode 0600; never commit it
+keys:
+  - "<operator private key, 64 hex characters>"
+```
+
+Export the key from the keyring you created it in:
+
+```bash
+pocketd keys export $OPERATOR --unarmored-hex --unsafe
+```
+
+For production, point the `keys.keyring` block at the keyring directly instead, with the passphrase in a file or environment variable. See [SUPPLIER_KEYS.md](https://github.com/pokt-network/pocket-relay-miner/blob/main/docs/SUPPLIER_KEYS.md) in the repository.
+
+### Relayer Configuration
+
+```yaml
+# relayer.yaml
+listen_addr: "0.0.0.0:8080"                  # the reverse proxy forwards here
+
+redis:
+  url: "redis://redis:6379"
+
+pocket_node:
+  query_node_rpc_url: "https://sauron-rpc.beta.infra.pocket.network"
+  query_node_grpc_url: "sauron-grpc.beta.infra.pocket.network:443"
+  grpc_insecure: false
+
+keys:
+  keys_file: "/keys/supplier-keys.yaml"
+
 services:
   <your-service-id>:
-    timeout_profile: fast            # or streaming, for long or SSE responses
+    validation_mode: eager
+    timeout_profile: fast                    # or streaming, for long or SSE responses
     max_body_size_bytes: 20971520
     default_backend: rest
     backends:
       rest:
-        url: http://127.0.0.1:8080
+        url: "http://backend:8080"           # your backend
         health_check:
-          endpoint: /v1/health
+          enabled: true
+          endpoint: "/v1/health"
+          expected_body: '"ok"'
+          interval_seconds: 10
+          timeout_seconds: 5
+          unhealthy_threshold: 3
+          healthy_threshold: 2
+
+health_check:
+  enabled: true
+  addr: "0.0.0.0:8081"
+
+metrics:
+  enabled: true
+  addr: "0.0.0.0:9090"
+
+logging:
+  level: "info"
+  format: "json"
 ```
 
-### Start It
+Points that matter for a REST service:
+
+- **The backend key is the transport.** It must be one of `rest`, `jsonrpc`, `websocket`, `grpc`, or `cometbft`, and it maps to the card's `rpc_types[].type`: `REST` in the card is `rest` here, `JSON_RPC` is `jsonrpc`, `COMET_BFT` is `cometbft`. A relay is routed by exact transport match with no fallback, so an unknown key is rejected at startup.
+- **Set `default_backend: rest`.** It is the backend a relay goes to when it does not name a transport, and it defaults to `jsonrpc`. Leaving it unset on a REST-only service sends those relays nowhere.
+- **The client's path is appended to the backend URL.** With `url: http://backend:8080/api`, a request for `/v1/chart` reaches the backend at `/api/v1/chart`. A `base_path` on the backend overrides the URL's path, and a request that already starts with the prefix is not prefixed twice.
+- **Turn on the active health check.** Without one, the relayer learns a backend is down only by failing real relays. Point it at the card's readiness endpoint; `expected_body` is a substring the response must contain. Leave it off on `websocket` and `grpc` backends, where the HTTP probe always fails.
+- **Every backend request carries `Pocket-Supplier`, `Pocket-Service`, and `Pocket-Application` headers.** They are the only per-request identity your backend will ever see, and they are useful for logging and per-application rate limiting.
+- **Backend credentials go on the backend.** A `headers` map and an `authentication` block (`bearer_token`, `plain_token`, or `username` and `password`) under the backend are sent on every request to it.
+
+The relayer reads its configuration once, at startup. Restart it after every change, and add one entry under `services` for each service the supplier is staked for.
+
+### Miner Configuration
+
+```yaml
+# miner.yaml
+redis:
+  url: "redis://redis:6379"                  # the same Redis as the relayer
+
+pocket_node:
+  query_node_rpc_url: "https://sauron-rpc.beta.infra.pocket.network"
+  query_node_grpc_url: "sauron-grpc.beta.infra.pocket.network:443"
+  chain_id: "pocket-lego-testnet"            # pocket on MainNet
+  grpc_insecure: false
+
+keys:
+  keys_file: "/keys/supplier-keys.yaml"      # the same keys as the relayer
+
+block_time_seconds: 30                       # 60 on MainNet
+
+metrics:
+  enabled: true
+  addr: "0.0.0.0:9092"
+
+logging:
+  level: "info"
+  format: "json"
+```
+
+The public Sauron endpoints are fine for a first deployment. The miner submits the claims and proofs you are paid for, so a production supplier should point it at a full node it controls.
+
+### Validate, Then Start
+
+Validate both configurations with the exact files you will start. `--check-stake` also lists any service the supplier is staked for that has no backend:
 
 ```bash
-pocketd relayminer start \
-  --config ./relayminer_config.yaml \
-  --chain-id pocket-lego-testnet \
-  --keyring-backend file \
-  --grpc-insecure=false
+pocket-relay-miner miner validate --config miner.yaml
+pocket-relay-miner relayer validate --config relayer.yaml --check-stake
 ```
 
-Use `--chain-id pocket` on MainNet. Confirm it is up and can reach the backend:
+Start Redis, then the miner, then the relayer. The repository's [Docker Compose example](https://github.com/pokt-network/pocket-relay-miner/tree/main/examples/docker-compose) wires all three together, with health checks, memory limits, and the startup order, and is the fastest way to run it:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8081/ping    # 204 when every backend_url is reachable
+docker compose -p pocket-supplier up -d
 ```
+
+Confirm the relayer is ready and can reach your backend:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8081/ready   # 200 once it can serve relays
+curl -s http://localhost:8081/ready/$SERVICE_ID                        # each backend's health state
+```
+
+`/ready` answers 503 until the miner is running, so a relayer that never turns ready usually means the miner is not up.
 
 ### Put a Reverse Proxy in Front
 
-The RelayMiner listens on plain HTTP. Terminate TLS on a reverse proxy such as Caddy, nginx, or your cloud load balancer, and forward to `listen_url`. The proxy's public `https://` address is what you will stake as the supplier's endpoint. Do not add authentication at the proxy; every request is already signed.
+The relayer listens on plain HTTP. Terminate TLS on a reverse proxy such as Caddy, nginx, or your cloud load balancer, and forward to the relayer's `listen_addr`. The proxy's public `https://` hostname is what you will stake as the supplier's endpoint. Do not add authentication at the proxy; every request is already signed.
 
 ## Stake a Supplier
 
@@ -221,8 +301,10 @@ services:
 ```
 
 <Callout type="warning">
-  **`rpc_type` must match the card.** Gateways select supplier endpoints by transport. A card that declares `REST` and a stake that declares `JSON_RPC` means REST clients never see your endpoint. Use exactly the type the card's `rpc_types` lists.
+  **`rpc_type` must match the card.** Gateways select supplier endpoints by transport. A card that declares `REST` and a stake that declares `JSON_RPC` means REST clients never see your endpoint, and the Service Audit fails the service. Use exactly the type the card's `rpc_types` lists.
 </Callout>
+
+A stake lists every service the supplier serves. To add a service later, stake again with the full list, and add the service to the relayer configuration at the same time.
 
 Before staking, send any transaction from the operator account, for example a tiny self-transfer, so its public key is recorded on-chain. Gateways reject responses from an operator whose key they cannot look up.
 
@@ -239,7 +321,7 @@ Verify:
 pocketd query supplier show-supplier <operator address> --network=$NETWORK
 ```
 
-The service configuration becomes active at the start of the next session. A session is <GovParam module="shared" param="num_blocks_per_session" /> blocks, which is roughly 10 minutes on Beta TestNet and 20 minutes on MainNet given their block times on the [Networks](/get-started/networks) page.
+The service configuration becomes active at the start of the next session. A session is <GovParam module="shared" param="num_blocks_per_session" /> blocks, <GovParam module="shared" param="num_blocks_per_session" format="blocks-minutes" /> on MainNet. Beta TestNet's blocks are shorter, so its sessions are shorter too; see the [Networks](/get-started/networks) page.
 
 ## Test End to End
 
@@ -256,7 +338,7 @@ service_ids:
 pocketd tx application stake-application --config ./app_stake_config.yaml --from <app-key> $TX_FLAGS
 ```
 
-Wait for the next session, then send relays with `pocket-ap`, a command-line relay client from the [pocket-ap repository](https://github.com/pokt-network/pocket-ap). It signs with the application key directly; no gateway and no delegation are needed, because an application is always a member of its own signing ring.
+Wait for the next session, then send relays with `pocket-ap`, a command-line relay client from the [pocket-ap repository](https://github.com/pokt-network/pocket-ap). It signs with the application key directly; no gateway and no delegation are needed, because an application is always a member of its own signing ring. On Windows, PSM4Win's Test step does the same from a button.
 
 ```bash
 go install github.com/pokt-network/pocket-ap/cmd/pocket-ap@latest   # or: brew install pokt-network/tap/pocket-ap
@@ -282,15 +364,13 @@ POCKET_APP_PRIVATE_KEY=<app key hex> pocket-ap call \
 
 Its `--compare <url>` flag sends the same request straight to your backend and diffs the two answers, which is the fastest way to catch a path-prefix or content-type mistake.
 
-<Callout type="info">
-  `pocketd relayminer relay` sends JSON-RPC relays only. It posts to the endpoint root with no path, so it cannot exercise a REST service. Use `pocket-ap` or a gateway.
-</Callout>
-
 Then confirm the relay was accounted for. Within a session or two of serving relays you should see a claim from your operator:
 
 ```bash
 pocketd query proof list-claims --supplier-operator-address <operator address> --network=$NETWORK
 ```
+
+Keep going until the claim **settles**. A settled claim is the only on-chain proof that a relay went through the protocol, reached your backend, and was paid, and the Service Audit requires one on the network you submit for.
 
 To test the path most users will take, run a gateway locally. [SAGE](https://github.com/pokt-network/sage) is the current gateway implementation; the configuration it needs for your service is in the next section.
 
@@ -333,38 +413,40 @@ The health checks mirror your card's `serving.healthcheck`. Keep the two in sync
 
 ## Minimal Server Specifications
 
-Three components run on the supplier side. They can share one machine at first.
+Four components run on the supplier side. They can share one machine at first.
 
 | Component | Minimum | Comfortable | Notes |
 | --- | --- | --- | --- |
 | **Service backend** | Whatever your service needs | | Size it for concurrent requests, not average load. Gateways hedge and retry, so bursts are normal. |
-| **RelayMiner** | 1 vCPU, 1 GB RAM, 5 GB SSD | 4 vCPU, 16 GB RAM, 5 GB SSD | Scales linearly with relay volume and with the number of services one RelayMiner fronts. `smt_store_path` must be on persistent disk. |
+| **Relayer** | 2 vCPU, 2 GB RAM | 4 vCPU, 8 GB RAM | CPU scales with relays per second. Stateless; add replicas behind a load balancer for more. |
+| **Miner** | 2 vCPU, 4 GB RAM | 2 vCPU, 8 GB RAM | Memory grows with the number of suppliers and the size of relays in flight. |
+| **Redis** | 2 vCPU, 4 GB RAM, persistent disk | 5 vCPU, 16 GB RAM | Size it for peak relays per second × average request size × about 40 blocks. Never expose its port. |
 | **Full node** | 4 vCPU, 16 GB RAM, 200 GB SSD | 6 vCPU, 32 GB RAM, 420 GB SSD | Optional. A public RPC and gRPC endpoint from the [Networks](/get-started/networks) page works for a first deployment, but a production RelayMiner should not depend on infrastructure it does not control. |
 
-The full tables are on [Hardware & Infrastructure Requirements](/node-operators/hardware-requirements). Linux on x86_64 or ARM64 is the supported environment for the RelayMiner and full node.
+The minimums are the limits in the repository's Docker Compose example, which fits a few suppliers with ordinary traffic; the comfortable column is what its published capacity report used at about 2,400 relays per second. The [benchmarks](https://github.com/pokt-network/pocket-relay-miner/tree/main/docs/benchmarks) explain how to size for your own load. Linux on x86_64 or ARM64 is the supported environment for the RelayMiner and full node.
 
 Beyond hardware:
 
-- **Persistent disk** for the RelayMiner's SMT store and for the keyring.
-- **A public endpoint**, on HTTPS with a publicly trusted certificate if you want gateway traffic. The protocol accepts plain HTTP, but gateways verify TLS and can be configured to refuse plain-HTTP or raw-IP supplier URLs outright.
+- **Persistent disk** for Redis data and the keys file or keyring.
+- **A public endpoint**, on HTTPS with a publicly trusted certificate on a hostname.
 - **Operator balance** kept above a few POKT at all times. Claims and proofs are transactions; an operator that cannot pay the fee forfeits the session's earnings.
-- **Metrics scraped.** The RelayMiner exposes Prometheus metrics on the address set under `metrics.addr` (`:9090` in the configuration above). See [Monitoring](/node-operators/monitoring).
+- **Metrics scraped.** The relayer exposes Prometheus metrics on `:9090` and the miner on `:9092`. The repository ships Grafana dashboards and a triage order for incidents. See also [Monitoring](/node-operators/monitoring).
 
 ## Going to MainNet
 
 1. Register the service on MainNet if you have not yet. See [Register a Service](/services/register).
 2. Re-query `min_stake`, `add_service_fee`, and the shared pricing parameters with `--network=main`.
-3. Repoint `pocket_node` URLs and `--chain-id pocket`. Every other config line is unchanged.
-4. Stake, wait a session, run the card's health checks through `pocket-ap`, and watch for the first claim.
-5. Publish the gateway configuration and the card's `docs` URL, then tell gateway operators the service exists. A supplier no gateway routes to earns nothing.
+3. Repoint `pocket_node` in both configurations at MainNet, set the miner's `chain_id: pocket` and `block_time_seconds: 60`, and validate again. Every other line is unchanged.
+4. Stake, wait a session, run the card's health checks through `pocket-ap`, and wait for the first claim to settle.
+5. Run the [Service Audit](https://mcp.pocketmcp.network/audit) against MainNet with your operator address and fix everything it fails.
+6. Publish the gateway configuration and the card's `docs` URL. To have agents find the service, [list it on the Agentic Portal](/agent-services/list-your-service). A supplier no gateway routes to earns nothing.
 
 ## Related Pages
 
 - [Register a Service](/services/register) — the on-chain record and metadata card this guide builds on
+- [List Your Service](/agent-services/list-your-service) — the Agentic Portal's listing criteria and the Service Audit
 - [Supplier Staking](/node-operators/supplier-staking) — full stake configuration and the owner-operator model
-- [RelayMiner Setup](/node-operators/relayminer-setup) — every RelayMiner configuration field
-- [HA RelayMiner](/node-operators/ha-relayminer) — the production, multi-replica deployment
+- [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner) — the HA RelayMiner repository, with deployment runbooks, every configuration key, and troubleshooting
 - [Application Staking](/developers/application-staking) — staking the test application
-- [Hardware & Infrastructure Requirements](/node-operators/hardware-requirements) — sizing tables
 - [Monitoring](/node-operators/monitoring) — metrics and alerting
 - [Rewards & Economics](/node-operators/rewards-economics) — how supplier income is calculated
