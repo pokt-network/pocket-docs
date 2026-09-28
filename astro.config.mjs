@@ -117,6 +117,9 @@ export default defineConfig({
     '/ecosystem/poktscan': '/ecosystem/explorer',
     '/token/validator-delegation': '/validators/delegation',
     '/node-operators/service-management': '/services/management',
+    '/services/submit': '/agent-services/list-your-service',
+    '/node-operators/ha-relayminer': '/node-operators/relayminer-operations',
+    '/developers/ai-agents': '/agent-services',
   },
   integrations: [
     mdx(),

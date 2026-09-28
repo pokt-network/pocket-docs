@@ -1,19 +1,30 @@
 ---
-title: "Application Developers"
-description: "Access blockchain data through Pocket Network — quick endpoint setup for most developers, PATH SDK for builders."
+title: "Developers"
+description: "Build on Pocket Network: publish a data service, connect an AI agent, call blockchain RPC for free, stake an Application, or run your own access point with PATH."
 section: "developers"
 persona: ["developer"]
 tabs: false
 status: "stable"
 sources: ["zip3/api-gateway-access-guide.docx"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
-Most developers just need an RPC endpoint. Pocket Network provides decentralized, multi-chain blockchain data access — and for most use cases, getting started takes about 60 seconds.
+Pocket Network is an open network for data services. As a developer you can use it from either side: publish a service and get paid for every request it serves, or call the services already on the network from your app or agent.
 
-## Quick Start: Get an RPC Endpoint
+## Choose Your Path
 
-Pocket's public portal at [api.pocket.network](https://api.pocket.network) provides free, no-API-key-required access to 60+ blockchain networks. Drop the endpoint URL into your existing code and go:
+| I want to… | Start here |
+| --- | --- |
+| Turn my API into a service that agents and apps pay to call | [Services](/services/) — register, deploy, and get listed. The [Service Builder skill](https://github.com/pokt-network/pocket-network-resources/blob/main/service-builder/pocket-service-builder.skill) for Claude does most of the work. |
+| Give my AI agent data it can pay for per call, with no accounts or keys | [Agent Services](/agent-services) and [Agent Integration](/agent-services/agent-integration) |
+| Give my agent live blockchain data | [Blockchain Data for Agents](/agent-services/blockchain-data) |
+| Call a blockchain from my app | [Blockchain RPC](#blockchain-rpc), below |
+| Pay for relays myself, at higher volume | [Application Staking](/developers/application-staking) |
+| Run my own gateway or access point | [Building with PATH](/developers/building-with-path) |
+
+## Blockchain RPC
+
+The Foundation's public RPC at [api.pocket.network](https://api.pocket.network) gives free access to dozens of blockchain networks with no account and no API key. Every network is at `https://{chain-slug}.api.pocket.network`; drop the URL into your existing code:
 
 ```bash
 # Ethereum mainnet
@@ -36,7 +47,7 @@ w3 = Web3(Web3.HTTPProvider("https://eth.api.pocket.network"))
 print(w3.eth.block_number)
 ```
 
-The endpoint pattern is `https://{chain-slug}.api.pocket.network`. For the full list of supported chains and their slugs, see [Supported Chains](/developers/supported-chains).
+Every network and its slug is on [Supported Chains](/developers/supported-chains).
 
 <Callout type="tip">
   Pocket's RPC is standard JSON-RPC. Your existing ethers.js, web3.py, viem, wagmi, or curl integrations work without modification — just change the URL.
@@ -44,17 +55,12 @@ The endpoint pattern is `https://{chain-slug}.api.pocket.network`. For the full 
 
 ## Building Something Heavier?
 
-If you need more than a consumer endpoint — your own gateway, custom routing, dedicated access, or high-volume production traffic — [PATH](/path/) is the SDK for Shannon.
-
-PATH gives you out of the box: QoS-based endpoint selection, multi-chain routing, session management, proof generation, reputation scoring, and Helm-based production deployment.
-
-See [Building with PATH](/developers/building-with-path) for the full picture, or jump to the [PATH section](/path/) for installation and architecture docs.
+If you need more than a public endpoint — your own gateway, custom routing, dedicated access, or high-volume production traffic — [PATH](/path/) is the open-source gateway framework for Pocket Network. It handles sessions, supplier selection, quality scoring, and relay signing for any service on the network, blockchain or not. See [Building with PATH](/developers/building-with-path).
 
 ## What's in This Section
 
-- [Supported Chains](/developers/supported-chains) — All available chains with endpoint URLs
-- [Application Staking](/developers/application-staking) — Stake POKT for dedicated, higher-throughput access
-- [Integration Examples](/developers/integration-examples) — Drop-in code for ethers.js, web3.py, wagmi, viem, curl
-- [Building with PATH](/developers/building-with-path) — When and how to use PATH as your SDK
-- [AI Agents & MCP](/developers/ai-agents) — Pocket as an AI agent data layer
-- [API Reference](/developers/api-reference) — OpenAPI specs for poktroll and PATH
+- [Supported Chains](/developers/supported-chains) — every public RPC endpoint and its slug
+- [Integration Examples](/developers/integration-examples) — drop-in RPC code for ethers.js, web3.py, wagmi, viem, and curl
+- [Application Staking](/developers/application-staking) — stake POKT to pay for relays to any service yourself
+- [Building with PATH](/developers/building-with-path) — when and how to run your own gateway
+- [API Reference](/developers/api-reference) — relay, chain, and PATH endpoints

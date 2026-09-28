@@ -1,0 +1,66 @@
+---
+title: "Agent Services"
+description: "How AI agents discover and pay for data services on Pocket Network, and how the Pocket Network Foundation's Agentic Portal puts those services in front of them."
+section: "agent-services"
+persona: ["developer"]
+tabs: false
+status: "new"
+lastUpdated: "2026-09-27"
+---
+
+Pocket Network is an open network for data services. Developers publish an API as a service, the network meters every request and pays for the ones that are served, and AI agents, MCP clients, and apps call those services and pay per request. An **agent service** is a service built to be called that way: by software acting on its own, with no human to sign up for an account, rotate an API key, or manage a subscription.
+
+Blockchain RPC is still served on Pocket, but it is one kind of service among many. An agent service can be a market data feed, a public-records lookup, a search or extraction tool, a document converter, a compliance check, an LLM inference or embeddings endpoint, or an MCP server. If it answers an HTTP request with JSON, it can be a service.
+
+## Why Agents Need Something Different
+
+Agents need data, and every conventional data source assumes a human customer: a sign-up form, an API key to store and rotate, a billing relationship, and a schema and auth scheme that differ from every other source. An agent cannot fill in a sign-up form, and wiring up each source by hand does not scale.
+
+Pocket removes those steps:
+
+- **Payment is the credential.** An agent pays for each call as it makes it. There is no account and no key.
+- **One integration covers every service.** An agent that can call one service through a portal can call all of them the same way.
+- **Discovery is machine-readable.** Every service comes with a description, a schema, and example calls that an agent can read before it pays for anything.
+
+## The Agentic Portal
+
+The **Agentic Portal** at [agent.pocket.network](https://agent.pocket.network/) is the Pocket Network Foundation's pay-per-call front door to services on Pocket. It is the first portal on the network; others can be built the same way.
+
+For agents and the people who build them, the portal provides:
+
+- **A curated catalogue** of services across categories such as finance, government, web, security, documents, compliance, health, research, AI, and blockchain, browsable at [agent.pocket.network/services](https://agent.pocket.network/services). Each service has its own page with a description, its operations, its price, and a **Try it** button.
+- **Pay-per-call access** over two open payment protocols: **x402**, with gasless USDC authorizations, and **MPP**, with USDC.e on Tempo. An unpaid call gets a `402 Payment Required` response with the terms; the agent pays and retries. There are no minimums and no subscriptions.
+- **Protection against paying for failures.** A call that fails is not charged, and the same payment authorization can be retried.
+- **Machine-readable discovery**: an OpenAPI index at [agent.pocket.network/openapi.json](https://agent.pocket.network/openapi.json), an [llms.txt](https://agent.pocket.network/llms.txt) for language models, and a JSON catalogue.
+- **An MCP server**, `@pocket-network/agentic-portal-mcp`, that gives Claude, Cursor, and any other MCP client the whole catalogue through three tools. It is listed in the official MCP Registry.
+- **A public status page** at [agent.pocket.network/status](https://agent.pocket.network/status).
+
+The portal sets its own per-call price, shown on each service's page. That price is what an agent pays the portal. It is not what a service's developer earns; see below.
+
+### How a Call Flows
+
+```text
+agent ──► Agentic Portal ──► gateway ──► supplier's RelayMiner ──► service backend
+            │  402 with terms          │  signs the relay,          │  answers with JSON
+            │  agent pays, retries     │  picks a supplier          │
+            ▼                          ▼                            ▼
+       response envelope  ◄──  signed response  ◄──────────────  response
+```
+
+The portal checks the payment, sends the request into Pocket Network through a gateway, and returns the supplier's answer inside an envelope that separates what the portal asserts about the call from the supplier's content. [Agent Integration](/agent-services/agent-integration) covers the envelope, payments, and errors.
+
+## How Service Developers Get Paid
+
+Developers are paid by the protocol, not by the portal. When a service is registered, its owner sets a price in **compute units per request**. Every request a supplier serves is metered on-chain, and it is paid for the compute units it delivered once the session's claim settles. Compute units have a fixed dollar value on Pocket, so a service's price stays stable in dollars even when POKT moves.
+
+Two roles earn from every settled request:
+
+- **The supplier**, who runs the servers that answer requests, earns the largest share.
+- **The service owner**, who registered the service, earns <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> of every settled request on it, **no matter which supplier served it**.
+
+At launch, the developer is usually both, and earns both shares. As a service grows, other operators can stake to serve it, and the owner keeps earning on every request they serve. Build once, earn on every request.
+
+## Where to Go Next
+
+- **Building an agent?** Start with [Agent Integration](/agent-services/agent-integration), then browse the [catalogue](https://agent.pocket.network/services). For on-chain data, see [Blockchain Data for Agents](/agent-services/blockchain-data).
+- **Have a service agents should call?** Read [List Your Service](/agent-services/list-your-service) for what the portal lists, then build and deploy it with the guides in [Services](/services/).

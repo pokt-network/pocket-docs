@@ -1,0 +1,65 @@
+---
+title: "Blockchain Data for Agents"
+description: "Give an AI agent live blockchain data through Pocket Network: the BlockchainQuery MCP server for Claude, the free public RPC endpoints from any agent framework, and paid blockchain services on the Agentic Portal."
+section: "agent-services"
+persona: ["developer"]
+tabs: false
+status: "new"
+lastUpdated: "2026-09-27"
+---
+
+Blockchain data is one of the categories an agent can reach through Pocket Network: balances, blocks, transactions, logs, contract calls, staking, and governance state across dozens of chains. There are three ways to give an agent access, depending on how the agent is built.
+
+| If your agent… | Use |
+| --- | --- |
+| Runs in Claude Desktop | [BlockchainQuery](#blockchainquery-for-claude), a read-only MCP server with no key and no cost |
+| Is your own code or runs in an agent framework | The [public RPC endpoints](#public-rpc-from-agent-frameworks), called as ordinary HTTP tools |
+| Already pays for other services on the Agentic Portal | The portal's [blockchain services](#blockchain-services-on-the-agentic-portal), through the same integration |
+
+## BlockchainQuery for Claude
+
+[BlockchainQuery](https://github.com/pokt-network/blockchain-query-mcp) is Pocket's MCP server for blockchain data. It gives Claude read-only query tools across six protocol families (EVM, Solana, Cosmos SDK, Sui, Near, and Radix) and routes every query through Pocket's public RPC at [api.pocket.network](https://api.pocket.network). It needs no API key, no account, and no payment.
+
+Its tools cover:
+
+- **Discovery:** list the supported chains and describe one.
+- **EVM:** balances, blocks, transactions, receipts, logs, gas estimates, token info, and contract calls.
+- **Solana, Cosmos, Sui, Near, and Radix:** balances, accounts or objects, blocks, and transactions, plus staking, validators, and governance on Cosmos chains.
+- **Cross-chain:** domain resolution, balance comparison across chains, and unit conversion.
+
+To install it, download `BlockchainQuery.mcpb` from the [repository](https://github.com/pokt-network/blockchain-query-mcp), open it with Claude Desktop, and click **Install**. Claude can then answer questions about live on-chain state directly. The [BlockchainQuery](/ecosystem/blockchainquery) page has the full tool list.
+
+## Public RPC from Agent Frameworks
+
+The Foundation's public RPC endpoints are free and need no key. Every supported chain is at `https://{chain-slug}.api.pocket.network`; the slugs are on [Supported Chains](/developers/supported-chains). Because they are standard JSON-RPC, any framework that can define a tool can use them, with no Pocket-specific library.
+
+A LangChain tool with web3.py:
+
+```python
+from langchain.tools import Tool
+from web3 import Web3
+
+w3 = Web3(Web3.HTTPProvider("https://eth.api.pocket.network"))
+
+def get_balance(address: str) -> str:
+    balance = w3.eth.get_balance(address)
+    return str(w3.from_wei(balance, "ether")) + " ETH"
+
+tool = Tool(name="get_eth_balance", func=get_balance, description="Get the ETH balance of an address")
+```
+
+CrewAI, LangGraph, and other frameworks work the same way: define a tool that sends the JSON-RPC request. More drop-in snippets are on [Integration Examples](/developers/integration-examples).
+
+<Callout type="info">
+  The public endpoints are rate-limited per IP. An agent that needs sustained, high-volume access should stake its own [Application](/developers/application-staking) or run a gateway with [PATH](/developers/building-with-path).
+</Callout>
+
+## Blockchain Services on the Agentic Portal
+
+The [Agentic Portal](https://agent.pocket.network/services) lists blockchain services alongside its other categories. An agent that already calls portal services can call these the same way, paying per call with x402 or MPP and receiving the chain's JSON-RPC response inside the portal's envelope. See [Agent Integration](/agent-services/agent-integration).
+
+## Related Pages
+
+- [Agent Services](/agent-services) — how agents find and pay for services on Pocket
+- [Supported Chains](/developers/supported-chains) — every public RPC endpoint and its slug
+- [Developers](/developers/) — blockchain RPC, application staking, and PATH

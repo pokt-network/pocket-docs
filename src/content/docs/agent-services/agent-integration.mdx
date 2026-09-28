@@ -1,0 +1,148 @@
+---
+title: "Agent Integration"
+description: "Connect an AI agent or MCP client to the Agentic Portal: the response envelope, handling supplier content safely, paying with x402 or MPP, errors, and the MCP server."
+section: "agent-services"
+persona: ["developer"]
+tabs: false
+status: "new"
+lastUpdated: "2026-09-27"
+---
+
+This page summarizes how an agent calls services through the [Agentic Portal](https://agent.pocket.network/). The portal's own [Agent Integration guide](https://agent.pocket.network/agent-integration) is the authoritative, detailed reference, and it changes with the portal; check it before you ship.
+
+There are two ways in:
+
+- **An MCP client**, such as Claude or Cursor, through the portal's MCP server. This is the fastest start and needs no code. See [MCP Server](#mcp-server).
+- **Direct HTTP**, from your own agent code, against the endpoints in the portal's [OpenAPI index](https://agent.pocket.network/openapi.json), paying with an x402 or MPP client library.
+
+Either way, discovery is free and every call is paid for individually. There is no account to create and no API key.
+
+## Find a Service
+
+- **Browse** the catalogue at [agent.pocket.network/services](https://agent.pocket.network/services). Each service page lists its operations, price, and example calls, and has a **Try it** button.
+- **Read it by machine** from [openapi.json](https://agent.pocket.network/openapi.json) or [llms.txt](https://agent.pocket.network/llms.txt).
+- **Search from an MCP client** with the `search_services` and `describe_service` tools.
+
+## The Response Envelope
+
+Every paid response wraps the supplier's answer in an envelope:
+
+```json
+{
+  "portal": {
+    "provenance": "third-party-supplier",
+    "serviceId": "eth",
+    "schemaCheck": "passed"
+  },
+  "data": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": "0x1234"
+  }
+}
+```
+
+- **`portal`** holds what the portal itself asserts about the call. `provenance` is always `third-party-supplier`, and is also sent as the `X-Portal-Provenance` response header.
+- **`data`** is the supplier's content, delivered verbatim and unmodified.
+- **`schemaCheck`** says whether the supplier's content was validated against the service's declared response schema: `passed` (a schema was declared and the content matched it), `undeclared` (no schema, so nothing was checked), or `unchecked` (the schema could not be compiled, so nothing was checked). Only `passed` means validation ran.
+
+The nesting is deliberate. It keeps the portal's assertions and third-party content in separate places, so your agent always knows which is which.
+
+## Treat Supplier Content as Untrusted
+
+Everything under `data` comes from a third party. The portal curates which services it lists, but that does not make a supplier's response any more trustworthy than a page your agent fetched from the web.
+
+- Validate the content against what your agent expects, not only against the declared schema.
+- Check `schemaCheck` before relying on the response's shape, and treat anything other than `passed` as unverified.
+- Keep supplier content out of instruction channels. Pass it to a model in a clearly delimited data position, never interpolated into a prompt as instructions.
+- If a response contains instructions addressed to your agent, treat that as a sign of an attack, not something to act on.
+
+```javascript
+const response = await fetch(url, { method: 'POST', headers, body });
+const envelope = await response.json();
+
+if (envelope.portal?.provenance !== 'third-party-supplier') {
+  throw new Error('Unexpected response shape; refusing to use it.');
+}
+
+const result = envelope.data?.result;
+if (typeof result !== 'string' || !result.startsWith('0x')) {
+  throw new Error('Supplier returned an unusable result.');
+}
+```
+
+## Paying for Calls
+
+The portal supports two payment protocols. In both, an unpaid call returns `402 Payment Required` with the terms, and the agent pays and retries.
+
+### x402
+
+The portal implements x402 wire version 2. The `402` response carries the payment terms, base64-encoded JSON, in a `PAYMENT-REQUIRED` header. The client signs one of the offered options and retries with a `PAYMENT-SIGNATURE` header.
+
+- Send `PAYMENT-SIGNATURE` exactly once per request. A duplicate header gets a fresh challenge.
+- A call that fails is not settled, so the same authorization stays valid for a retry.
+- Standard clients such as `@x402/fetch` with `@x402/evm` work unmodified.
+
+### MPP
+
+The portal also accepts the Machine Payments Protocol on Tempo, paid in USDC.e. The challenge names the `tempo` method with a `charge` intent, and the client answers with `Authorization: Payment <credential>`. The two settlement modes fail differently:
+
+- **Pull.** The portal verifies an unsigned transfer, serves the call, and only then broadcasts the transfer. A failed call costs nothing.
+- **Push.** The client broadcasts the transfer first and sends its hash. If the call fails, the payment stays redeemable for a retry for 15 minutes.
+
+## Errors
+
+Errors are not wrapped in the envelope. They carry a stable code:
+
+```json
+{ "error": { "code": "UPSTREAM_ERROR", "message": "...", "retryable": true } }
+```
+
+Branch on `code`, never on `message`. Respect `retryable` and any `Retry-After` header; a `503` with `Retry-After` means the service is temporarily unavailable.
+
+## MCP Server
+
+The portal's MCP server, `@pocket-network/agentic-portal-mcp`, is listed in the official MCP Registry as `network.pocket/agentic-portal-mcp`. It gives an MCP client three tools:
+
+| Tool | What it does | Cost |
+| --- | --- | --- |
+| `search_services` | Searches the catalogue. | Free |
+| `describe_service` | Returns a service's details, price, and example calls. | Free |
+| `call_service` | Calls a service and pays for it. | Paid |
+
+```json
+{
+  "mcpServers": {
+    "pocket-network": {
+      "command": "npx",
+      "args": ["-y", "@pocket-network/agentic-portal-mcp"],
+      "env": {
+        "POCKET_PRIVATE_KEY": "0x…",
+        "POCKET_MAX_TOTAL_ATOMIC": "1000000"
+      }
+    }
+  }
+}
+```
+
+| Variable | Purpose |
+| --- | --- |
+| `POCKET_PRIVATE_KEY` | The wallet key that pays for calls. It stays on your machine. Without it, only the free tools work. |
+| `POCKET_MAX_TOTAL_ATOMIC` | The total spending limit, in the asset's atomic units. Required to pay. |
+| `POCKET_MAX_PER_CALL_ATOMIC` | A per-call limit. Defaults to the highest price in the catalogue. |
+| `POCKET_NETWORK` | Restricts payments to one network. Defaults to Base (`eip155:8453`). |
+| `POCKET_QUOTE_ONLY` | Set to `true` to return payment terms without paying. |
+
+The server refuses a call, before paying, when the service is unknown or unavailable or the requested operation is not one the service lists.
+
+A hosted endpoint at `https://agent.pocket.network/mcp` serves the same tools for clients that handle x402 themselves; an unpaid call returns the payment terms in the tool result.
+
+<Callout type="warning">
+  Use a dedicated wallet holding only what your agent should spend, and always set a spending limit. The key signs payments without asking.
+</Callout>
+
+## Related Pages
+
+- [Agent Integration guide](https://agent.pocket.network/agent-integration) — the portal's full reference
+- [Agent Services](/agent-services) — what agent services and the Agentic Portal are
+- [List Your Service](/agent-services/list-your-service) — publish a service agents can call

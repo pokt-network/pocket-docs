@@ -1,12 +1,12 @@
 ---
 title: "Application Staking"
-description: "Stake POKT as an Application to access blockchain data services on Pocket Network."
+description: "Stake POKT as an Application to pay for relays to any service on Pocket Network, from blockchain RPC to data APIs."
 section: "developers"
 persona: ["developer"]
 tabs: true
 status: "stable"
 sources: ["zip1/03-application-staking.md", "zip2/03-application-staking.md"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 <Tabs>
@@ -14,9 +14,9 @@ lastUpdated: "2026-04-07"
 
 ## What Is an Application?
 
-In Pocket Network, an **Application** represents the demand side of the network. Applications are the entities that actually need blockchain data — they want to read from Ethereum, query Solana, or access any other supported chain's API. If Suppliers are the data providers, Applications are the data consumers.
+In Pocket Network, an **Application** represents the demand side of the network. Applications are the entities that actually need data — they want to call a data API, run LLM inference, read from Ethereum, or use any other service on the network. If Suppliers are the data providers, Applications are the data consumers.
 
-Think of it this way: Pocket Network is a decentralized marketplace for blockchain data. Suppliers set up shop to serve that data. Applications are the customers who walk through the door. But instead of paying per request with a credit card, Applications put up a deposit of POKT tokens to gain ongoing access to the network's services. That deposit is called a **stake**.
+Think of it this way: Pocket Network is a decentralized marketplace for data services. Suppliers set up shop to serve that data. Applications are the customers who walk through the door. But instead of paying per request with a credit card, Applications put up a deposit of POKT tokens to gain ongoing access to the network's services. That deposit is called a **stake**.
 
 ## What Is Staking?
 
@@ -26,13 +26,13 @@ Staking is the act of locking up POKT tokens as a deposit to participate in the 
 
 2. **You are registered on-chain.** The network now knows your Application exists and is ready to consume data services.
 
-3. **You declare which services you need.** You specify which blockchain or API service you want to access (more on this below).
+3. **You declare which services you need.** You specify which service you want to access, such as a blockchain's RPC or a data API (more on this below).
 
 Staking is not a fee or a payment. It is closer to a security deposit. The tokens remain yours, and you reclaim them when you unstake. While staked, the protocol uses your stake to calculate how much service you are entitled to and to hold you accountable within the network's economic system.
 
 ### Why Does the Network Require Staking?
 
-Staking serves several purposes in making Pocket Network unstoppable and self-healing:
+Staking serves several purposes in keeping Pocket Network open and self-healing:
 
 - **Sybil resistance.** Requiring a real economic commitment prevents bad actors from flooding the network with fake Applications that waste Supplier resources.
 - **Economic alignment.** Your stake ties your interests to the health of the network. Participants with skin in the game are more likely to behave honestly.
@@ -40,13 +40,17 @@ Staking serves several purposes in making Pocket Network unstoppable and self-he
 
 ## Choosing Your Services (Service IDs)
 
-When you stake an Application, you must declare which service you want to access. Services are identified by short codes called **Service IDs** — for example, `eth` for Ethereum or `sol` for Solana. These correspond to the blockchain APIs and data services that Suppliers on the network are set up to provide.
+When you stake an Application, you must declare which service you want to access. Services are identified by short codes called **Service IDs** — for example, `eth` for Ethereum or `text-generation` for LLM inference. These correspond to the APIs and data services that Suppliers on the network are set up to provide.
 
 Think of Service IDs as channels on the network. You tune into the channel you need, and the protocol matches you with Suppliers who serve that channel.
 
-Currently, the protocol requires each Application to choose exactly one service at a time. This is a deliberate design choice enforced by the tokenomics module to prevent any single Application from consuming a disproportionate share of network resources across many services simultaneously. If you need access to multiple blockchains, you would stake separate Applications for each one.
+Currently, the protocol requires each Application to choose exactly one service at a time. This is a deliberate design choice enforced by the tokenomics module to prevent any single Application from consuming a disproportionate share of network resources across many services simultaneously. If you need access to multiple services, you would stake separate Applications for each one, or use a gateway that holds Applications for you.
 
-The list of available services is maintained on-chain. You can browse the service registry to see which services are currently supported before deciding where to stake.
+The list of available services is maintained on-chain. You can browse the service registry at [explorer.pocket.network/services](https://explorer.pocket.network/services) to see which services are available before deciding where to stake.
+
+<Callout type="info">
+  An AI agent does not need to stake at all. Agents can pay per call, with no POKT, through the [Agentic Portal](/agent-services).
+</Callout>
 
 ## Stake Lifecycle Summary
 
@@ -114,7 +118,7 @@ This parameter controls how many sessions must pass after you unstake before you
 
 The unbonding period is a safety mechanism. It gives the network time to finalize all settlement activity related to your Application before releasing your tokens. Without it, an Application could unstake and withdraw tokens before Suppliers have been properly compensated for the data services they provided.
 
-## How Staking Makes Data Access Unstoppable
+## How Staking Keeps Data Access Open
 
 Application staking is one of the core mechanisms that makes Pocket Network permissionless and censorship-resistant. Here is why:
 
@@ -153,7 +157,7 @@ Staking registers your Application on-chain, locks your specified POKT tokens, a
 The `stake-application` transaction requires a YAML configuration file passed via the `--config` flag. This file defines the stake amount and the service(s) the Application will consume.
 
 ```yaml
-stake_amount: 1000000000upokt
+stake_amount: <amount>upokt   # at least the live application min_stake
 service_ids:
   - anvil
 ```
@@ -177,10 +181,18 @@ pocketd query application params --network=beta
 
 A list of service identifiers that the Application wants to consume. Each service ID must:
 
-- Be a string of 8 or fewer alphanumeric characters, underscores, and dashes (matching `^[a-zA-Z0-9_-]{1,8}$`).
+- Be 1 to 42 characters of letters, digits, underscores, and dashes (matching `^[a-zA-Z0-9_-]+$`). This is the same rule that applies when a service is registered.
 - Correspond to a service registered on the network.
 
-The current protocol requires the `service_ids` list to contain exactly one entry to prevent applications from over-servicing. This restriction is enforced by the tokenomics module.
+The protocol requires the `service_ids` list to contain exactly one entry to prevent applications from over-servicing. The chain rejects a stake with any other number of services.
+
+#### `gateway_addresses` (optional)
+
+A list of Gateway addresses (`pokt1...`) to delegate to in the same transaction, instead of delegating separately afterwards. See [Gateway Delegation](/gateways/delegation). The number of Gateways an Application can delegate to is capped by the `max_delegated_gateways` governance parameter, currently <GovParam module="application" param="max_delegated_gateways" />.
+
+#### `per_session_spend_limit` (optional)
+
+The most `upokt` the Application will spend in any one session, for example `per_session_spend_limit: 5000000upokt`. A positive limit must be at least 1 POKT (`1000000upokt`), a floor fixed in the protocol code rather than a governance parameter. On an update, leaving the field out keeps the existing limit, and setting it to `0upokt` removes it.
 
 ### Stake Command
 
@@ -208,7 +220,7 @@ pocketd tx application stake-application \
 1. Create a stake configuration file (`app_stake_config.yaml`):
 
 ```yaml
-stake_amount: 1000000000upokt
+stake_amount: <amount>upokt   # at least the live application min_stake
 service_ids:
   - eth
 ```
@@ -237,7 +249,7 @@ If the application is currently in the unbonding period (i.e., it was previously
 
 ```yaml
 # Updated config with higher stake and different service
-stake_amount: 2000000000upokt
+stake_amount: <higher amount>upokt   # more than the current stake
 service_ids:
   - sol
 ```

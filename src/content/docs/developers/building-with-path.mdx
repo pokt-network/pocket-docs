@@ -6,11 +6,11 @@ persona: ["developer"]
 tabs: false
 status: "draft"
 sources: ["zip4/path/CLAUDE.md", "zip4/path/README.md"]
-lastUpdated: "2026-04-08"
+lastUpdated: "2026-09-27"
 ---
 
 
-Most developers just need an RPC endpoint — grab one from the [API Portal](/foundation/api-portal), plug it into ethers.js or web3.py, and go. But if you're building something more involved — your own gateway, a custom routing layer, a dedicated access point for your application — **PATH is the SDK for Shannon**.
+If you only need to call a blockchain, a public endpoint from the [API Portal](/foundation/api-portal) is enough, and agents can call services through the [Agentic Portal](/agent-services). But if you're building something more involved — your own gateway, a custom routing layer, a dedicated access point for your application — **PATH is the SDK for Shannon**.
 
 ## What PATH Gives You
 
@@ -22,7 +22,7 @@ PATH (Path API & Toolkit Harness) is the open-source gateway framework for Pocke
 
 **Relay forwarding and proof generation.** PATH signs relay requests, forwards them to Suppliers, validates responses, and handles the cryptographic handshake that enables on-chain proof-of-work settlement.
 
-**Multi-chain support.** A single PATH instance can serve any chain the protocol supports — 60+ today and growing. Adding a new chain is a configuration change, not a code change.
+**Any service.** A single PATH instance can serve any service the protocol carries, from blockchain RPC to REST APIs. Adding a service is a configuration change, not a code change.
 
 **Archival detection.** PATH automatically identifies which Suppliers serve archival data and routes historical queries to them.
 
@@ -90,5 +90,6 @@ If your use case genuinely requires a lightweight client library (not a full gat
 
 - [PATH Quick Start](/path/quickstart) — get started
 - [PATH Architecture](/path/architecture) — QoS, routing, reputation
-- [API Portal](/foundation/api-portal) — for developers who just need endpoints
+- [API Portal](/foundation/api-portal) — for developers who just need blockchain endpoints
+- [Agent Services](/agent-services) — for agents that call services per request
 - [Integration Examples](/developers/integration-examples) — drop-in code samples

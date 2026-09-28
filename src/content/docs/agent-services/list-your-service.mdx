@@ -1,0 +1,67 @@
+---
+title: "List Your Service"
+description: "What the Agentic Portal lists, the Service Audit a service must pass, and how to request a listing."
+section: "agent-services"
+persona: ["developer", "node-operator"]
+tabs: false
+status: "new"
+lastUpdated: "2026-09-27"
+---
+
+Anyone can publish a service to Pocket Network; registering and supplying one needs nobody's permission. Being **listed** on the [Agentic Portal](https://agent.pocket.network/), where agents find services and pay to call them, is a separate step. The Pocket Network Foundation curates the portal, and each portal on the network sets its own criteria.
+
+## What the Agentic Portal Lists
+
+The portal accepts services that:
+
+- **Are new.** A service must not be substantially the same as one already listed. Check the [catalogue](https://agent.pocket.network/services) before you build.
+- **Aren't about Pocket itself.** Pocket's own blockchain data is already available at [data.pocket.network](https://data.pocket.network/).
+- **Serve lawful content.** A service must not be intended to distribute content that is illegal internationally.
+- **Pass the Service Audit.** The audit checks the service on the live network, including at least one settled claim on MainNet. See below.
+
+A listed service that receives no requests for more than 30 days may be delisted.
+
+## The Service Audit
+
+The [Service Audit](https://mcp.pocketmcp.network/audit) runs the portal's acceptance rules against the live network, using the same rules reviewers apply. Enter your service IDs, pick the network, and add your supplier's operator address. Run it until nothing fails before you ask for a listing.
+
+| Rule | What it checks | Blocks listing |
+| --- | --- | --- |
+| **A1** Registration | The service ID is registered on the network. | Yes |
+| **A2** Card | The on-chain card is present, is valid `pocket-service-card/v1` JSON, and is under 4 KiB. | Yes |
+| **A3** API uniqueness | Every `apis[]` value is unique and not claimed by another service's card on the network. | Yes |
+| **A4** Supplier stake | At least one active supplier is staked for the service, including the operator you name. | Yes |
+| **A5** Endpoint | Every staked endpoint is `https://` on a hostname, not a bare IP, and its `rpc_type` is one the card lists. | Yes |
+| **A6** TLS | Each endpoint answers over TLS with a publicly trusted certificate. | Yes |
+| **A7** Settlement | At least one settled claim exists for the service, including one by the operator you name. | Yes |
+| **A8** Content quality | A human-readable display name, an identity probe that pins the service ID, a functional probe beyond health and version, and a machine-readable, service-specific spec. | Warns |
+| **A9** Price | The price in the context of the catalogue; one above the 95th percentile is flagged. | Warns |
+
+The full rules and the reasoning behind each are on the [acceptance rules](https://mcp.pocketmcp.network/audit/rules) page. The audit reads live chain values, so run it again just before you submit. The same audit is available as JSON at `https://mcp.pocketmcp.network/api/audit?network=main&ids=<id>&operator=<pokt1...>`, as the `audit_services` tool on the [Pocket MCP server](/services/#tools-for-service-builders), and from the Service Builder skill.
+
+<Callout type="info">
+  A7 is the rule that cannot be rushed. A settled claim means a real relay went through the protocol, reached your backend, was signed, claimed, and paid. Stake a test application for your service, send a relay, and wait for the claim to settle before you submit.
+</Callout>
+
+The audit cannot check everything. It cannot reach your backend to confirm that every response is a JSON object, and it cannot judge whether your card's description is accurate. Reviewers read both, so follow the backend rules in [Deploy a Service](/services/deploy#build-the-backend) and describe the service honestly.
+
+## Build It
+
+Everything a listing needs is covered in the [Services](/services/) section:
+
+1. **[Services](/services/)** — how a service, its suppliers, and gateways fit together, and the tools that do most of the work: the Pocket Service Builder skill for Claude, and PSM4Win on Windows.
+2. **[Register a Service](/services/register)** — choose the ID and price, and write the card the audit checks.
+3. **[Deploy a Service](/services/deploy)** — build the backend, run the HA RelayMiner, stake a supplier, test end to end, and get the settled claim.
+
+Build and test on Beta TestNet first, then go live on MainNet and run the audit there.
+
+## Request a Listing
+
+When your service passes the audit on MainNet, email [directors@pokt.foundation](mailto:directors@pokt.foundation) with:
+
+- the service ID or IDs, and the network;
+- your supplier's operator address;
+- a line on what each service does and who it is for;
+- the audit result.
+
+The Service Builder skill can fill in a submission manifest and attach the audit output for you.

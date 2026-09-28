@@ -6,10 +6,10 @@ persona: ["developer", "node-operator"]
 tabs: false
 status: "draft"
 sources: ["https://raw.githubusercontent.com/pokt-network/public-rpc/refs/heads/main/supported-chains.json"]
-lastUpdated: "2026-04-08"
+lastUpdated: "2026-09-27"
 ---
 
-The public API portal at [api.pocket.network](https://api.pocket.network) provides free, keyless access to 60+ blockchain networks. No account, no API key, no rate-limit tiers to manage.
+The Foundation's public RPC at [api.pocket.network](https://api.pocket.network) provides free, keyless access to the blockchain networks listed below. No account, no API key, no rate-limit tiers to manage.
 
 **Rate limits:**
 - 2,000 requests per IP per minute
@@ -32,17 +32,17 @@ The slug is the service ID — see the table below for the full list.
 
 <SupportedChains />
 
-## Beyond Blockchain — 100+ On-Chain Services
+## Beyond Blockchains
 
-The table above covers what's on the public API portal. The Pocket Network protocol itself supports far more. Over 100 services are registered on-chain — visible at [explorer.pocket.network/services](https://explorer.pocket.network/services) — including non-blockchain services like LLM inference endpoints, TOR relay nodes, and messaging services.
+The table above covers the public RPC. The network itself carries far more: any HTTP API can be a service, and most new services are data APIs, LLM inference, document tools, and MCP servers built for AI agents. Every registered service is listed at [explorer.pocket.network/services](https://explorer.pocket.network/services), and the ones agents can pay to call are on the [Agentic Portal](/agent-services).
 
-Under Shannon, **anyone can register a new service permissionlessly**. There is no whitelist or approval process. If you want to register a service on Pocket Network, see the [Service Management](/services/management) docs for the registration process.
+**Anyone can register a service permissionlessly.** To publish your own, see [Services](/services/).
 
 ## Checking Status
 
 - **Network analytics and relay data:** [analytics.pocket.network](https://analytics.pocket.network)
 - **On-chain service registry:** [explorer.pocket.network/services](https://explorer.pocket.network/services)
-- **On-chain query:** `pocketd query service list-services --network=main`
+- **On-chain query:** `pocketd query service all-services --network=main`
 
 ## Adding a New Chain to the Portal
 
