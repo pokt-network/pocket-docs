@@ -6,7 +6,7 @@ persona: ["community", "governance", "investor"]
 tabs: false
 status: "stable"
 sources: ["zip3/pnf-financial-transparency.docx", "zip3/foundation-sustainability-model.docx"]
-lastUpdated: "2026-04-07"
+lastUpdated: "2026-09-27"
 ---
 
 Pocket Network Foundation is a non-profit organization. Unlike a company that extracts margin from products, PNF exists to serve the protocol and community. Its sustainability depends on responsible treasury management, cost discipline, and an expanding network that generates protocol-level income.
@@ -15,9 +15,9 @@ Pocket Network Foundation is a non-profit organization. Unlike a company that ex
 
 ### 1. DAO Treasury Allocation
 
-The primary funding source. The DAO treasury receives 4.5% of all POKT minted through relay settlements. PNF submits budget requests to the DAO via PEP (Pocket Ecosystem Proposal) and receives POKT to fund operations.
+The primary funding source. The DAO treasury receives <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> of all POKT minted through relay settlements. PNF submits budget requests to the DAO via PEP (Pocket Ecosystem Proposal) and receives POKT to fund operations.
 
-Treasury income scales with usage — more relay volume means more POKT minted, and 4.5% flows to the DAO. Under [PIP-41](/token/pip-41), the DAO's share is calculated on 97.5% of total burns.
+Treasury income scales with usage — more relay volume means more POKT minted, and <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> flows to the DAO. Under [PIP-41](/token/pip-41), the DAO's share is calculated on the <GovParam module="tokenomics" param="mint_ratio" format="percent" /> of burns that is minted back.
 
 All DAO transactions are published in the public DAO transaction log.
 
@@ -31,7 +31,7 @@ Under F-Chains II, PNF receives 50% of Supplier relay rewards on high-traffic ch
 
 ## The DAO Treasury
 
-The POKT DAO treasury accumulates the 4.5% allocation from relay settlements. It is the community's shared resource pool — controlled by DAO governance, managed by PNF as the operational arm.
+The POKT DAO treasury accumulates the <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> allocation from relay settlements. It is the community's shared resource pool — controlled by DAO governance, managed by PNF as the operational arm.
 
 ### Productive Treasury Deployment
 

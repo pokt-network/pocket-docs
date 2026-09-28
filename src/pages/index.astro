@@ -1,8 +1,9 @@
 ---
 /**
- * Landing page — hero + persona cards + sidebar navigation.
- * Uses three-column layout with sidebar for navigation context.
- * Hero + stat bar + persona cards appear in the main content area.
+ * Landing page — hero + sidebar navigation.
+ * Main content: hero, what-the-network-is strip, developer path, persona cards,
+ * builder tools, quick links. Leads with data services for AI agents;
+ * blockchain RPC is one path among several. No live counts (they go stale).
  */
 import '../styles/global.css';
 import SidebarNav from '../components/SidebarNav.astro';
@@ -15,11 +16,99 @@ const b = import.meta.env.BASE_URL.replace(/\/$/, '');
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pocket Network Docs</title>
-  <meta name="description" content="Official documentation for Pocket Network — decentralized infrastructure for accessing any open data, anywhere." />
+  <meta name="description" content="Documentation for Pocket Network, the open network where developers publish data services and get paid for every request by AI agents, MCP clients, and apps." />
   <link rel="icon" type="image/png" href={`${import.meta.env.BASE_URL}pokt-icon.png`} />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    .home-kicker {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: var(--space-3);
+    }
+    .home-ctas {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: var(--space-3);
+    }
+    .home-cta {
+      display: inline-block;
+      padding: var(--space-3) var(--space-6);
+      border-radius: var(--radius-full);
+      font-weight: var(--weight-semibold);
+      font-size: var(--text-sm);
+      text-decoration: none;
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+    }
+    .home-cta-primary { background: var(--brand-blue); color: #fff; }
+    .home-cta-secondary { border: 1px solid rgba(255,255,255,0.35); color: #fff; }
+    .home-cta-secondary:hover { border-color: #fff; }
+    .home-feature-word { font-size: var(--text-2xl); }
+    /* Homepage: no centered text blocks. Hero, feature strip, and cards all
+       read left-aligned, so paragraphs never end in a centered orphan. */
+    .home .hero-mock { text-align: left; }
+    .home .hero-mock p { margin-left: 0; }
+    .home .home-ctas { justify-content: flex-start; }
+    .home .feature-item { text-align: left; padding-left: 0; }
+    .home .card.persona { text-align: left; }
+    .home .card.persona .card-icon-svg { margin-left: 0; }
+    .home-h2 {
+      font-size: var(--text-2xl);
+      font-weight: var(--weight-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-6);
+    }
+    .home-steps {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 var(--space-12);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-4);
+    }
+    .home-steps a {
+      display: block;
+      height: 100%;
+      padding: var(--space-5);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      text-decoration: none;
+      transition: border-color var(--transition-base), box-shadow var(--transition-base);
+    }
+    .home-steps a:hover { border-color: var(--brand-blue); box-shadow: 0 2px 8px rgba(2, 90, 242, 0.1); }
+    .home-step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--brand-blue);
+      color: #fff;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-bold);
+      margin-bottom: var(--space-3);
+    }
+    .home-steps h4 {
+      font-size: var(--text-base);
+      font-weight: var(--weight-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+    .home-steps p {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: var(--leading-normal);
+    }
+    @media (max-width: 1100px) { .home-steps { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px) { .home-steps { grid-template-columns: 1fr; } }
+  </style>
 </head>
 <body>
   <!-- FOUC prevention -->
@@ -78,54 +167,101 @@ const b = import.meta.env.BASE_URL.replace(/\/$/, '');
     </aside>
 
     <!-- Main content -->
-    <main id="main-content" class="main-content">
+    <main id="main-content" class="main-content home">
       <!-- Hero -->
       <div class="hero-mock">
         <div class="hero-content">
-          <h2>Pocket Network <span>Documentation</span></h2>
-          <p>Fully permissionless, fully decentralized open data delivery. 5,000+ independent nodes. 60+ blockchains. No API key required.</p>
-          <a href={`${b}/get-started/about-pocket`} style="display:inline-block;background:var(--brand-blue);color:#fff;padding:var(--space-3) var(--space-6);border-radius:var(--radius-full);font-weight:var(--weight-semibold);font-size:var(--text-sm);text-decoration:none;transition:background var(--transition-fast);">
-            Get Started →
-          </a>
+          <div class="home-kicker">Pocket Network Documentation</div>
+          <h2>Data services for <span>AI agents</span></h2>
+          <p>An open network where developers publish data services and get paid for every request, by AI agents, MCP clients, and apps. Build it with Claude, deploy it on the network, and get paid on-chain.</p>
+          <div class="home-ctas">
+            <a href={`${b}/services/`} class="home-cta home-cta-primary">Build a service →</a>
+            <a href={`${b}/agent-services/`} class="home-cta home-cta-secondary">Explore agent services</a>
+          </div>
         </div>
       </div>
 
-      <!-- Stats strip -->
+      <!-- What the network is -->
       <div class="feature-grid" style="margin: var(--space-10) 0;">
         <div class="feature-item">
-          <div class="feature-number" style="color: var(--brand-blue);">5,000+</div>
-          <div class="feature-label">Independent nodes</div>
+          <div class="feature-number home-feature-word">Any API</div>
+          <div class="feature-label">Data APIs, LLM inference, MCP servers, document tools, and blockchain RPC. If it answers with JSON, it can be a service.</div>
         </div>
         <div class="feature-item">
-          <div class="feature-number" style="color: var(--brand-blue);">60+</div>
-          <div class="feature-label">Supported blockchains</div>
+          <div class="feature-number home-feature-word">Per request</div>
+          <div class="feature-label">Every request is metered and paid on-chain, priced in compute units with a fixed dollar value.</div>
         </div>
         <div class="feature-item">
-          <div class="feature-number" style="color: var(--brand-blue);">0</div>
-          <div class="feature-label">API keys required</div>
+          <div class="feature-number home-feature-word">No API keys</div>
+          <div class="feature-label">Agents pay per call. Payment is the credential, so there is no account to create or key to rotate.</div>
         </div>
       </div>
 
+      <!-- Developer path -->
+      <h2 class="home-h2">From your code to a paid service</h2>
+      <ol class="home-steps">
+        <li>
+          <a href={`${b}/services/register`}>
+            <span class="home-step-num">1</span>
+            <h4>Build</h4>
+            <p>Write the service in any language and describe it in a service card. The Service Builder skill for Claude does most of the work.</p>
+          </a>
+        </li>
+        <li>
+          <a href={`${b}/services/deploy`}>
+            <span class="home-step-num">2</span>
+            <h4>Deploy</h4>
+            <p>Register on Beta TestNet, stake a supplier, and run the HA RelayMiner. On Windows, PSM4Win makes each step a button.</p>
+          </a>
+        </li>
+        <li>
+          <a href="https://mcp.pocketmcp.network/audit" target="_blank" rel="noopener">
+            <span class="home-step-num">3</span>
+            <h4>Verify</h4>
+            <p>Run the Service Audit against the Agentic Portal's acceptance rules on the live network.</p>
+          </a>
+        </li>
+        <li>
+          <a href={`${b}/agent-services/list-your-service`}>
+            <span class="home-step-num">4</span>
+            <h4>Get listed and paid</h4>
+            <p>List on the Agentic Portal so agents can find it, and earn on every settled request, whoever serves it.</p>
+          </a>
+        </li>
+      </ol>
+
       <!-- Persona cards -->
-      <h2 style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--text-primary);margin-bottom:var(--space-6);">Find your path</h2>
+      <h2 class="home-h2">Find your path</h2>
       <div class="card-grid" style="margin-bottom: var(--space-12);">
-        <a href={`${b}/developers`} class="card persona">
+        <a href={`${b}/services/`} class="card persona">
           <svg width="64" height="64" viewBox="0 0 64 64" class="card-icon-svg"><rect width="64" height="64" rx="14" fill="#025af2" opacity=".12"/><g stroke="#025af2" stroke-width="2" stroke-linecap="round" fill="none"><polyline points="22,24 16,32 22,40"/><polyline points="42,24 48,32 42,40"/><line x1="36" y1="20" x2="28" y2="44"/></g></svg>
-          <h4>Application Developers</h4>
-          <p>Get an RPC endpoint and start querying blockchains in under 60 seconds.</p>
-          <span class="card-link">Start building →</span>
+          <h4>Service Developers</h4>
+          <p>Turn your API into a service AI agents pay to call. Build once, earn on every request.</p>
+          <span class="card-link">Build a service →</span>
+        </a>
+        <a href={`${b}/agent-services/`} class="card persona">
+          <svg width="64" height="64" viewBox="0 0 64 64" class="card-icon-svg"><rect width="64" height="64" rx="14" fill="#b8b8ff" opacity=".2"/><g stroke="#534ab7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="20" y="24" width="24" height="20" rx="4"/><line x1="32" y1="18" x2="32" y2="24"/><circle cx="32" cy="16" r="2" fill="#534ab7"/><circle cx="27" cy="33" r="2" fill="#534ab7"/><circle cx="37" cy="33" r="2" fill="#534ab7"/><line x1="27" y1="39" x2="37" y2="39"/><line x1="16" y1="32" x2="20" y2="32"/><line x1="44" y1="32" x2="48" y2="32"/></g></svg>
+          <h4>Agent Builders</h4>
+          <p>Give your agent a growing catalogue of data services through one integration. No accounts, pay per call.</p>
+          <span class="card-link">Integrate an agent →</span>
         </a>
         <a href={`${b}/node-operators`} class="card persona">
           <svg width="64" height="64" viewBox="0 0 64 64" class="card-icon-svg"><rect width="64" height="64" rx="14" fill="#ffc547" opacity=".15"/><g stroke="#b8860b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="22" y="20" width="20" height="24" rx="3"/><line x1="26" y1="26" x2="38" y2="26"/><line x1="26" y1="31" x2="38" y2="31"/><circle cx="32" cy="38" r="2" fill="#b8860b"/><line x1="32" y1="44" x2="32" y2="50"/><line x1="26" y1="50" x2="38" y2="50"/></g></svg>
           <h4>Node Operators</h4>
-          <p>Run a Supplier, stake POKT, and earn rewards for serving data.</p>
-          <span class="card-link">Run a node →</span>
+          <p>Serve the services agents are calling, and earn for every request you serve.</p>
+          <span class="card-link">Run a supplier →</span>
         </a>
         <a href={`${b}/gateways`} class="card persona">
           <svg width="64" height="64" viewBox="0 0 64 64" class="card-icon-svg"><rect width="64" height="64" rx="14" fill="#48e5c2" opacity=".15"/><g stroke="#0f6e56" stroke-width="2" fill="none" stroke-linecap="round"><circle cx="32" cy="32" r="6"/><circle cx="32" cy="32" r="14" stroke-dasharray="4 3"/><line x1="32" y1="12" x2="32" y2="18"/><line x1="32" y1="46" x2="32" y2="52"/><line x1="12" y1="32" x2="18" y2="32"/><line x1="46" y1="32" x2="52" y2="32"/></g></svg>
           <h4>Gateway Operators</h4>
-          <p>Deploy PATH and run your own decentralized open data gateway.</p>
-          <span class="card-link">Deploy a gateway →</span>
+          <p>Run the access layer that routes requests to suppliers and scores their quality.</p>
+          <span class="card-link">Run a gateway →</span>
+        </a>
+        <a href={`${b}/developers`} class="card persona">
+          <svg width="64" height="64" viewBox="0 0 64 64" class="card-icon-svg"><rect width="64" height="64" rx="14" fill="#025af2" opacity=".12"/><g stroke="#025af2" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="22" width="12" height="12" rx="2"/><rect x="36" y="30" width="12" height="12" rx="2"/><line x1="28" y1="28" x2="36" y2="36"/><line x1="22" y1="34" x2="22" y2="44"/><line x1="42" y1="22" x2="42" y2="30"/></g></svg>
+          <h4>Blockchain RPC</h4>
+          <p>Free public RPC endpoints for dozens of blockchains, with no API key required.</p>
+          <span class="card-link">Get an endpoint →</span>
         </a>
         <a href={`${b}/token`} class="card persona">
           <svg width="64" height="64" viewBox="0 0 64 64" class="card-icon-svg"><rect width="64" height="64" rx="14" fill="#025af2" opacity=".12"/><g stroke="#025af2" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="30" r="10"/><text x="32" y="34" text-anchor="middle" font-family="Rubik,sans-serif" font-size="12" font-weight="700" fill="#025af2" stroke="none">P</text><path d="M22 42 Q22 48 32 50 Q42 48 42 42"/></g></svg>
@@ -133,17 +269,30 @@ const b = import.meta.env.BASE_URL.replace(/\/$/, '');
           <p>Buy, stake, delegate, and manage POKT across chains and wallets.</p>
           <span class="card-link">Explore POKT →</span>
         </a>
-        <a href={`${b}/protocol`} class="card persona">
-          <svg width="64" height="64" viewBox="0 0 64 64" class="card-icon-svg"><rect width="64" height="64" rx="14" fill="#b8b8ff" opacity=".2"/><g stroke="#534ab7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="20" r="4" fill="#534ab7"/><line x1="32" y1="24" x2="32" y2="36"/><circle cx="24" cy="40" r="4" fill="#534ab7"/><circle cx="40" cy="40" r="4" fill="#534ab7"/><line x1="32" y1="36" x2="24" y2="36"/><line x1="24" y1="36" x2="24" y2="40"/><line x1="32" y1="36" x2="40" y2="36"/><line x1="40" y1="36" x2="40" y2="40"/><line x1="24" y1="44" x2="24" y2="50"/></g></svg>
-          <h4>Protocol Contributors</h4>
-          <p>Dive into the Shannon protocol, contribute code, and understand tokenomics.</p>
-          <span class="card-link">Read the protocol →</span>
+      </div>
+
+      <!-- Tools -->
+      <h2 class="home-h2">Everything you need to ship</h2>
+      <div class="card-grid" style="margin-bottom: var(--space-12);">
+        <a href="https://github.com/pokt-network/pocket-network-resources/blob/main/service-builder/pocket-service-builder.skill" target="_blank" rel="noopener" class="card">
+          <h4>Service Builder skill</h4>
+          <p>A skill for Claude that takes a service from idea to deployment: card, pricing, deployment files, and tests, on any OS.</p>
+          <span class="card-link">Download the skill ↗</span>
         </a>
-        <a href={`${b}/governance`} class="card persona">
-          <svg width="64" height="64" viewBox="0 0 64 64" class="card-icon-svg"><rect width="64" height="64" rx="14" fill="#ff5a5f" opacity=".12"/><g stroke="#993556" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 42 L32 18 L44 42 Z"/><line x1="24" y1="36" x2="40" y2="36"/><line x1="32" y1="42" x2="32" y2="50"/><line x1="24" y1="50" x2="40" y2="50"/></g></svg>
-          <h4>Governance</h4>
-          <p>Understand the DAO, vote on proposals, and shape Pocket's future.</p>
-          <span class="card-link">Join governance →</span>
+        <a href="https://github.com/pokt-network/PSM4Win" target="_blank" rel="noopener" class="card">
+          <h4>PSM4Win</h4>
+          <p>A Windows desktop app that registers, stakes, deploys, and tests a service from buttons, with a Claude integration.</p>
+          <span class="card-link">Get PSM4Win ↗</span>
+        </a>
+        <a href="https://mcp.pocketmcp.network/audit" target="_blank" rel="noopener" class="card">
+          <h4>Service Audit</h4>
+          <p>Checks a service against the Agentic Portal's acceptance rules on the live network before you ask for a listing.</p>
+          <span class="card-link">Run the audit ↗</span>
+        </a>
+        <a href={`${b}/services/#tools-for-service-builders`} class="card">
+          <h4>Pocket MCP server</h4>
+          <p>Read-only tools for Claude and other MCP clients: catalog search, live parameters, card validation, and supplier state.</p>
+          <span class="card-link">Set it up →</span>
         </a>
       </div>
 
@@ -152,9 +301,13 @@ const b = import.meta.env.BASE_URL.replace(/\/$/, '');
       <div style="display:flex;flex-wrap:wrap;gap:var(--space-3);margin-bottom:var(--space-12);">
         {[
           { label: 'About Pocket', href: `${b}/get-started/about-pocket` },
-          { label: 'Available Networks', href: `${b}/developers/supported-chains` },
+          { label: 'Services', href: `${b}/services/` },
+          { label: 'Agentic Portal ↗', href: 'https://agent.pocket.network/' },
+          { label: 'Service catalogue ↗', href: 'https://explorer.pocket.network/services' },
+          { label: 'Supported blockchains', href: `${b}/developers/supported-chains` },
           { label: 'pocketd CLI', href: `${b}/pocketd/` },
-          { label: 'API Portal', href: `${b}/foundation/api-portal` },
+          { label: 'Protocol', href: `${b}/protocol` },
+          { label: 'Governance', href: `${b}/governance` },
           { label: 'Glossary', href: `${b}/reference/glossary` },
         ].map(({ label, href }) => (
           <a href={href} style="background:var(--bg-tertiary);border:1px solid var(--border-primary);color:var(--text-secondary);padding:var(--space-2) var(--space-4);border-radius:var(--radius-full);font-size:var(--text-sm);text-decoration:none;transition:all var(--transition-fast);">

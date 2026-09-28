@@ -1,56 +1,56 @@
 ---
 title: "About Pocket Network"
-description: "What Pocket Network is, why it exists, and how the relay lifecycle works — from data request to on-chain settlement."
+description: "What Pocket Network is, an open network where developers publish data services and get paid for every request, and how the relay lifecycle works from request to on-chain settlement."
 section: "get-started"
 persona: ["all"]
 tabs: false
 status: "stable"
 sources: ["zip2/09-sessions-claims-proofs.md", "zip2/10-tokenomics-overview.md"]
-lastUpdated: "2026-07-14"
+lastUpdated: "2026-09-27"
 ---
 
-Pocket Network is the world's first and only fully permissionless, fully decentralized, open data delivery network. It is a self-healing network that routes around downtime, geopolitical restrictions, and any other barrier to completing a request for data.
+Pocket Network is an open, decentralized network for data services. Developers publish an API as a service, independent operators serve it, and AI agents, MCP clients, and apps pay for every request they make. The network meters each request and pays for it on-chain.
 
-While Pocket is best known for blockchain RPC access, the Shannon protocol is data-agnostic. The network relays any form of data — blockchain RPCs, AI inference requests, TOR nodes, Signal proxy relays, lightweight messaging services. Any form of data, from anywhere, to anywhere.
+A service can be anything that answers an HTTP request with JSON: a market data feed, a public-records lookup, a search or document tool, LLM inference, an MCP server, or a blockchain's RPC. Blockchain RPC is where Pocket started and is still served, free, through the Foundation's public endpoints. It is now one kind of service among many.
 
-There are zero gatekeepers on Pocket Network. Being fully permissionless means anyone, anywhere, at any time, has full access to all protocol functionality.
+There are no gatekeepers on the protocol. Anyone can publish a service, anyone can serve one, and anyone can call one.
 
 ## The Problem
 
-Every blockchain application needs RPC access. Traditionally, developers either run their own nodes (expensive, complex) or use centralized providers like Alchemy, Infura, or QuickNode (convenient, but creates a single point of failure). When a centralized provider has an outage, every application depending on it goes down simultaneously.
+Data that software needs usually sits behind a single provider. Every source means another account, another API key, and another billing relationship, and every one of them is a point of failure: when that provider goes down, everything depending on it goes down too.
 
-The problem is the same for any data service: centralization creates fragility.
+AI agents make this worse. An agent cannot fill in a sign-up form or manage a subscription, and wiring up each data source by hand does not scale. And the developers who build useful data services have no simple way to get paid for them without building billing, keys, and customer management themselves.
 
 ## How Pocket Solves It
 
-Pocket Network operates a marketplace that matches **Applications** (who need data) with **Suppliers** (who run nodes or services). A decentralized **Gateway** layer routes requests to the best available Supplier automatically.
+Pocket Network is a marketplace that matches **Applications** (who need data) with **Suppliers** (who run the services). A **Gateway** layer routes each request to a good Supplier automatically, and portals such as the [Agentic Portal](/agent-services) put services in front of agents that pay per call.
 
-Here's what happens when you make a data request through Pocket:
+Here's what happens when a request goes through Pocket:
 
-1. Your request hits a gateway (like the public portal at api.pocket.network)
-2. The gateway looks up which Suppliers are available for your service and current session
-3. The QoS system selects the best Supplier based on latency, reliability, and correctness
-4. Your request is forwarded to the Supplier's node or service
+1. The request reaches a gateway, directly or through a portal
+2. The gateway looks up which Suppliers are serving that service in the current session
+3. Its quality system picks a Supplier based on latency, reliability, and correctness
+4. The request is forwarded to that Supplier's service
 5. The response comes back through the same path
-6. Behind the scenes, the Supplier earns POKT tokens for the work
+6. Behind the scenes, the Supplier and the service's owner are paid for the work
 
-This all happens transparently. From your application's perspective, it's just a normal API endpoint.
+This all happens transparently. From the caller's perspective, it's just a normal API endpoint.
 
 ## Why It Matters
 
-**No single point of failure.** With 5,000+ independent nodes, Pocket's architecture means that even if many nodes go offline simultaneously, requests route around the problem. At worst, service degrades gracefully — it never hard-fails from a single provider outage.
+**Build once, earn on every request.** Whoever registers a service sets its price in compute units and earns a share of every settled request on it, no matter which Supplier served it. There is no billing system to build and no customer to invoice. See [Services](/services/).
 
-**Fully permissionless.** Anyone can register a new service on-chain. Anyone can run a Supplier node. There is no whitelist, no approval process, and no entity that can revoke your access.
+**No accounts or API keys for agents.** On the Agentic Portal, payment is the credential: agents pay per call and never sign up for anything. See [Agent Services](/agent-services).
 
-**Privacy-preserving.** Pocket is one of the few network providers that passes all privacy checks on Chainlist, because it does not store any form of personally identifiable information. The only information stored is request origin and destination.
+**No single point of failure.** Many independent operators can serve the same service, and gateways route around any that go offline or answer badly. The network is self-healing: when servers fail, requests go elsewhere.
 
-**The protocol is completely on-chain.** All transactions deduct fees in real time. Deflation is a verifiable on-chain parameter. Every aspect of the protocol's economic functions is transparently on-chain — query the network and see for yourself.
+**Fully permissionless.** Anyone can register a service on-chain. Anyone can run a Supplier. There is no allowlist and no approval process on the protocol. Portals curate what they list; the network itself does not.
 
-**Multi-chain and multi-service.** One network, 60+ blockchains, plus AI inference, TOR, and other service types. See [Supported Networks](/developers/supported-chains) for what's available on the public portal today.
+**Privacy-preserving.** Pocket does not store personally identifiable information. The only information recorded is request origin and destination.
 
-**No API key required.** The public portal at [api.pocket.network](https://api.pocket.network) is open access. Start making requests immediately — no signup, no key management.
+**The protocol is completely on-chain.** Every relay is metered on-chain, every settlement is public, and every economic parameter is a governance value anyone can query. POKT's supply is deflationary, and that is verifiable on-chain too.
 
-**Non-profit infrastructure.** The Pocket Network Foundation is a non-profit. There are no profit margins on relay traffic. This means costs are dramatically lower than commercial alternatives — $1 USD per billion compute units at wholesale rates.
+**Stable pricing.** Compute units have a fixed dollar value, so a service's price stays stable in dollars even when POKT moves.
 
 ## The Four Actors
 
@@ -58,7 +58,7 @@ This all happens transparently. From your application's perspective, it's just a
 | --- | --- | --- |
 | **Application** | Pays for data access by staking POKT and consuming relays | A customer placing an order |
 | **Gateway** | Routes requests from Applications to Suppliers via the QoS layer | A dispatcher connecting customers to workers |
-| **Supplier** | Runs infrastructure (nodes, AI endpoints, etc.) and serves data requests | A worker fulfilling the order |
+| **Supplier** | Runs the backends behind a service (APIs, model servers, blockchain nodes) and serves requests | A worker fulfilling the order |
 | **Validator** | Produces blocks and validates the chain | A notary recording everything |
 
 ## How It Works: The Relay Lifecycle
@@ -71,7 +71,7 @@ The protocol assigns Suppliers to Applications in time-bounded windows called **
 
 ### 2. Relay Serving
 
-During a session, the Application sends data requests (relays) through a Gateway, which routes them to assigned Suppliers. A relay is a data request served through the protocol — the most common relay type today is a blockchain API call ("What's this wallet's balance?" or "What happened in this transaction?"), but the protocol supports any service type registered on-chain, including AI inference requests. The Supplier's [RelayMiner](/node-operators/relayminer-setup) queries its backend service and returns the answer.
+During a session, the Application sends data requests (relays) through a Gateway, which routes them to assigned Suppliers. A relay is a data request served through the protocol — it can be a call to a data API, an LLM inference request, or a blockchain query ("What's this wallet's balance?"), whatever the service registered on-chain provides. The Supplier's [RelayMiner](/node-operators/relayminer-setup) queries its backend service and returns the answer.
 
 ### 3. Claim Submission
 
@@ -98,7 +98,7 @@ Once the proof is validated, the protocol settles the claim:
 | Supplier | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.supplier" format="percent" /> |
 | Validators | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.proposer" format="percent" /> |
 | DAO Treasury | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.dao" format="percent" /> |
-| Service Source Owner | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> |
+| Service Owner | <GovParam module="tokenomics" param="mint_equals_burn_claim_distribution.source_owner" format="percent" /> |
 
 ## The Economic Loop
 
@@ -110,15 +110,15 @@ The more the network is used, the more POKT is burned. With PIP-41's deflation, 
 
 ## Compute Units: How Work Is Priced
 
-Not all relays are equal. A simple balance check is cheaper than a complex historical query. Pocket uses **compute units (CUs)** to measure work, and a governance-controlled exchange rate converts CUs to POKT.
+Not all relays are equal. A simple lookup is cheaper than an LLM completion. Pocket uses **compute units (CUs)** to measure work, and a governance-controlled exchange rate converts CUs to POKT.
 
 The chain: **Relays served → Compute units consumed → uPOKT burned/minted → POKT distributed**
 
-Different services have different CU costs. High-complexity chains cost more CUs per relay.
+Each service's owner sets its price in CUs per relay when registering it. Compute units have a fixed dollar value, so prices stay stable in dollars.
 
 ## Key Concepts
 
-- **Relay** — a single data request-response served through the protocol (a blockchain RPC call, an AI inference request, or any other supported service type).
+- **Relay** — a single request-response served through the protocol, to any service on the network.
 - **POKT** — the native token. Applications burn it to consume relays, Suppliers earn it for serving them, and it is mildly deflationary over time.
 - **Session** — the time-bounded window that assigns a set of Suppliers to a specific Application, computed deterministically from on-chain state rather than stored.
 - **Claims & Proofs** — the mechanism Suppliers use to prove the work they did before the protocol settles payment.
@@ -129,7 +129,9 @@ Pocket's current protocol is **Shannon**, named after Claude Shannon, the father
 
 ## Next Steps
 
-- **Developers:** [Integration Examples](/developers/integration-examples) — start using Pocket endpoints in 30 seconds
+- **Service developers:** [Services](/services/) — publish your API and get paid for every request
+- **Agent builders:** [Agent Services](/agent-services) — call services per request, with no accounts or keys
+- **Blockchain RPC:** [Developers](/developers/) — free public endpoints, in 30 seconds
 - **Token holders:** [Token & Staking](/token/) — understand POKT and staking options
 - **Node operators:** [Node Operators](/node-operators/) — run infrastructure and earn POKT
 - **Go deeper:** [Sessions, Claims & Proofs](/protocol/sessions-claims-proofs) — the technical detail behind the relay lifecycle
