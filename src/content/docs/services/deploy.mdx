@@ -425,6 +425,8 @@ Four components run on the supplier side. They can share one machine at first.
 
 The minimums are the limits in the repository's Docker Compose example, which fits a few suppliers with ordinary traffic; the comfortable column is what its published capacity report used at about 2,400 relays per second. The [benchmarks](https://github.com/pokt-network/pocket-relay-miner/tree/main/docs/benchmarks) explain how to size for your own load. Linux on x86_64 or ARM64 is the supported environment for the RelayMiner and full node.
 
+A new service with light traffic runs on a much smaller server than these, as long as every part has a memory limit. [Supplier Servers](/services/servers) covers that case: sizing memory between the RelayMiner and your backends, swap, and preparing the server.
+
 Beyond hardware:
 
 - **Persistent disk** for Redis data and the keys file or keyring.
@@ -444,6 +446,7 @@ Beyond hardware:
 ## Related Pages
 
 - [Register a Service](/services/register) — the on-chain record and metadata card this guide builds on
+- [Supplier Servers](/services/servers) — sizing, preparing, and running the server behind a supplier
 - [List Your Service](/agent-services/list-your-service) — the Agentic Portal's listing criteria and the Service Audit
 - [Supplier Staking](/node-operators/supplier-staking) — full stake configuration and the owner-operator model
 - [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner) — the HA RelayMiner repository, with deployment runbooks, every configuration key, and troubleshooting

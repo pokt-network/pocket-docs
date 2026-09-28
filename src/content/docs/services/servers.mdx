@@ -1,0 +1,323 @@
+---
+title: "Supplier Servers"
+description: "How to size, prepare, and run the server behind a supplier: memory and swap, the HA RelayMiner's pinned versions, backend rules, and the failures live suppliers have already hit."
+section: "services"
+persona: ["node-operator"]
+tabs: false
+status: "stable"
+lastUpdated: "2026-09-28"
+---
+
+A supplier needs a server: a Linux machine that runs the RelayMiner, the service backends it fronts, and the reverse proxy that gives them a public HTTPS address. This page covers what that server needs, how to size it, how to prepare it, and how to keep it healthy. It complements [Deploy a Service](/services/deploy), which covers the backend, the RelayMiner's configuration, the stake, and the test.
+
+Everything here was learned on live Beta TestNet and MainNet suppliers in September 2026. Software versions are pinned and dated. Chain values such as stake minimums, fees, and penalties are governance parameters and are never quoted here; query them when you need them.
+
+<Callout type="tip">
+  **Most of this page can be done for you.** With [PSM4Win](https://github.com/pokt-network/PSM4Win), the app sets up the RelayMiner on your server, and Claude can guide you through the few steps that need a person. See [Who Does What](#who-does-what).
+</Callout>
+
+## At a Glance
+
+| | Recommendation |
+| --- | --- |
+| **Operating system** | Linux, x86_64 or ARM64. Verified on Ubuntu 24.04 LTS. |
+| **Memory** | 3 GB is the floor for a new service with light traffic. 4 GB for a few light services; 8 GB once any backend needs more than about 512 MB or traffic is steady. |
+| **Swap** | Yes: a swap file about the size of memory. |
+| **CPU** | 2 vCPUs minimum, 4 comfortable. |
+| **Disk** | 25 GB SSD minimum, 50 GB comfortable. |
+| **Access** | SSH with a key only, as a normal user in the `docker` group with passwordless `sudo`. |
+| **Software** | Docker Engine with the Compose v2 plugin, `python3`, `curl`. |
+| **Network** | A public IPv4 address, ports 80 and 443 open, one DNS hostname per network pointing at the server. |
+| **RelayMiner** | The HA RelayMiner ([pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner)) only, one stack per network per server, at a pinned version. |
+| **Backends** | One container per service, shared by both networks, each with a memory limit. |
+
+## What Runs on a Supplier Server
+
+The server itself is network-agnostic. What belongs to one network is the **supplier stack**, because its chain ID, node URLs, operator key, and stake are all specific to that network.
+
+| Part | How many | Notes |
+| --- | --- | --- |
+| **Supplier stack** (Redis, miner, relayer) | One per network, so at most two | Each in its own directory with its own operator key, Compose project, loopback ports, and public hostname. Redis and the miner sit on the stack's private Docker network; only the relayer joins the shared one. |
+| **Reverse proxy** (Caddy) | One per server | Terminates TLS for every stack. One site per network maps that network's hostname to its relayer. The only container published to the internet. |
+| **Service backends** | One container per service | On a shared Docker network, reached by container name (`http://<service-id>-backend:8080`). One backend serves both networks' relayers. |
+
+Three rules follow from this layout:
+
+- **One stack per network, never one per service.** A supplier stake covers every service the supplier lists, and one relayer routes by the service ID inside each relay. Adding a service means starting its backend, adding one entry to the relayer's `services`, and re-staking the supplier with the service in its list.
+- **Never one stack for both networks.** A relay carries nothing a proxy could route on, so each network needs its own hostname and its own relayer.
+- **Never the legacy `pocketd relayminer`.** Its claim signing needs the `x-cosmos-block-height` gRPC header, which the public Sauron endpoints strip. Relays are served, every claim fails with `unexpected 'x-cosmos-block-height' header length; got 0`, and the session's earnings are lost. The HA RelayMiner does not depend on that header.
+
+A layout that works:
+
+| Path | What |
+| --- | --- |
+| `/opt/pocket/supplier-beta/`, `/opt/pocket/supplier-main/` | One stack per network. |
+| `/opt/pocket/caddy/` | The shared Caddy, with one site file per network. |
+| `/opt/pocket/services/<service-id>/` | Each service's backend and its compose file. |
+
+Keep every health and metrics port on loopback. With two stacks, give each its own set:
+
+| | Beta TestNet | MainNet |
+| --- | --- | --- |
+| Relayer health (`/health`, `/ready`) | `127.0.0.1:8081` | `127.0.0.1:8082` |
+| Relayer metrics | `127.0.0.1:9090` | `127.0.0.1:9091` |
+| Miner metrics | `127.0.0.1:9092` | `127.0.0.1:9093` |
+
+## Sizing the Server
+
+### Two Kinds of Size
+
+[Minimal Server Specifications](/services/deploy#minimal-server-specifications) on Deploy a Service lists the RelayMiner project's reference sizes: the limits in its Docker Compose example, which fits several suppliers with ordinary traffic, and the machine behind its published capacity report. Use those when you plan for real volume.
+
+A new service with light traffic, served by one supplier, runs on much less, as long as every part has a memory limit. The rest of this section is that smaller case, measured on live suppliers. Grow toward the reference sizes as traffic grows; the RelayMiner's [benchmarks](https://github.com/pokt-network/pocket-relay-miner/tree/main/docs/benchmarks) explain how to size for your own load.
+
+### Memory
+
+On a small server, memory is the limit that matters. CPU is mostly idle between bursts, and disk use is modest.
+
+Size each stack's memory from the server's own, and set container limits so no part can starve another:
+
+1. Keep back a quarter of total memory, and never less than 1 GB, for the operating system, Docker, the reverse proxy, and **every service backend**.
+2. Split the rest into two shares, one per network, even if you run only one network today, so adding the second later never starves the first.
+3. Within a stack's share, give Redis 40%, the miner 40%, and the relayer 20%. Set Redis's `maxmemory` to 80% of its container limit, each Go process's `GOMEMLIMIT` to 90% of its container limit, and `GOMAXPROCS` to half the CPUs (at least 1).
+4. Do not run a stack whose share is under 1 GB. That makes 3 GB the minimum server.
+
+What that gives. Servers report a little less memory than their nominal size, so real limits come out slightly lower.
+
+| Server memory | Kept back for system and backends | Each stack | Redis / miner / relayer limits |
+| --- | --- | --- | --- |
+| 3 GB | 1 GB | 1 GB | ~410 / 410 / 205 MB |
+| 4 GB | 1 GB | ~1.5 GB | ~614 / 614 / 307 MB |
+| 8 GB | 2 GB | 3 GB | ~1.2 GB / 1.2 GB / 614 MB |
+| 16 GB | 4 GB | 6 GB | ~2.4 GB / 2.4 GB / 1.2 GB |
+
+What a real supplier used, measured on a 4 GB server running both networks and four services at light traffic:
+
+| Container | In use | Limit |
+| --- | --- | --- |
+| Relayer, each network | ~31 MB | 289 MB |
+| Miner, each network | ~35 MB | 578 MB |
+| Redis, each network | ~6 MB | 578 MB |
+| Caddy | ~15 MB | none |
+| A Node.js charts renderer | ~106 MB | 768 MB |
+| A data-analysis backend | ~272 MB | 2 GB |
+| Two small backends | ~14 MB and ~29 MB | none and 256 MB |
+
+The stacks sit far below their limits at rest; the limits exist for bursts and for the relays a busy session holds in Redis. The backends are what grows. So:
+
+- **Size the server for the backends, not the RelayMiner.** Add up what your backends need under load, add 1 GB for the system, then add the two stack shares. If that does not fit in 4 GB, take 8 GB.
+- **Give every backend a memory limit** (`mem_limit` in its compose file), so one runaway backend cannot take the memory the stacks were promised.
+
+### Swap
+
+Add a swap file. Without swap, a server that runs out of memory has the kernel kill a process outright, and the one it picks can be the relayer, the miner, Redis, or a backend: a dropped relay at best, relays that can never be claimed at worst. With swap, the same moment becomes a slowdown.
+
+A swap file about the size of memory is plenty. Keep swappiness at its default. Swap is a safety margin, not extra capacity: a server that swaps steadily needs more memory.
+
+### CPU
+
+Two vCPUs are enough to start and four are comfortable. The relayer and miner use a fraction of a core at light traffic. CPU matters for backends that compute (rendering, analysis, inference) and for bursts: gateways hedge and retry, so a service sees several near-simultaneous requests rather than an even trickle.
+
+### Disk
+
+25 GB of SSD is the minimum and 50 GB is comfortable. A supplier with both networks and four services used about 11 GB, of which about 2.2 GB was Docker images and 0.75 GB build cache. What grows over time is images and build cache from redeploys, and container logs, which Docker keeps without limit unless you set one (see [Prepare the Server](#prepare-the-server)).
+
+Redis data is small at light traffic, but it must be on persistent disk. It holds every relay until it is claimed and proved, and losing it forfeits those relays.
+
+## Choosing a Server
+
+- **A plain Linux virtual server is enough.** Any provider that gives you a public IPv4 address, root access, and Ubuntu LTS works.
+- **Give the supplier its own server where you can.** A small server shared with another application leaves the stacks less memory than the sizing above assumes. If you share, count the other application as part of the amount kept back, and size up.
+- **Behind a home or office router**, ports 80 and 443 must be forwarded to the server. A supplier staked at a non-standard port (`https://host:8445`) can work, but it is harder to run and not every tool supports it.
+- **Your own full node is optional.** The HA RelayMiner works against the public RPC and gRPC endpoints listed on [Networks](/get-started/networks). A production supplier may still prefer a node it controls, for latency and independence.
+
+## Prepare the Server
+
+Do this once, before installing the RelayMiner. The commands are for Ubuntu 24.04, run as a user with `sudo`.
+
+### A User for the Supplier
+
+A normal user, in the `docker` group so Docker runs without `sudo`, with passwordless `sudo` for fixing ownership of the keys file, and owning `/opt/pocket`:
+
+```bash
+sudo adduser --disabled-password --gecos "" deploy
+sudo usermod -aG docker deploy
+echo 'deploy ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/deploy
+sudo install -d -o deploy -g deploy /opt/pocket
+```
+
+### SSH With a Key Only
+
+Create an ed25519 key on the machine you manage the server from (`ssh-keygen -t ed25519`), and add its public half to `/home/deploy/.ssh/authorized_keys` on the server. Once you can log in with the key, turn password login off:
+
+```bash
+echo 'PasswordAuthentication no' | sudo tee /etc/ssh/sshd_config.d/10-keys-only.conf
+sudo systemctl reload ssh
+```
+
+Keep a second session open while you do this, so a mistake cannot lock you out.
+
+### Docker, Compose, and Tools
+
+Docker Engine with the Compose v2 plugin (`docker compose`, not the old `docker-compose`), plus `python3` and `curl`. Ubuntu's own packages work; so do Docker's official ones.
+
+```bash
+sudo apt-get update
+sudo apt-get install -y docker.io docker-compose-v2 python3 curl
+```
+
+### Swap
+
+```bash
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+Use a size about equal to the server's memory.
+
+### Docker Log Limits
+
+Docker keeps container logs without limit by default. Cap them so logs cannot fill the disk:
+
+```bash
+echo '{ "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }' | sudo tee /etc/docker/daemon.json
+sudo systemctl restart docker
+```
+
+The limit applies to containers created after the change, so set it before you start the stack. Restarting Docker restarts any running containers.
+
+### Firewall
+
+Open SSH, HTTP, and HTTPS (TCP, plus UDP 443 for HTTP/3), and nothing else. Allow SSH before you turn the firewall on:
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 443/udp
+sudo ufw enable
+```
+
+<Callout type="warning">
+  **Ports that Docker publishes bypass `ufw`.** Only the reverse proxy should publish anything, and every health, metrics, and Redis port should be bound to `127.0.0.1` or left unpublished. If your provider has a cloud firewall, it must allow 80 and 443 too.
+</Callout>
+
+### DNS
+
+Create one hostname per network, for example `services-beta.example.org` for Beta TestNet and `services.example.org` for MainNet, each with an A record pointing at the server. Do this before the reverse proxy starts: Caddy requests the certificate at once and cannot get one for a name that does not yet resolve to the server.
+
+## The RelayMiner Stack
+
+[Run the HA RelayMiner](/services/deploy#run-the-ha-relayminer) on Deploy a Service has the configuration for a REST service. On a small server, add the following.
+
+### Pin the Versions
+
+| Component | Version (verified September 2026) | Rule |
+| --- | --- | --- |
+| `ghcr.io/pokt-network/pocket-relay-miner` | `v0.1.0` | Relayer and miner run the **same exact tag**. Never a moving tag such as `:rc` or `:latest`, never mixed versions. |
+| `redis` | `8.10.1-alpine` | RelayMiner v0.1.0 refuses Redis below 8.10. |
+| `caddy` | `2` | |
+
+Check the [releases page](https://github.com/pokt-network/pocket-relay-miner/releases) for newer versions and read their notes before moving.
+
+<Callout type="warning">
+  **A moving tag broke every stack that followed it.** When the RelayMiner published its first versioned release, the moving tag that earlier deployments used was rebuilt from newer code that refuses older Redis settings, and every stack on it failed the next time it downloaded the image. Pin exact tags, and move to a new version only on purpose.
+</Callout>
+
+### Redis
+
+- `--maxmemory-policy noeviction`, with `maxmemory` below the container limit, so Redis refuses writes before the kernel kills it.
+- `--appendonly yes` on a named, persistent volume.
+
+### Relayer
+
+- **Validate relays before they reach the backend** with `validation_mode: eager` on each service, or `default_validation_mode: eager` for all of them. Without it, the relayer forwards first and holds request and response bodies in memory until each relay is validated, up to 128 MiB per service and never less than 64 MiB. On a 4 GB server with several services, that queue outgrew the relayer's memory limit and a burst of traffic restarted it.
+- **It refuses an empty `services` list** (`at least one service must be configured`). On a new server, start Redis, the miner, and the reverse proxy first, and start the relayer when you add the first service.
+- **Match the limits end to end.** A 20 MB body limit on the relayer (`max_body_size_bytes`) should match the reverse proxy's (`request_body max_size 20MB` in Caddy). The relayer's 30-second `fast` profile is generous; gateways commonly stop waiting well before that.
+- **Its `keys` section must be present and readable.** A missing section or a keys file the container's user cannot read (`no key providers configured`, `response signer not configured`) means every relay is rejected as unsigned.
+
+### Miner
+
+Pays for claims and proofs from the operator's balance, so keep a working balance on the operator at all times and turn on the miner's balance monitor.
+
+### Change It in This Order
+
+1. Download the new images while the running stack keeps serving (`docker compose pull`).
+2. Validate both configurations with the new image, as in [Validate, Then Start](/services/deploy#validate-then-start).
+3. Restart only if both pass: the miner first, then the relayer.
+
+A relayer configuration the RelayMiner rejects stops relays for every service at once. If a new service entry fails validation, put the previous configuration back before restarting.
+
+## Service Backends
+
+What a backend must do to be served at all (the full rules are in [Build the Backend](/services/deploy#build-the-backend)):
+
+- **Return a JSON object for every response**, errors included. HTML or other output rides inside a string field. Gateways grade a relay by its first byte, and a body that does not start with `{` or `[` counts as a failed relay.
+- **Answer `GET /` and `HEAD /` with 2xx.** The RelayMiner checks the backend there.
+- **Accept chunked request bodies.** Relay bodies arrive with `Transfer-Encoding: chunked` and no `Content-Length`.
+- **Answer within about 10 seconds.** Longer work returns a job handle at once and lets the client poll.
+- **Return 4xx with a JSON body for bad input,** never 5xx. A 5xx is never paid.
+
+How a backend should run:
+
+- **One container per service** on the shared Docker network, listening on 8080. Use `expose`, never `ports`: nothing about a backend is published to the internet.
+- **A memory limit** sized for bursts, and `restart: unless-stopped`.
+- **One backend for both networks.** A service that keeps separate data per network can listen on one port per network and point each network's relayer at its own port, so test traffic never reaches MainNet data.
+- **Extra public paths**, if a service needs them, go through the reverse proxy on the supplier's hostname, and never to a port a relayer calls. A public route to that port would serve relays without the relayer.
+
+## Operate the Server
+
+- **Update the stack deliberately**, in the order above.
+- **Never roll the RelayMiner back past v0.1.0 while claims are waiting for proof.** The RelayMiner's own upgrade rules forbid it.
+- **Never delete the Redis volume**, and never run `docker compose down -v` in a stack directory.
+- **Clean up now and then.** Redeploys leave old backend images and build cache behind. Remove what is unused, never the stacks' volumes.
+- **Read health and metrics over SSH**, for example through an SSH tunnel, never by opening their ports. See [Monitoring](/node-operators/monitoring).
+- **Watch the operator balance and the first claim.** Claims and proofs are transactions; an operator that cannot pay the fee forfeits the session's earnings. After a new service is supplied, wait a session and confirm a claim settles.
+- **Stake above the minimum, not at it.** A missed proof is deducted from the stake, and a supplier that falls below the minimum is unstaked. Query the current minimum and penalty and keep a margin.
+
+## Keys on the Server
+
+- **Create each stack's operator key on the server and keep it there,** with one backup off the server that only you can reach. A lost operator key cannot be replaced on an existing supplier stake.
+- **The keys file is readable only by the user the image runs as**, never committed, copied, or printed.
+- **Publish the operator's public key before staking.** A new account has no public key on chain until it sends a transaction, and gateways cannot verify the supplier's signed responses until it does. Any small transaction from the operator does it, for example 1 uPOKT to itself.
+- **Keep the owner key off the server.** It signs stakes from your own machine; the operator key only signs relays, claims, and proofs.
+
+## Failures Live Suppliers Have Hit
+
+| What happened | Cause | Fix |
+| --- | --- | --- |
+| Relays served, every claim failed with `x-cosmos-block-height header length; got 0` | The legacy `pocketd relayminer` against public gRPC endpoints that strip the header | Use the HA RelayMiner |
+| One network's supplier was invisible on the other | One stack shared by both networks | One stack per network, each with its own hostname |
+| Relayer refused to start on a new server | It refuses an empty `services` list | Start it with the first service |
+| Backends received empty POST bodies | Relay bodies are chunked with no `Content-Length` | Decode chunked bodies |
+| Backend marked unhealthy though it served requests | The RelayMiner's check needs `GET /` and `HEAD /` to answer 2xx | Answer both |
+| New stacks failed to start overnight | A moving image tag was rebuilt with stricter Redis requirements | Pin RelayMiner v0.1.0 and Redis 8.10 with `noeviction`; validate before restarting |
+| Relayer restarted under a traffic burst on a 4 GB server | Bodies held in memory until validated, per service, beyond the relayer's limit | `eager` validation |
+| A process was killed instead of slowing down | No swap | Add a swap file |
+
+## Who Does What
+
+If you use [PSM4Win](https://github.com/pokt-network/PSM4Win), most of this page is done for you. Four steps need a person, because they involve your own accounts, your payment, or a key only you should hold. For each one, Claude can help guide you through it.
+
+| Step | Why it needs you | Claude can help guide |
+| --- | --- | --- |
+| **Rent the server** | The account and the payment are in your name. | Claude can help you pick a size and walk you through the provider's sign-up. |
+| **Set up SSH access** | The key is made on your PC, and the first login uses the password or console the provider gives you. | Claude can walk you through making the key and adding it to the server, one step at a time. After that, Claude can reach the server. |
+| **Point your hostnames at the server** | The records live in your domain provider's account. | Claude can tell you which record to add for each network and check when it is working. |
+| **Keep a backup of each operator key** | A copy of a key off the server should be held by you alone. | Claude can show you where the file is and how to store it safely; the key itself stays with you. |
+
+Once it can connect to the server, Claude Code can do the rest of [Prepare the Server](#prepare-the-server) for you: install Docker, set up the user, add swap, turn on the firewall, and limit Docker's logs. It asks before it changes anything.
+
+Everything after that is a button in the app: add the server and provision it for a network (the RelayMiner, its operator key, the certificate), deploy each service to it, and stake the supplier. When a new version of the app changes the stack, the app marks the server and updates it for you.
+
+## Related Pages
+
+- [Deploy a Service](/services/deploy) — the backend rules, the RelayMiner's configuration, staking, and testing
+- [pocket-relay-miner](https://github.com/pokt-network/pocket-relay-miner) — the HA RelayMiner repository, with deployment runbooks, benchmarks, and troubleshooting
+- [Hardware & Infrastructure Requirements](/node-operators/hardware-requirements) — sizes for full nodes and larger deployments
+- [Supplier Staking](/node-operators/supplier-staking) — the stake and the owner-operator model
+- [Monitoring](/node-operators/monitoring) — metrics and alerting
+- [List Your Service](/agent-services/list-your-service) — getting a supplied service onto the Agentic Portal
