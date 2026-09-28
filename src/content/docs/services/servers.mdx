@@ -282,7 +282,7 @@ How a backend should run:
 
 - **Create each stack's operator key on the server and keep it there,** with one backup off the server that only you can reach. A lost operator key cannot be replaced on an existing supplier stake.
 - **The keys file is readable only by the user the image runs as**, never committed, copied, or printed.
-- **Publish the operator's public key before staking.** A new account has no public key on chain until it sends a transaction, and gateways cannot verify the supplier's signed responses until it does. Any small transaction from the operator does it, for example 1 uPOKT to itself.
+- **Publish the operator's public key before staking.** A new account has no public key on chain until it sends a transaction, and gateways cannot verify the supplier's signed responses until it does. Any small transaction from the operator does it, for example 1 uPOKT to itself. It has landed when the account's record (`pocketd query auth account <operator-address>`) shows a `public_key`; until then the field is missing.
 - **Keep the owner key off the server.** It signs stakes from your own machine; the operator key only signs relays, claims, and proofs.
 
 ## Failures Live Suppliers Have Hit

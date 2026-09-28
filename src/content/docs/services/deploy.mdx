@@ -308,6 +308,12 @@ A stake lists every service the supplier serves. To add a service later, stake a
 
 Before staking, send any transaction from the operator account, for example a tiny self-transfer, so its public key is recorded on-chain. Gateways reject responses from an operator whose key they cannot look up.
 
+Confirm it landed before you stake. Once the transaction is in a block, the account's record carries a `public_key`; until then the field is missing:
+
+```bash
+pocketd query auth account <operator-address> --network=$NETWORK -o json
+```
+
 ```bash
 pocketd tx supplier stake-supplier \
   --config ./supplier_stake_config.yaml \
