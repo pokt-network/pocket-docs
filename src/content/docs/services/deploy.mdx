@@ -5,7 +5,7 @@ section: "services"
 persona: ["node-operator"]
 tabs: false
 status: "stable"
-lastUpdated: "2026-09-27"
+lastUpdated: "2026-10-06"
 ---
 
 This guide takes you from a registered service ID to a supplier serving real relays. Budget a day: a few hours to build and test the backend against the rules below, an hour for staking and the RelayMiner, and a session or two of waiting for the network to pick your supplier up.
@@ -281,6 +281,18 @@ curl -s http://localhost:8081/ready/$SERVICE_ID                        # each ba
 ### Put a Reverse Proxy in Front
 
 The relayer listens on plain HTTP. Terminate TLS on a reverse proxy such as Caddy, nginx, or your cloud load balancer, and forward to the relayer's `listen_addr`. The proxy's public `https://` hostname is what you will stake as the supplier's endpoint. Do not add authentication at the proxy; every request is already signed.
+
+### Files a Service Ships in `deploy/`
+
+A service can describe three more things about how it runs, each in a small JSON file next to its `deploy/docker-compose.yaml`. [PSM4Win](https://github.com/pokt-network/PSM4Win) reads them at deploy time and does the work for you; without it, they tell you what to configure by hand.
+
+- **`deploy/routes.json`** lists extra public paths on your supplier's hostname, for traffic that is not relays, such as copies of a service reaching each other: `{ "routes": [ { "path": "/myservice-peer", "port": 8090 } ] }`. Each path is one lowercase segment and goes to that port on the service's own backend container, with the prefix stripped. A route must never point at a port a relayer calls, or it would serve the paid API without the relayer.
+- **`deploy/relayer.json`** says which backend port each network's relayer calls, for a service that keeps Beta TestNet and MainNet data apart in one container: `{ "backend_port": { "main": 8080, "beta": 8081 } }`. A network it does not list uses 8080.
+- **`deploy/settings.json`** declares the settings an operator supplies, such as a webhook for alerts, how often to send them, or an API key. Each setting names the environment variable it becomes, a label and help text, a type (`text`, `number`, `choice`, `boolean`, or `url`), whether it is secret or required, its checks and default, and whether it takes one value per network (`MYSVC_{NETWORK}_WEBHOOK` becomes `MYSVC_MAIN_WEBHOOK` and `MYSVC_BETA_WEBHOOK`). It can also name a check command, such as sending a test alert, that runs inside the container. The full rules and an example are in the skill's `references/deploy.md` and `templates/settings.example.json`.
+
+The values live on the server in `settings.env`, in the service's directory beside `backend/` and `deploy/`, so a redeploy never replaces them: one `NAME='value'` line per variable, readable only by the user that deploys (mode 600). The service's compose file reads it with `env_file: ../settings.env`; do not list the same variables under `environment:`, which would override them. New values take effect when the container is created again, `docker compose -p <service-id> up -d --no-build --force-recreate`; `docker restart` keeps the old ones. One backend serves both networks, so this briefly pauses relays on both.
+
+With PSM4Win you never edit `settings.env`. **Services, Service settings** shows a form built from `settings.json`, checks every value, saves it on the server, shows secrets afterwards only as set or not set, and offers Restart now and a Test button. Deploy waits until every required setting has a value. Your service should still check its settings when it starts, and keep working when an optional one is missing.
 
 ## Stake a Supplier
 
