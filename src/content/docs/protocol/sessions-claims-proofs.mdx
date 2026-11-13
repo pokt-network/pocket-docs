@@ -54,7 +54,7 @@ Several governance-controlled parameters shape how sessions behave:
 
 | Parameter | What It Controls | Default |
 |-----------|-----------------|---------|
-| **Blocks per session** | How long each session lasts (in blocks) | 60 blocks |
+| **Blocks per session** | How long each session lasts (in blocks) | <GovParam module="shared" param="num_blocks_per_session" /> blocks |
 | **Grace period** | A short buffer after a session ends, allowing a smooth handoff to the next session's suppliers | 10 blocks |
 | **Claim window** | The period during which suppliers must submit their work reports | Opens 11 blocks after session, stays open for 10 blocks |
 | **Proof window** | The period during which suppliers must submit their cryptographic proof | Opens 1 block after claims close, stays open for 10 blocks |
@@ -275,7 +275,7 @@ Sessions are governed by parameters in the `shared` module. These parameters con
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `num_blocks_per_session` | Number of blocks in each session | 60 |
+| `num_blocks_per_session` | Number of blocks in each session | <GovParam module="shared" param="num_blocks_per_session" /> |
 | `grace_period_end_offset_blocks` | Blocks after session end for the grace period | 10 |
 | `claim_window_open_offset_blocks` | Blocks after session end before claims are accepted | 11 |
 | `claim_window_close_offset_blocks` | Blocks after claim window opens before it closes | 10 |
